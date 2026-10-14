@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "id": "steamcraft",
+  "version": "${version}",
+  "name": "Steamcraft Companion",
+  "description": "Suit tes succès de modpacks sur Steamcraft. Mod client optionnel : aucun modpack n'a besoin de le déclarer.",
+  "authors": ["Steamcraft"],
+  "license": "MIT",
+  "environment": "client",
+  "entrypoints": {
+    "client": ["net.steamcraft.companion.fabric.SteamcraftFabric"]
+  },
+  "mixins": ["steamcraft.mixins.json"],
+  "depends": {
+    "fabricloader": ">=${loader_version}",
+    "minecraft": "~${minecraft_version}",
+    "java": ">=21"
+  }
+}

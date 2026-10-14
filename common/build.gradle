@@ -1,0 +1,19 @@
+dependencies {
+    // Gson est fourni par Minecraft à l'exécution.
+    compileOnly "com.google.code.gson:gson:${gson_version}"
+    testImplementation "com.google.code.gson:gson:${gson_version}"
+    testImplementation platform("org.junit:junit-bom:5.11.3")
+    testImplementation "org.junit.jupiter:junit-jupiter"
+    testRuntimeOnly "org.junit.platform:junit-platform-launcher"
+}
+
+// Les règles anti-triche sont la source unique partagée avec le site (spec/integrity-rules.json).
+sourceSets.main.resources.srcDir("${rootDir}/../spec")
+processResources {
+    include("integrity-rules.json")
+    eachFile { path = "steamcraft/${name}" }
+}
+
+test {
+    useJUnitPlatform()
+}

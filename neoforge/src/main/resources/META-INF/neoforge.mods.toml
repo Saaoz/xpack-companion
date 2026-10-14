@@ -1,0 +1,27 @@
+modLoader = "javafml"
+loaderVersion = "[4,)"
+license = "MIT"
+
+[[mods]]
+modId = "steamcraft"
+version = "${version}"
+displayName = "Steamcraft Companion"
+description = "Suit tes succès de modpacks sur Steamcraft. Mod client optionnel : aucun modpack n'a besoin de le déclarer."
+authors = "Steamcraft"
+
+[[mixins]]
+config = "steamcraft.mixins.json"
+
+[[dependencies.steamcraft]]
+modId = "neoforge"
+type = "required"
+versionRange = "[21.1,)"
+ordering = "NONE"
+side = "CLIENT"
+
+[[dependencies.steamcraft]]
+modId = "minecraft"
+type = "required"
+versionRange = "[${minecraft_version},1.22)"
+ordering = "NONE"
+side = "CLIENT"

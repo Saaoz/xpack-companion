@@ -1,0 +1,42 @@
+// Point d'entrée Fabric. Aucune dépendance à Fabric API : uniquement des mixins vanilla.
+apply plugin: "fabric-loom"
+
+base {
+    archivesName = "steamcraft-companion-fabric-${minecraft_version}"
+}
+
+loom {
+    mixin {
+        defaultRefmapName = "steamcraft.refmap.json"
+    }
+    runs {
+        // Test de bout en bout dans le vrai client : voir mod/README.md et mod/smoke-test.sh.
+        smoke {
+            client()
+            name = "Smoke test"
+            runDir = "run-smoke"
+            property("steamcraft.smoke", "true")
+            programArgs("--username", "SmokeTester", "--quickPlaySingleplayer", "SmokeWorld")
+        }
+    }
+}
+
+dependencies {
+    minecraft "com.mojang:minecraft:${minecraft_version}"
+    mappings loom.officialMojangMappings()
+    modImplementation "net.fabricmc:fabric-loader:${fabric_loader_version}"
+}
+
+// Code partagé : logique pure (common) + code Minecraft vanilla (shared).
+sourceSets.main {
+    java.srcDirs += ["${rootDir}/common/src/main/java", "${rootDir}/shared/src/main/java"]
+    resources.srcDirs += ["${rootDir}/shared/src/main/resources"]
+}
+
+processResources {
+    from("${rootDir}/../spec/integrity-rules.json") { into("steamcraft") }
+    inputs.property("version", project.version)
+    filesMatching("fabric.mod.json") {
+        expand("version": project.version, "minecraft_version": minecraft_version, "loader_version": fabric_loader_version)
+    }
+}

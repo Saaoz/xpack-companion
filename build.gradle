@@ -1,0 +1,25 @@
+// Mod compagnon Steamcraft (#17) — client uniquement, jamais une dépendance des modpacks.
+// common  : logique pure (Java 21, sans Minecraft), testée avec JUnit.
+// shared  : code Minecraft vanilla (mixins, écrans, toasts) compilé dans chaque loader.
+// fabric / neoforge : points d'entrée propres à chaque loader.
+plugins {
+    id "fabric-loom" version "1.11.8" apply false
+    id "net.neoforged.moddev" version "2.0.148" apply false
+}
+
+subprojects {
+    apply plugin: "java"
+    group = mod_group
+    version = mod_version
+    java {
+        toolchain.languageVersion = JavaLanguageVersion.of(21)
+    }
+    tasks.withType(JavaCompile).configureEach {
+        options.encoding = "UTF-8"
+        options.release = 21
+    }
+    repositories {
+        maven { url = "https://maven-central.storage-download.googleapis.com/maven2/" }
+        mavenCentral()
+    }
+}

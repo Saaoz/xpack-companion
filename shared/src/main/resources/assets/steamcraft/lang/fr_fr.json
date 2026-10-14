@@ -1,0 +1,15 @@
+{
+  "steamcraft.link.code": "Pour suivre tes succès, ouvre %s et saisis le code %s",
+  "steamcraft.link.done": "Compte lié ! Tes succès sont maintenant suivis.",
+  "steamcraft.link.revoked": "Liaison révoquée. Un nouveau code te sera proposé.",
+  "steamcraft.uuid_mismatch": "Ce compte Minecraft n'est pas celui lié à Steamcraft : rien n'est envoyé.",
+  "steamcraft.flagged.creative": "Mode créatif détecté : ce monde n'est plus comptabilisé sur Steamcraft.",
+  "steamcraft.flagged.spectator": "Mode spectateur détecté : ce monde n'est plus comptabilisé sur Steamcraft.",
+  "steamcraft.flagged.godmode": "Invulnérabilité détectée : ce monde n'est plus comptabilisé sur Steamcraft.",
+  "steamcraft.flagged.flight": "Vol en survie détecté : ce monde n'est plus comptabilisé sur Steamcraft.",
+  "steamcraft.warning.title": "⚠ Cette commande est considérée comme de la triche",
+  "steamcraft.warning.body": "Si tu continues, ce monde ne sera plus comptabilisé sur Steamcraft (succès, classements, speedruns). Les succès déjà obtenus restent acquis.",
+  "steamcraft.warning.cancel": "Annuler",
+  "steamcraft.warning.continue": "Continuer quand même",
+  "steamcraft.toast.title": "Succès Steamcraft · +%s"
+}
