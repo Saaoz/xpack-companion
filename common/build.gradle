@@ -11,7 +11,7 @@ dependencies {
 sourceSets.main.resources.srcDir("${rootDir}/../spec")
 processResources {
     include("integrity-rules.json")
-    eachFile { path = "steamcraft/${name}" }
+    eachFile { path = "xpack/${name}" }
 }
 
 test {

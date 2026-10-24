@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """Test de bout en bout du mod compagnon dans le vrai client Minecraft (Fabric 1.21.1).
 
-1. démarre l'API Steamcraft (server/) sur une base PGlite jetable ;
+1. démarre l'API XPack (server/) sur une base PGlite jetable ;
 2. crée un compte web et lie le joueur de test « SmokeTester » par le flux de code (#34) ;
 3. génère un monde avec le serveur Minecraft officiel et y autorise les commandes ;
-4. lance le client sans écran (xvfb) avec -Dsteamcraft.smoke=true : le mod tape /give,
+4. lance le client sans écran (xvfb) avec -Dxpack.smoke=true : le mod tape /give,
    vérifie que l'alerte s'affiche, confirme, s'accorde deux progrès puis quitte ;
 5. vérifie côté API : session ouverte, événements reçus, monde signalé, succès débloqué.
 
@@ -60,7 +60,7 @@ def step(msg):
 
 
 def start_api(work: Path) -> subprocess.Popen:
-    step("API Steamcraft")
+    step("API XPack")
     subprocess.run(["npm", "run", "build"], cwd=SERVER, check=True, stdout=subprocess.DEVNULL)
     env = dict(os.environ, PORT=str(PORT), DATABASE_URL=f"pglite:{work / 'db'}")
     proc = subprocess.Popen(["node", "dist/index.js"], cwd=SERVER, env=env, stdout=open(work / "api.log", "w"), stderr=subprocess.STDOUT)
@@ -98,7 +98,7 @@ def prepare_world(work: Path):
         srv = work / "mcserver"
         srv.mkdir(parents=True, exist_ok=True)
         (srv / "eula.txt").write_text("eula=true\n")
-        (srv / "server.properties").write_text("level-name=SmokeWorld\nonline-mode=false\nlevel-seed=steamcraft\n")
+        (srv / "server.properties").write_text("level-name=SmokeWorld\nonline-mode=false\nlevel-seed=xpack\n")
         proc = subprocess.Popen(["java", "-Xmx2G", "-jar", str(SERVER_JAR), "--nogui"], cwd=srv, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
         for line in proc.stdout:
             if "Done (" in line:
@@ -122,7 +122,7 @@ def prepare_world(work: Path):
 def write_config(mod_token: str):
     cfg = RUN_DIR / "config"
     cfg.mkdir(parents=True, exist_ok=True)
-    (cfg / "steamcraft.json").write_text(json.dumps({
+    (cfg / "xpack.json").write_text(json.dumps({
         "apiUrl": API,
         "linkUrl": "http://localhost:5173/link",
         "token": mod_token,
@@ -178,7 +178,7 @@ def check(web_token: str, log: str) -> bool:
 
 
 def main():
-    work = Path(tempfile.mkdtemp(prefix="steamcraft-smoke-"))
+    work = Path(tempfile.mkdtemp(prefix="xpack-smoke-"))
     api = start_api(work)
     try:
         web, mod_token = link_player()

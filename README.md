@@ -1,13 +1,13 @@
-# Steamcraft Companion — mod client
+# XPack Companion — mod client
 
-Mod **client uniquement** qui envoie en temps réel tes progrès Minecraft à Steamcraft et prévient avant toute triche. Les modpacks n'ont **jamais** à le déclarer comme dépendance :
+Mod **client uniquement** qui envoie en temps réel tes progrès Minecraft à XPack et prévient avant toute triche. Les modpacks n'ont **jamais** à le déclarer comme dépendance :
 - un serveur sans le mod accepte le joueur ;
 - un modpack sans le mod fonctionne normalement.
 
 | Loader | Minecraft | Jar |
 |---|---|---|
-| Fabric (sans Fabric API) | 1.21.1 | `fabric/build/libs/steamcraft-companion-fabric-1.21.1-<version>.jar` |
-| NeoForge | 1.21.1 | `neoforge/build/libs/steamcraft-companion-neoforge-1.21.1-<version>.jar` |
+| Fabric (sans Fabric API) | 1.21.1 | `fabric/build/libs/xpack-companion-fabric-1.21.1-<version>.jar` |
+| NeoForge | 1.21.1 | `neoforge/build/libs/xpack-companion-neoforge-1.21.1-<version>.jar` |
 
 ## Ce que fait le mod
 
@@ -20,7 +20,7 @@ Mod **client uniquement** qui envoie en temps réel tes progrès Minecraft à St
   - alerte avant toute commande de triche, y compris F3+F4 ;
   - détection du mode créatif ou spectateur, de l'invulnérabilité et du vol en survie ;
   - un monde signalé le reste, et le serveur fait foi.
-- **Toast** « Succès Steamcraft » (#39) et messages en français et en anglais.
+- **Toast** « Succès XPack » (#39) et messages en français et en anglais.
 
 ## Structure
 
@@ -47,17 +47,17 @@ python3 smoke_test.py           # test de bout en bout dans le vrai client (voir
 1. démarre l'API (`../server`) ;
 2. lie un joueur de test ;
 3. génère un monde avec le serveur officiel ;
-4. lance le client Fabric sans écran (`xvfb-run`, rendu logiciel Mesa) avec `-Dsteamcraft.smoke=true`.
+4. lance le client Fabric sans écran (`xvfb-run`, rendu logiciel Mesa) avec `-Dxpack.smoke=true`.
 
 Le mod tape alors `/give`, vérifie l'écran d'alerte, confirme, s'accorde deux progrès puis quitte. Le script vérifie ensuite, côté API, la session, les événements, le statut « signalé » et le succès débloqué.
 
 Prérequis : Java 21, Node 20+, `xvfb-run`, Mesa, et `pip install nbtlib`.
 
-## Configuration (`config/steamcraft.json`)
+## Configuration (`config/xpack.json`)
 
 | Clé | Rôle |
 |---|---|
-| `apiUrl` | Adresse de l'API Steamcraft |
+| `apiUrl` | Adresse de l'API XPack |
 | `linkUrl` | Page du site où saisir le code de liaison |
 | `token`, `tokenUuid` | Remplis automatiquement par la liaison |
 | `enabled`, `consented` | Coupe tout envoi sans délier le compte |

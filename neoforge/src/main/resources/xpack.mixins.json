@@ -1,0 +1,8 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "net.xpack.companion.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "client": ["MinecraftMixin", "ClientAdvancementsMixin", "ClientPacketListenerMixin"],
+  "injectors": { "defaultRequire": 1 }
+}

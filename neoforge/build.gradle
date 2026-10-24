@@ -3,7 +3,7 @@
 apply plugin: "net.neoforged.moddev"
 
 base {
-    archivesName = "steamcraft-companion-neoforge-${minecraft_version}"
+    archivesName = "xpack-companion-neoforge-${minecraft_version}"
 }
 
 neoForge {
@@ -16,7 +16,7 @@ sourceSets.main {
 }
 
 processResources {
-    from("${rootDir}/../spec/integrity-rules.json") { into("steamcraft") }
+    from("${rootDir}/../spec/integrity-rules.json") { into("xpack") }
     inputs.property("version", project.version)
     filesMatching("META-INF/neoforge.mods.toml") {
         expand("version": project.version, "minecraft_version": minecraft_version, "neoforge_version": neoforge_version)

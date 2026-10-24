@@ -1,16 +1,16 @@
 {
   "schemaVersion": 1,
-  "id": "steamcraft",
+  "id": "xpack",
   "version": "${version}",
-  "name": "Steamcraft Companion",
-  "description": "Suit tes succès de modpacks sur Steamcraft. Mod client optionnel : aucun modpack n'a besoin de le déclarer.",
-  "authors": ["Steamcraft"],
+  "name": "XPack Companion",
+  "description": "Suit tes succès de modpacks sur XPack. Mod client optionnel : aucun modpack n'a besoin de le déclarer.",
+  "authors": ["XPack"],
   "license": "MIT",
   "environment": "client",
   "entrypoints": {
-    "client": ["net.steamcraft.companion.fabric.SteamcraftFabric"]
+    "client": ["net.xpack.companion.fabric.XPackFabric"]
   },
-  "mixins": ["steamcraft.mixins.json"],
+  "mixins": ["xpack.mixins.json"],
   "depends": {
     "fabricloader": ">=${loader_version}",
     "minecraft": "~${minecraft_version}",

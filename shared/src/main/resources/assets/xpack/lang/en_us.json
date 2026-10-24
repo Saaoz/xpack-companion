@@ -1,0 +1,15 @@
+{
+  "xpack.link.code": "To track your achievements, open %s and enter the code %s",
+  "xpack.link.done": "Account linked! Your achievements are now tracked.",
+  "xpack.link.revoked": "Link revoked. A new code will be offered.",
+  "xpack.uuid_mismatch": "This Minecraft account is not the one linked to XPack: nothing is sent.",
+  "xpack.flagged.creative": "Creative mode detected: this world no longer counts on XPack.",
+  "xpack.flagged.spectator": "Spectator mode detected: this world no longer counts on XPack.",
+  "xpack.flagged.godmode": "Invulnerability detected: this world no longer counts on XPack.",
+  "xpack.flagged.flight": "Survival flight detected: this world no longer counts on XPack.",
+  "xpack.warning.title": "⚠ This command counts as cheating",
+  "xpack.warning.body": "If you continue, this world will no longer count on XPack (achievements, rankings, speedruns). Achievements already earned are kept.",
+  "xpack.warning.cancel": "Cancel",
+  "xpack.warning.continue": "Continue anyway",
+  "xpack.toast.title": "XPack achievement · +%s"
+}

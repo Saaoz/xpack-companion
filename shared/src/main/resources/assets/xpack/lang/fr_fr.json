@@ -1,0 +1,15 @@
+{
+  "xpack.link.code": "Pour suivre tes succès, ouvre %s et saisis le code %s",
+  "xpack.link.done": "Compte lié ! Tes succès sont maintenant suivis.",
+  "xpack.link.revoked": "Liaison révoquée. Un nouveau code te sera proposé.",
+  "xpack.uuid_mismatch": "Ce compte Minecraft n'est pas celui lié à XPack : rien n'est envoyé.",
+  "xpack.flagged.creative": "Mode créatif détecté : ce monde n'est plus comptabilisé sur XPack.",
+  "xpack.flagged.spectator": "Mode spectateur détecté : ce monde n'est plus comptabilisé sur XPack.",
+  "xpack.flagged.godmode": "Invulnérabilité détectée : ce monde n'est plus comptabilisé sur XPack.",
+  "xpack.flagged.flight": "Vol en survie détecté : ce monde n'est plus comptabilisé sur XPack.",
+  "xpack.warning.title": "⚠ Cette commande est considérée comme de la triche",
+  "xpack.warning.body": "Si tu continues, ce monde ne sera plus comptabilisé sur XPack (succès, classements, speedruns). Les succès déjà obtenus restent acquis.",
+  "xpack.warning.cancel": "Annuler",
+  "xpack.warning.continue": "Continuer quand même",
+  "xpack.toast.title": "Succès XPack · +%s"
+}

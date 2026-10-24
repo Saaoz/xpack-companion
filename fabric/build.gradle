@@ -2,12 +2,12 @@
 apply plugin: "fabric-loom"
 
 base {
-    archivesName = "steamcraft-companion-fabric-${minecraft_version}"
+    archivesName = "xpack-companion-fabric-${minecraft_version}"
 }
 
 loom {
     mixin {
-        defaultRefmapName = "steamcraft.refmap.json"
+        defaultRefmapName = "xpack.refmap.json"
     }
     runs {
         // Test de bout en bout dans le vrai client : voir mod/README.md et mod/smoke-test.sh.
@@ -15,7 +15,7 @@ loom {
             client()
             name = "Smoke test"
             runDir = "run-smoke"
-            property("steamcraft.smoke", "true")
+            property("xpack.smoke", "true")
             programArgs("--username", "SmokeTester", "--quickPlaySingleplayer", "SmokeWorld")
         }
     }
@@ -34,7 +34,7 @@ sourceSets.main {
 }
 
 processResources {
-    from("${rootDir}/../spec/integrity-rules.json") { into("steamcraft") }
+    from("${rootDir}/../spec/integrity-rules.json") { into("xpack") }
     inputs.property("version", project.version)
     filesMatching("fabric.mod.json") {
         expand("version": project.version, "minecraft_version": minecraft_version, "loader_version": fabric_loader_version)

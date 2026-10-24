@@ -3,23 +3,23 @@ loaderVersion = "[4,)"
 license = "MIT"
 
 [[mods]]
-modId = "steamcraft"
+modId = "xpack"
 version = "${version}"
-displayName = "Steamcraft Companion"
-description = "Suit tes succès de modpacks sur Steamcraft. Mod client optionnel : aucun modpack n'a besoin de le déclarer."
-authors = "Steamcraft"
+displayName = "XPack Companion"
+description = "Suit tes succès de modpacks sur XPack. Mod client optionnel : aucun modpack n'a besoin de le déclarer."
+authors = "XPack"
 
 [[mixins]]
-config = "steamcraft.mixins.json"
+config = "xpack.mixins.json"
 
-[[dependencies.steamcraft]]
+[[dependencies.xpack]]
 modId = "neoforge"
 type = "required"
 versionRange = "[21.1,)"
 ordering = "NONE"
 side = "CLIENT"
 
-[[dependencies.steamcraft]]
+[[dependencies.xpack]]
 modId = "minecraft"
 type = "required"
 versionRange = "[${minecraft_version},1.22)"

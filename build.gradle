@@ -1,4 +1,4 @@
-// Mod compagnon Steamcraft (#17) — client uniquement, jamais une dépendance des modpacks.
+// Mod compagnon XPack (#17) — client uniquement, jamais une dépendance des modpacks.
 // common  : logique pure (Java 21, sans Minecraft), testée avec JUnit.
 // shared  : code Minecraft vanilla (mixins, écrans, toasts) compilé dans chaque loader.
 // fabric / neoforge : points d'entrée propres à chaque loader.
