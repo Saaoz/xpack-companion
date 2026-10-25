@@ -18,17 +18,17 @@ public final class CheatWarningScreen extends Screen {
     private MultiLineLabel body = MultiLineLabel.EMPTY;
 
     public CheatWarningScreen(String command, Runnable onContinue) {
-        super(Component.translatable("xpack.warning.title").withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD));
+        super(Texts.tr("xpack.warning.title").withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD));
         this.command = command.startsWith("/") ? command : "/" + command;
         this.onContinue = onContinue;
     }
 
     @Override
     protected void init() {
-        body = MultiLineLabel.create(font, Component.translatable("xpack.warning.body"), Math.min(width - 50, 360));
+        body = MultiLineLabel.create(font, Texts.tr("xpack.warning.body"), Math.min(width - 50, 360));
         int y = height / 2 + 30;
-        addRenderableWidget(Button.builder(Component.translatable("xpack.warning.cancel"), b -> onClose()).bounds(width / 2 - 155, y, 150, 20).build());
-        addRenderableWidget(Button.builder(Component.translatable("xpack.warning.continue").withStyle(ChatFormatting.RED), b -> {
+        addRenderableWidget(Button.builder(Texts.tr("xpack.warning.cancel"), b -> onClose()).bounds(width / 2 - 155, y, 150, 20).build());
+        addRenderableWidget(Button.builder(Texts.tr("xpack.warning.continue").withStyle(ChatFormatting.RED), b -> {
             onClose();
             onContinue.run();
         }).bounds(width / 2 + 5, y, 150, 20).build());

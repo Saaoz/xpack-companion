@@ -5,7 +5,9 @@ import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.ModList;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.loading.FMLPaths;
+import net.neoforged.neoforge.client.gui.IConfigScreenFactory;
 import net.neoforged.neoforgespi.language.IModInfo;
+import net.xpack.companion.client.SettingsScreen;
 import net.xpack.companion.client.XPackClient;
 
 /**
@@ -21,5 +23,7 @@ public final class XPackNeoForge {
                 "neoforge",
                 ModList.get().getMods().stream().map(IModInfo::getModId).toList(),
                 container.getModInfo().getVersion().toString());
+        // Bouton « Configurer » dans la liste des mods (#40).
+        container.registerExtensionPoint(IConfigScreenFactory.class, (mod, parent) -> new SettingsScreen(parent));
     }
 }

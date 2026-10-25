@@ -2,6 +2,8 @@ package net.xpack.companion.client;
 
 import com.mojang.logging.LogUtils;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.Screenshot;
+import net.minecraft.client.gui.screens.PauseScreen;
 import net.minecraft.client.gui.screens.Screen;
 import org.slf4j.Logger;
 
@@ -15,15 +17,20 @@ final class SmokeTest {
     static final boolean ENABLED = Boolean.getBoolean("xpack.smoke");
     private static final Logger LOG = LogUtils.getLogger();
 
-    private enum Step { WAIT_WORLD, SEND_CHEAT, EXPECT_WARNING, GRANT, WAIT_UPLOAD, QUIT, DONE }
+    private enum Step { WAIT_WORLD, SEND_CHEAT, EXPECT_WARNING, GRANT, WAIT_UPLOAD, PAUSE, QUIT, DONE }
 
     private static Step step = Step.WAIT_WORLD;
     private static int wait;
+    private static boolean consentSeen;
 
     private SmokeTest() {}
 
     static void log(String message) {
         if (ENABLED) LOG.info("[SMOKE] {}", message);
+    }
+
+    private static void shot(Minecraft mc, String name) {
+        Screenshot.grab(mc.gameDirectory, name, mc.getMainRenderTarget(), msg -> log("screenshot " + name));
     }
 
     static void tick(Minecraft mc, boolean inWorld) {
@@ -34,6 +41,19 @@ final class SmokeTest {
         }
         switch (step) {
             case WAIT_WORLD -> {
+                // Premier lancement : écran de consentement (#40), accepté comme le ferait le joueur.
+                if (mc.screen instanceof ConsentScreen consent) {
+                    if (!consentSeen) {
+                        consentSeen = true;
+                        log("consent screen shown");
+                        wait = 40; // laisse l'écran s'afficher avant la capture
+                        return;
+                    }
+                    shot(mc, "xpack-consent.png");
+                    consent.acceptForTest();
+                    wait = 10;
+                    return;
+                }
                 if (inWorld && XPackClient.core().status() != net.xpack.companion.core.XPackCore.Status.OFFLINE) {
                     log("in world, status=" + XPackClient.core().status());
                     step = Step.SEND_CHEAT;
@@ -67,7 +87,15 @@ final class SmokeTest {
             }
             case WAIT_UPLOAD -> {
                 log("status before quit=" + XPackClient.core().status());
+                mc.setScreen(new PauseScreen(true));
+                step = Step.PAUSE;
+                wait = 20;
+            }
+            case PAUSE -> {
+                log("pause screen=" + (mc.screen instanceof PauseScreen) + " badge=" + XPackClient.core().config().badge);
+                shot(mc, "xpack-badge.png");
                 step = Step.QUIT;
+                wait = 5;
             }
             case QUIT -> {
                 log("quitting");

@@ -8,6 +8,9 @@ public interface Ui {
     /** Toast « Succès débloqué » (#39). */
     void toastUnlocked(String name, int points, String rarity);
 
+    /** Écran de consentement au premier lancement (#40). {@code answer} reçoit le choix du joueur. */
+    void askConsent(java.util.function.Consumer<Boolean> answer);
+
     /** Message système dans le chat, à partir d'une clé de traduction du mod. */
     void notify(String translationKey, Object... args);
 }

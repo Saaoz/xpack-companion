@@ -23,11 +23,18 @@ public final class IntegrityRules {
     private final Set<String> cheatCommands;
     private final Set<String> alwaysAllowed;
     private final Set<String> dangerousIfAllowed;
+    private final Set<String> blacklistedMods;
 
     public IntegrityRules(Collection<String> cheatCommands, Collection<String> alwaysAllowed, Collection<String> dangerousIfAllowed) {
+        this(cheatCommands, alwaysAllowed, dangerousIfAllowed, List.of());
+    }
+
+    public IntegrityRules(Collection<String> cheatCommands, Collection<String> alwaysAllowed, Collection<String> dangerousIfAllowed,
+            Collection<String> blacklistedMods) {
         this.cheatCommands = Set.copyOf(cheatCommands);
         this.alwaysAllowed = Set.copyOf(alwaysAllowed);
         this.dangerousIfAllowed = Set.copyOf(dangerousIfAllowed);
+        this.blacklistedMods = Set.copyOf(blacklistedMods);
     }
 
     /** Règles embarquées dans le jar (copie de spec/integrity-rules.json). */
@@ -36,7 +43,7 @@ public final class IntegrityRules {
             if (in == null) throw new IllegalStateException("integrity-rules.json introuvable dans le jar");
             JsonObject json = JsonParser.parseReader(new InputStreamReader(in, StandardCharsets.UTF_8)).getAsJsonObject();
             return new IntegrityRules(strings(json.getAsJsonArray("cheatCommands")), strings(json.getAsJsonArray("alwaysAllowedCommands")),
-                    strings(json.getAsJsonArray("dangerousIfAllowed")));
+                    strings(json.getAsJsonArray("dangerousIfAllowed")), strings(json.getAsJsonArray("blacklistedMods")));
         } catch (IOException e) {
             throw new IllegalStateException(e);
         }
@@ -44,7 +51,20 @@ public final class IntegrityRules {
 
     /** Remplace les listes par celles renvoyées par l'API (mises à jour sans nouvelle version du mod). */
     public IntegrityRules withServerLists(List<String> cheat, List<String> allowed) {
-        return new IntegrityRules(cheat.isEmpty() ? cheatCommands : cheat, allowed.isEmpty() ? alwaysAllowed : allowed, dangerousIfAllowed);
+        return new IntegrityRules(cheat.isEmpty() ? cheatCommands : cheat, allowed.isEmpty() ? alwaysAllowed : allowed, dangerousIfAllowed, blacklistedMods);
+    }
+
+    /**
+     * Liste noire envoyée par le serveur pour ce modpack (#50) : déjà privée des mods que le
+     * modpack fournit volontairement. {@code null} (ancien serveur) garde la liste embarquée.
+     */
+    public IntegrityRules withBlacklist(List<String> modIds) {
+        return modIds == null ? this : new IntegrityRules(cheatCommands, alwaysAllowed, dangerousIfAllowed, modIds);
+    }
+
+    /** Mods chargés qui figurent sur la liste noire, triés. */
+    public List<String> blacklisted(Collection<String> loadedModIds) {
+        return loadedModIds.stream().map(id -> id.toLowerCase(Locale.ROOT)).filter(blacklistedMods::contains).distinct().sorted().toList();
     }
 
     static List<String> strings(JsonArray array) {

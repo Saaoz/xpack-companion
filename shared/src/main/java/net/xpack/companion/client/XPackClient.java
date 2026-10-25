@@ -61,6 +61,7 @@ public final class XPackClient {
         // Minecraft.getInstance() n'existe pas encore sous NeoForge au moment de l'init : résolution différée.
         core = new XPackCore(config, configFile, api, new MinecraftUi(), r -> Minecraft.getInstance().execute(r), Clock.systemUTC(),
                 IntegrityRules.bundled());
+        core.setLoadedMods(modIds);
     }
 
     public static XPackCore core() {

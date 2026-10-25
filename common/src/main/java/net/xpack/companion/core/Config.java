@@ -19,12 +19,17 @@ public final class Config {
     public String token;
     /** UUID Minecraft auquel le jeton est lié. */
     public String tokenUuid;
-    /** Le joueur a accepté l'envoi des données (#40). */
-    public boolean consented = true;
+    /**
+     * Réponse du joueur à l'écran de consentement (#40) : {@code null} tant qu'il n'a pas été
+     * affiché. Rien n'est envoyé sans {@code true}.
+     */
+    public Boolean consented;
     /** Envoi activé (désactivable sans délier le compte). */
     public boolean enabled = true;
     /** Notifications « Succès débloqué » en jeu (#39). */
     public boolean toasts = true;
+    /** Badge d'état (comptabilisé / hors-ligne / non comptabilisé) dans le menu pause (#39). */
+    public boolean badge = true;
 
     public static Config load(Path file) {
         try {

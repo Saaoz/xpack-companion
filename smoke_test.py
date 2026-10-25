@@ -127,7 +127,7 @@ def write_config(mod_token: str):
         "linkUrl": "http://localhost:5173/link",
         "token": mod_token,
         "tokenUuid": offline_uuid(PLAYER).replace("-", ""),
-        "consented": True,
+        # Pas de « consented » : le mod doit afficher l'écran de consentement (#40).
         "enabled": True,
         "toasts": True,
     }, indent=2))
@@ -158,12 +158,15 @@ def check(web_token: str, log: str) -> bool:
         print(("  ✓ " if cond else "  ✗ ") + label)
         ok = ok and cond
 
+    expect("[SMOKE] consent screen shown" in log, "l'écran de consentement s'affiche au premier lancement")
     expect("[SMOKE] joined singleplayer world" in log, "le mod détecte l'entrée dans le monde")
+    expect("[SMOKE] notice xpack.cheats_enabled" in log, "information « triches activées » à l'entrée du monde")
     expect("[SMOKE] command 'give @s minecraft:diamond 64' allowed=false" in log, "la commande /give est retenue avant envoi")
     expect("[SMOKE] warning screen shown" in log, "l'écran d'alerte anti-triche s'affiche")
     expect("[SMOKE] integrity=SIGNALE" in log, "le monde est signalé après confirmation")
     expect("minecraft:story/root" in log and "[SMOKE] advancements done=" in log, "les progrès sont captés en temps réel")
     expect("[SMOKE] stats received=" in log, "les statistiques sont reçues après la demande du mod")
+    expect("[SMOKE] badge rendered status=NOT_COUNTED" in log, "badge « non comptabilisé » dans le menu pause")
     status, export = http("GET", "/v1/me/export", token=web_token)
     expect(status == 200, "export des données du compte")
     worlds = export.get("worlds", [])

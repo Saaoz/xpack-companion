@@ -58,6 +58,14 @@ class XPackCoreTest {
         final List<String> toasts = new ArrayList<>();
         String warnedCommand;
         Runnable onContinue;
+        java.util.function.Consumer<Boolean> consent;
+        int consentAsked;
+
+        @Override
+        public void askConsent(java.util.function.Consumer<Boolean> answer) {
+            consentAsked++;
+            consent = answer;
+        }
 
         @Override
         public void showCheatWarning(String command, Runnable onContinue) {
@@ -116,6 +124,7 @@ class XPackCoreTest {
         ui = new FakeUi();
         clock = new MutableClock();
         config = new Config();
+        config.consented = true;
         core = new XPackCore(config, dir.resolve("xpack.json"), new ApiClient(api), ui, Runnable::run, clock, IntegrityRules.bundled());
     }
 
@@ -293,5 +302,85 @@ class XPackCoreTest {
         List<String> out = new ArrayList<>();
         for (JsonElement e : events) out.add(e.getAsJsonObject().get("key").getAsString());
         return out;
+    }
+
+    // ------------------------------------------------------------------ #40, #46, #50
+
+    XPackCore.WorldContext cheatsWorld() {
+        return new XPackCore.WorldContext(dir.resolve("world2/xpack.json"), "singleplayer", "2026-10-01T10:00:00Z", true, UUID, "Steve",
+                new ModpackDetector.ModpackInfo("modrinth", null, null, "Engrenages", "1.4.0"), new JsonObject());
+    }
+
+    @Test
+    void demandeLeConsentementAvantDEnvoyerQuoiQueCeSoit() {
+        config.consented = null;
+        config.token = "jeton";
+        config.tokenUuid = XPackCore.normalizeUuid(UUID);
+        core.onJoinWorld(world());
+        core.tick();
+        assertEquals(1, ui.consentAsked);
+        assertTrue(api.calls.isEmpty(), "aucune requête sans consentement");
+        assertEquals(XPackCore.Status.DISABLED, core.status());
+
+        api.reply(201, SESSION);
+        ui.consent.accept(true);
+        assertNotNull(api.last("/v1/sessions"), "la session s'ouvre dès l'accord");
+        assertEquals(Boolean.TRUE, Config.load(dir.resolve("xpack.json")).consented);
+    }
+
+    @Test
+    void unRefusEstRetenuEtNeRedemandePas() {
+        config.consented = null;
+        core.onJoinWorld(world());
+        ui.consent.accept(false);
+        core.onJoinWorld(world());
+        core.tick();
+        assertEquals(1, ui.consentAsked);
+        assertEquals(Boolean.FALSE, Config.load(dir.resolve("xpack.json")).consented);
+        assertTrue(api.calls.isEmpty());
+    }
+
+    @Test
+    void informeUneSeuleFoisQueLesTrichesSontActiveesSansSignaler() {
+        config.token = "jeton";
+        config.tokenUuid = XPackCore.normalizeUuid(UUID);
+        api.reply(201, SESSION);
+        core.onJoinWorld(cheatsWorld());
+        assertEquals(1, ui.notices.stream().filter("xpack.cheats_enabled"::equals).count());
+        assertFalse(core.integrity().isFlagged(), "seule l'utilisation d'une triche compte");
+        api.reply(201, SESSION);
+        core.onJoinWorld(cheatsWorld());
+        assertEquals(1, ui.notices.stream().filter("xpack.cheats_enabled"::equals).count(), "mémorisé dans le fichier du monde");
+        core.onJoinWorld(world());
+        assertEquals(1, ui.notices.stream().filter("xpack.cheats_enabled"::equals).count(), "monde sans triches : rien");
+    }
+
+    @Test
+    void signaleUnModDeTricheSaufSiLeModpackLAutorise() {
+        core.setLoadedMods(List.of("minecraft", "sodium", "Meteor-Client"));
+        config.token = "jeton";
+        config.tokenUuid = XPackCore.normalizeUuid(UUID);
+        // Le modpack fournit volontairement meteor-client : le serveur le retire de la liste.
+        api.reply(201, SESSION.replace("\"sessionId\":\"s_1\",", "\"sessionId\":\"s_1\",\"blacklist\":{\"version\":1,\"modIds\":[\"wurst\"]},"));
+        core.onJoinWorld(world());
+        assertFalse(core.integrity().isFlagged());
+
+        // Autre modpack : liste complète.
+        api.reply(201, SESSION.replace("\"sessionId\":\"s_1\",", "\"sessionId\":\"s_2\",\"blacklist\":{\"version\":1,\"modIds\":[\"meteor-client\",\"wurst\"]},"));
+        core.onJoinWorld(cheatsWorld());
+        assertTrue(core.integrity().isFlagged());
+        assertTrue(ui.notices.contains("xpack.flagged.blacklist"));
+        core.tick();
+        JsonObject flagged = sentEvents().get(0).getAsJsonObject();
+        assertEquals("integrity", flagged.get("type").getAsString());
+        assertEquals("blacklisted_mod", flagged.get("reason").getAsString());
+        assertEquals("meteor-client", flagged.get("detail").getAsString());
+    }
+
+    @Test
+    void sansListeDuServeurUtiliseLaListeEmbarquee() {
+        core.setLoadedMods(List.of("baritone"));
+        linkedAndJoined();
+        assertTrue(core.integrity().isFlagged());
     }
 }

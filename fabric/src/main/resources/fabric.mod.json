@@ -8,7 +8,8 @@
   "license": "MIT",
   "environment": "client",
   "entrypoints": {
-    "client": ["net.xpack.companion.fabric.XPackFabric"]
+    "client": ["net.xpack.companion.fabric.XPackFabric"],
+    "modmenu": ["net.xpack.companion.fabric.XPackModMenu"]
   },
   "mixins": ["xpack.mixins.json"],
   "depends": {

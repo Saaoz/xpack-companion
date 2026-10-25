@@ -19,6 +19,13 @@ final class MinecraftUi implements Ui {
     }
 
     @Override
+    public void askConsent(java.util.function.Consumer<Boolean> answer) {
+        Minecraft mc = Minecraft.getInstance();
+        // Différé : l'écran de chargement du monde se ferme au premier tick en jeu.
+        mc.tell(() -> mc.setScreen(new ConsentScreen(answer)));
+    }
+
+    @Override
     public void toastUnlocked(String name, int points, String rarity) {
         Minecraft mc = Minecraft.getInstance();
         mc.getToasts().addToast(new XPackToast(name, points, rarity));
@@ -26,8 +33,9 @@ final class MinecraftUi implements Ui {
 
     @Override
     public void notify(String translationKey, Object... args) {
+        SmokeTest.log("notice " + translationKey);
         Minecraft mc = Minecraft.getInstance();
-        MutableComponent message = Component.translatable(translationKey, args);
+        MutableComponent message = Texts.tr(translationKey, args);
         // Le lien de liaison est cliquable.
         if ("xpack.link.code".equals(translationKey) && args.length > 0) {
             message = message.withStyle(s -> s.withClickEvent(new ClickEvent(ClickEvent.Action.OPEN_URL, String.valueOf(args[0]))).withUnderlined(true));

@@ -60,5 +60,9 @@ Prérequis : Java 21, Node 20+, `xvfb-run`, Mesa, et `pip install nbtlib`.
 | `apiUrl` | Adresse de l'API XPack |
 | `linkUrl` | Page du site où saisir le code de liaison |
 | `token`, `tokenUuid` | Remplis automatiquement par la liaison |
-| `enabled`, `consented` | Coupe tout envoi sans délier le compte |
+| `consented` | Réponse à l'écran de consentement du premier lancement (absent = pas encore demandé ; rien n'est envoyé sans `true`) |
+| `enabled` | Coupe tout envoi sans délier le compte |
 | `toasts` | Notifications de succès en jeu |
+| `badge` | Pastille d'état XPack dans le menu pause (comptabilisé / hors-ligne / non comptabilisé) |
+
+Ces réglages sont aussi modifiables en jeu : bouton **Configurer** de la liste des mods sur NeoForge, ou de Mod Menu sur Fabric (facultatif).

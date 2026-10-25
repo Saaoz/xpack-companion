@@ -90,6 +90,10 @@ public final class XPackCore {
     private long pollIntervalMs = 5_000;
     private boolean linking;
 
+    /** Identifiants des mods chargés, comparés à la liste noire (#50). */
+    private List<String> loadedMods = List.of();
+    private boolean consentShown;
+
     /** Commande confirmée par le joueur après l'alerte : laissée passer une fois. */
     private String bypassCommand;
 
@@ -103,8 +107,43 @@ public final class XPackCore {
         this.rules = rules;
     }
 
+    public void setLoadedMods(Collection<String> modIds) {
+        loadedMods = List.copyOf(modIds);
+    }
+
+    /** Choix du joueur sur l'écran de consentement (aussi utilisable depuis un écran de réglages). */
+    public void setConsent(boolean accepted) {
+        config.consented = accepted;
+        config.save(configFile);
+        if (accepted && world != null) {
+            noticeCheats();
+            openSession();
+        }
+    }
+
+    public Config config() {
+        return config;
+    }
+
+    /** Réglages modifiés depuis l'écran du mod : sauvegardés aussitôt. */
+    public void saveConfig() {
+        config.save(configFile);
+        if (active() && world != null) openSession();
+    }
+
+    /** Délie ce jeu du compte XPack (le jeton est révoqué côté serveur si possible). */
+    public void unlink() {
+        if (config.token != null) api.unlink(config.token);
+        config.token = null;
+        config.tokenUuid = null;
+        config.save(configFile);
+        sessionId = null;
+        deviceCode = null;
+        linking = false;
+    }
+
     private boolean active() {
-        return config.enabled && config.consented && !uuidMismatch;
+        return config.enabled && Boolean.TRUE.equals(config.consented) && !uuidMismatch;
     }
 
     private String now() {
@@ -127,8 +166,37 @@ public final class XPackCore {
             uuidMismatch = true;
             ui.notify("xpack.uuid_mismatch");
         }
+        cheatsNoticeShown = store.cheatsNoticeShown;
         saveWorld();
+        if (config.consented == null) {
+            if (!consentShown) {
+                consentShown = true; // une fois par lancement : le joueur peut l'ignorer
+                ui.askConsent(this::setConsent);
+            }
+            return;
+        }
+        noticeCheats();
         openSession();
+    }
+
+    private boolean cheatsNoticeShown;
+
+    /** #46 : information (pas de signalement) à la première entrée dans un monde avec triches activées. */
+    private void noticeCheats() {
+        if (world == null || !active() || !world.cheatsAllowed() || cheatsNoticeShown || integrity.isFlagged()) return;
+        cheatsNoticeShown = true;
+        ui.notify("xpack.cheats_enabled");
+        saveWorld();
+    }
+
+    /**
+     * #50 : un mod de triche chargé signale le monde. Vérifié à l'ouverture de session, avec la
+     * liste du serveur qui exclut déjà les mods fournis volontairement par le modpack.
+     */
+    private void checkBlacklist() {
+        if (world == null || !active() || integrity.isFlagged()) return;
+        List<String> found = rules.blacklisted(loadedMods);
+        if (!found.isEmpty()) flagWithNotice(WorldIntegrity.Reason.BLACKLISTED_MOD, String.join(",", found), "xpack.flagged.blacklist", String.join(", ", found));
     }
 
     public void onLeaveWorld() {
@@ -144,6 +212,7 @@ public final class XPackCore {
         lastStats.clear();
         integrity.reset();
         uuidMismatch = false;
+        cheatsNoticeShown = false;
         allowedCommands = List.of();
         allowsFlight = false;
         trackedStats = Set.of();
@@ -194,6 +263,9 @@ public final class XPackCore {
             applyRules(b.getAsJsonObject("rules"));
             JsonObject integ = b.getAsJsonObject("integrity");
             if (integ != null) syncIntegrity(integ);
+            // Liste à jour du serveur, propre à ce modpack (sinon : liste embarquée).
+            if (b.has("blacklist") && b.get("blacklist").isJsonObject()) applyBlacklist(b.getAsJsonObject("blacklist"));
+            checkBlacklist();
             lastSendFailed = false;
             nextFlushAt = 0;
         }, mainThread);
@@ -206,6 +278,11 @@ public final class XPackCore {
         allowsFlight = integ.has("allowsFlight") && integ.get("allowsFlight").getAsBoolean();
         trackedStats = new HashSet<>(IntegrityRules.strings(r.getAsJsonArray("trackedStats")));
         rules = rules.withServerLists(IntegrityRules.strings(r.getAsJsonArray("cheatCommands")), IntegrityRules.strings(r.getAsJsonArray("alwaysAllowedCommands")));
+    }
+
+    private void applyBlacklist(JsonObject b) {
+        if (b == null || !b.has("modIds")) return;
+        rules = rules.withBlacklist(IntegrityRules.strings(b.getAsJsonArray("modIds")));
     }
 
     private void syncIntegrity(JsonObject integ) {
@@ -285,8 +362,8 @@ public final class XPackCore {
         }
     }
 
-    private void flagWithNotice(WorldIntegrity.Reason reason, String detail, String messageKey) {
-        if (flag(reason, detail)) ui.notify(messageKey);
+    private void flagWithNotice(WorldIntegrity.Reason reason, String detail, String messageKey, Object... args) {
+        if (flag(reason, detail)) ui.notify(messageKey, args);
     }
 
     private boolean flag(WorldIntegrity.Reason reason, String detail) {
@@ -462,6 +539,7 @@ public final class XPackCore {
         s.status = integrity.isFlagged() ? "signale" : "propre";
         s.flaggedAt = integrity.flaggedAt();
         s.pending = new ArrayList<>(pending);
+        s.cheatsNoticeShown = cheatsNoticeShown;
         s.save(world.storeFile());
     }
 
@@ -471,6 +549,7 @@ public final class XPackCore {
         String firstSeen;
         String status;
         String flaggedAt;
+        boolean cheatsNoticeShown;
         List<JsonObject> pending = new ArrayList<>();
 
         static WorldStore load(Path file) {

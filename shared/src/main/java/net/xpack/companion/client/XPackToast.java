@@ -16,7 +16,7 @@ final class XPackToast implements Toast {
     private final int rarityColor;
 
     XPackToast(String name, int points, String rarity) {
-        this.title = Component.translatable("xpack.toast.title", points);
+        this.title = Texts.tr("xpack.toast.title", points);
         this.name = Component.literal(name);
         this.rarityColor = switch (rarity) {
             case "peu_commun" -> 0x4CC38A;
