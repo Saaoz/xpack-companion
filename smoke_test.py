@@ -77,7 +77,7 @@ def start_api(work: Path) -> subprocess.Popen:
 
 def link_player() -> tuple[str, str]:
     step("Compte web + liaison du mod")
-    status, reg = http("POST", "/v1/auth/register", {"pseudo": "SmokeOwner", "password": "motdepasse123"})
+    status, reg = http("POST", "/v1/auth/register", {"pseudo": "SmokeOwner", "password": "motdepasse123", "firstName": "Smoke", "email": "smoke@example.com"})
     assert status == 201, reg
     web = reg["token"]
     mc_uuid = offline_uuid(PLAYER)
