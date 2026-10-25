@@ -6,6 +6,7 @@
   "description": "Suit tes succès de modpacks sur XPack. Mod client optionnel : aucun modpack n'a besoin de le déclarer.",
   "authors": ["XPack"],
   "license": "MIT",
+  "icon": "assets/xpack/icon.png",
   "environment": "client",
   "entrypoints": {
     "client": ["net.xpack.companion.fabric.XPackFabric"],
