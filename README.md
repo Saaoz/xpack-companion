@@ -8,6 +8,7 @@ Mod **client uniquement** qui envoie en temps réel tes progrès Minecraft à XP
 |---|---|---|
 | Fabric (sans Fabric API) | 1.21.1 | `fabric/build/libs/xpack-companion-fabric-1.21.1-<version>.jar` |
 | NeoForge | 1.21.1 | `neoforge/build/libs/xpack-companion-neoforge-1.21.1-<version>.jar` |
+| Forge | 1.20.1 (Java 17) | `forge/build/libs/xpack-companion-forge-1.20.1-<version>.jar` (remappé pour Forge : c'est celui-là qu'il faut distribuer, pas celui de `build/devlibs`) |
 
 ## Ce que fait le mod
 
@@ -37,10 +38,13 @@ Mod **client uniquement** qui envoie en temps réel tes progrès Minecraft à XP
 ## Structure
 
 ```
-common/    Logique pure Java 21, sans Minecraft : règles, intégrité, file, API, détection du modpack. Tests JUnit.
-shared/    Code Minecraft vanilla (noms Mojang) commun aux deux loaders : mixins, écran d'alerte, toast.
+common/    Logique pure Java, sans Minecraft : règles, intégrité, file, API, détection du modpack. Tests JUnit.
+           Compilée en Java 21 pour 1.21.1 et en Java 17 pour Forge 1.20.1.
+shared/    Code Minecraft vanilla (noms Mojang) commun à tous les loaders : mixins, écrans, toasts.
+           src/main = commun · src/mc1211 = 1.21.1 · src/mc1201 = 1.20.1 (dont Compat.java : les quelques appels qui changent)
 fabric/    Point d'entrée Fabric (+ run « smoke » pour le test de bout en bout).
 neoforge/  Point d'entrée NeoForge.
+forge/     Point d'entrée Forge 1.20.1 (ModDevGradle « legacyforge » : remappage SRG et refmap des mixins).
 ```
 
 Les règles anti-triche viennent de `../spec/integrity-rules.json`, le même fichier que le site et le serveur.
@@ -49,7 +53,8 @@ Les règles anti-triche viennent de `../spec/integrity-rules.json`, le même fic
 
 ```bash
 ./gradlew :common:test          # tests unitaires du cœur
-./gradlew build                 # jars Fabric et NeoForge
+./gradlew build                 # jars Fabric et NeoForge (1.21.1) et Forge (1.20.1)
+./gradlew :forge:build          # jar Forge 1.20.1 seul (Windows : .\gradlew.bat :forge:build)
 python3 smoke_test.py           # test de bout en bout dans le vrai client (voir ci-dessous)
 ```
 

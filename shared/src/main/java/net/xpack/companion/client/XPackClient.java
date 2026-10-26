@@ -193,7 +193,7 @@ public final class XPackClient {
         if (server != null) {
             storeFile = server.getWorldPath(LevelResource.ROOT).resolve("xpack.json");
             kind = "singleplayer";
-            cheatsAllowed = server.getWorldData().isAllowCommands();
+            cheatsAllowed = Compat.allowCommands(server);
             // Monde créé en créatif : un monde de test, même si le joueur est repassé en survie.
             creative |= server.getWorldData().getGameType() == GameType.CREATIVE;
         } else {

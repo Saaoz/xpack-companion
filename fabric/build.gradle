@@ -37,7 +37,7 @@ dependencies {
 
 // Code partagé : logique pure (common) + code Minecraft vanilla (shared).
 sourceSets.main {
-    java.srcDirs += ["${rootDir}/common/src/main/java", "${rootDir}/shared/src/main/java"]
+    java.srcDirs += ["${rootDir}/common/src/main/java", "${rootDir}/shared/src/main/java", "${rootDir}/shared/src/mc1211/java"]
     resources.srcDirs += ["${rootDir}/shared/src/main/resources"]
 }
 

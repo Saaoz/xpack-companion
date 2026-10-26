@@ -23,7 +23,7 @@ public final class StatusBadge {
             case DISABLED, PRACTICE -> 0x888888;
         };
         Minecraft mc = Minecraft.getInstance();
-        Component label = Component.literal("● ").withColor(color)
+        Component label = Component.literal("● ").withStyle(s -> s.withColor(color))
                 .append(Component.literal("XPack · ").withStyle(ChatFormatting.WHITE))
                 .append(Texts.tr("xpack.badge." + status.name().toLowerCase(java.util.Locale.ROOT)).withStyle(ChatFormatting.GRAY));
         // À droite du bouton ⚙ (PauseScreenMixin).

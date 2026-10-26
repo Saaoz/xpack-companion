@@ -42,6 +42,7 @@ public final class ConsentScreen extends Screen {
 
     @Override
     public void render(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
+        Compat.background(this, g, mouseX, mouseY, partialTick);
         super.render(g, mouseX, mouseY, partialTick);
         int x = width / 2;
         int y = 24;

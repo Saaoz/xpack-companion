@@ -7,7 +7,6 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.toasts.Toast;
 import net.minecraft.client.gui.components.toasts.ToastComponent;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.FormattedCharSequence;
 
 /**
@@ -17,7 +16,6 @@ import net.minecraft.util.FormattedCharSequence;
  */
 final class IntegrityToast implements Toast {
     static final long DISPLAY_MS = 20_000;
-    private static final ResourceLocation BACKGROUND = ResourceLocation.withDefaultNamespace("toast/system");
     private static final int WIDTH = 220;
 
     private final Component title;
@@ -44,7 +42,7 @@ final class IntegrityToast implements Toast {
     @Override
     public Visibility render(GuiGraphics g, ToastComponent toasts, long timeSinceLastVisible) {
         Font font = toasts.getMinecraft().font;
-        g.blitSprite(BACKGROUND, 0, 0, width(), height());
+        Compat.toastBackground(g, width(), height(), true);
         g.drawString(font, title, 8, 7, 0xFFB347, false);
         int y = 19;
         for (FormattedCharSequence line : reason) {
@@ -52,6 +50,6 @@ final class IntegrityToast implements Toast {
             y += 10;
         }
         g.drawString(font, hint, 8, y + 2, 0xA9B6C4, false);
-        return timeSinceLastVisible >= DISPLAY_MS * toasts.getNotificationDisplayTimeMultiplier() ? Visibility.HIDE : Visibility.SHOW;
+        return timeSinceLastVisible >= Compat.toastTime(toasts, DISPLAY_MS) ? Visibility.HIDE : Visibility.SHOW;
     }
 }

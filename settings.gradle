@@ -9,4 +9,4 @@ pluginManagement {
 }
 
 rootProject.name = "xpack-companion"
-include("common", "fabric", "neoforge")
+include("common", "fabric", "neoforge", "forge")

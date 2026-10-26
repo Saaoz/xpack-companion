@@ -36,6 +36,7 @@ public final class CheatWarningScreen extends Screen {
 
     @Override
     public void render(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
+        Compat.background(this, g, mouseX, mouseY, partialTick);
         super.render(g, mouseX, mouseY, partialTick);
         int top = height / 2 - 60;
         g.drawCenteredString(font, title, width / 2, top, 0xFFFFFF);

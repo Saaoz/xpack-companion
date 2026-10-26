@@ -5,7 +5,6 @@ import net.minecraft.client.User;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.CycleButton;
-import net.minecraft.client.gui.screens.ConfirmLinkScreen;
 import net.minecraft.client.gui.screens.ConfirmScreen;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
@@ -39,7 +38,7 @@ public final class SettingsScreen extends Screen {
         shownState = state(core);
         Config c = core.config();
         User user = minecraft.getUser();
-        String uuid = user.getProfileId().toString();
+        String uuid = Compat.userUuid(minecraft);
         int x = width / 2 - 155;
         int y = 50;
         addRenderableWidget(CycleButton.onOffBuilder(Boolean.TRUE.equals(c.consented) && c.enabled)
@@ -68,7 +67,7 @@ public final class SettingsScreen extends Screen {
                 rebuildWidgets();
             }).bounds(x, y, 310, 20).build());
         } else if (link != null && link.userCode() != null) {
-            addRenderableWidget(Button.builder(Texts.tr("xpack.settings.openSite"), b -> ConfirmLinkScreen.confirmLinkNow(this, link.url()))
+            addRenderableWidget(Button.builder(Texts.tr("xpack.settings.openSite"), b -> Compat.openLink(this, link.url()))
                     .bounds(x, y, 150, 20).build());
             addRenderableWidget(Button.builder(Texts.tr("xpack.settings.copyCode"), b -> minecraft.keyboardHandler.setClipboard(link.userCode()))
                     .bounds(x + 160, y, 150, 20).build());
@@ -108,7 +107,7 @@ public final class SettingsScreen extends Screen {
 
     private String state(XPackCore core) {
         XPackCore.LinkState l = core.linkState();
-        return core.isLinked(minecraft.getUser().getProfileId().toString()) + "|" + (l == null ? "-" : l.userCode() + l.failed())
+        return core.isLinked(Compat.userUuid(minecraft)) + "|" + (l == null ? "-" : l.userCode() + l.failed())
                 + "|" + core.inWorld() + core.isPracticeWorld();
     }
 
@@ -120,12 +119,13 @@ public final class SettingsScreen extends Screen {
 
     @Override
     public void render(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
+        Compat.background(this, g, mouseX, mouseY, partialTick);
         super.render(g, mouseX, mouseY, partialTick);
         g.drawCenteredString(font, title, width / 2, 20, 0xFFFFFF);
         XPackCore core = XPackClient.core();
         if (core == null) return;
         String name = minecraft.getUser().getName();
-        Component linked = core.isLinked(minecraft.getUser().getProfileId().toString())
+        Component linked = core.isLinked(Compat.userUuid(minecraft))
                 ? Texts.tr("xpack.settings.linked", name)
                 : Texts.tr("xpack.settings.unlinked", name);
         g.drawCenteredString(font, linked.copy().withStyle(ChatFormatting.GRAY), width / 2, 34, 0xAAAAAA);

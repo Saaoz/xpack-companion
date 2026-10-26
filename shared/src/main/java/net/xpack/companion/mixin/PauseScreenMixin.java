@@ -5,6 +5,7 @@ import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.screens.PauseScreen;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
+import net.xpack.companion.client.Compat;
 import net.xpack.companion.client.SettingsScreen;
 import net.xpack.companion.client.Texts;
 import net.xpack.companion.client.XPackClient;
@@ -23,7 +24,7 @@ public abstract class PauseScreenMixin extends Screen {
     @Inject(method = "init", at = @At("TAIL"))
     private void xpack$settingsButton(CallbackInfo ci) {
         PauseScreen self = (PauseScreen) (Object) this;
-        if (!self.showsPauseMenu() || XPackClient.core() == null) return;
+        if (!Compat.showsPauseMenu(self) || XPackClient.core() == null) return;
         addRenderableWidget(Button.builder(Component.literal("⚙"), b -> minecraft.setScreen(new SettingsScreen(self)))
                 .bounds(4, 4, 20, 20)
                 .tooltip(Tooltip.create(Texts.tr("xpack.settings.open")))

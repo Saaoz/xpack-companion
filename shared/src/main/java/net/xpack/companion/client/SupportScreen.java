@@ -78,6 +78,7 @@ public final class SupportScreen extends Screen {
 
     @Override
     public void render(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
+        Compat.background(this, g, mouseX, mouseY, partialTick);
         super.render(g, mouseX, mouseY, partialTick);
         g.drawCenteredString(font, title, width / 2, 15, 0xFFFFFF);
         XPackCore core = XPackClient.core();
