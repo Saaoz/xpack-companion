@@ -125,6 +125,8 @@ def write_config(mod_token: str):
     (cfg / "xpack.json").write_text(json.dumps({
         "apiUrl": API,
         "linkUrl": "http://localhost:5173/link",
+        # Ancien emplacement du jeton : le mod doit le déplacer hors de config/ au démarrage
+        # (fichier -Dxpack.credentials du run « smoke », voir fabric/build.gradle).
         "token": mod_token,
         "tokenUuid": offline_uuid(PLAYER).replace("-", ""),
         # Pas de « consented » : le mod doit afficher l'écran de consentement (#40).
@@ -159,6 +161,10 @@ def check(web_token: str, log: str) -> bool:
         ok = ok and cond
 
     expect("[SMOKE] consent screen shown" in log, "l'écran de consentement s'affiche au premier lancement")
+    config_text = (RUN_DIR / "config" / "xpack.json").read_text()
+    creds = RUN_DIR / "xpack-credentials.json"
+    expect('"token"' not in config_text and creds.is_file() and "token" in creds.read_text(),
+           "le jeton a quitté config/ (exporté avec les modpacks) pour le fichier d'identifiants")
     expect("[SMOKE] joined singleplayer world" in log, "le mod détecte l'entrée dans le monde")
     expect("[SMOKE] notice xpack.cheats_enabled" in log, "information « triches activées » à l'entrée du monde")
     expect("[SMOKE] command 'give @s minecraft:diamond 64' allowed=false" in log, "la commande /give est retenue avant envoi")

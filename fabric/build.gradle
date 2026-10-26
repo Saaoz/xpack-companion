@@ -16,6 +16,8 @@ loom {
             name = "Smoke test"
             runDir = "run-smoke"
             property("xpack.smoke", "true")
+            // Jetons du test dans run-smoke/, jamais dans le dossier utilisateur de la machine.
+            property("xpack.credentials", file("run-smoke/xpack-credentials.json").absolutePath)
             programArgs("--username", "SmokeTester", "--quickPlaySingleplayer", "SmokeWorld")
         }
     }

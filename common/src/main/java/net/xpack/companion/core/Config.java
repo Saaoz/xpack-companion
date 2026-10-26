@@ -15,9 +15,12 @@ public final class Config {
     public String apiUrl = "https://api.xpack.saaoz.fr";
     /** Page du site où saisir le code de liaison (en développement : http://localhost:5173/link). */
     public String linkUrl = "https://xpack.saaoz.fr/link";
-    /** Jeton du mod, obtenu par la liaison (#34). Absent tant que le compte n'est pas lié. */
+    /**
+     * Anciennes versions uniquement : le jeton était rangé ici, dans {@code config/}, qui part
+     * avec les exports de modpack. Il est déplacé au démarrage vers {@link Credentials} puis effacé
+     * (Gson n'écrit pas les valeurs nulles).
+     */
     public String token;
-    /** UUID Minecraft auquel le jeton est lié. */
     public String tokenUuid;
     /**
      * Réponse du joueur à l'écran de consentement (#40) : {@code null} tant qu'il n'a pas été

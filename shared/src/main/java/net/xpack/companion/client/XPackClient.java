@@ -20,9 +20,11 @@ import net.minecraft.network.protocol.game.ServerboundClientCommandPacket;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.stats.Stat;
 import net.minecraft.stats.StatType;
+import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.storage.LevelResource;
 import net.xpack.companion.core.ApiClient;
 import net.xpack.companion.core.Config;
+import net.xpack.companion.core.Credentials;
 import net.xpack.companion.core.IntegrityRules;
 import net.xpack.companion.core.ModpackDetector;
 import net.xpack.companion.core.XPackCore;
@@ -58,8 +60,10 @@ public final class XPackClient {
         Config config = Config.load(configFile);
         config.save(configFile); // écrit les valeurs par défaut au premier lancement
         ApiClient api = new ApiClient(ApiClient.http(config.apiUrl, "XPackCompanion/" + version + " (" + loaderName + ")"));
+        // Jetons hors de l'instance (dossier de l'utilisateur) : config/ part avec les exports de modpack.
+        Credentials credentials = new Credentials(Credentials.defaultLocation());
         // Minecraft.getInstance() n'existe pas encore sous NeoForge au moment de l'init : résolution différée.
-        core = new XPackCore(config, configFile, api, new MinecraftUi(), r -> Minecraft.getInstance().execute(r), Clock.systemUTC(),
+        core = new XPackCore(config, configFile, credentials, api, new MinecraftUi(), r -> Minecraft.getInstance().execute(r), Clock.systemUTC(),
                 IntegrityRules.bundled());
         core.setLoadedMods(modIds);
     }
@@ -109,10 +113,14 @@ public final class XPackClient {
         Path storeFile;
         String kind;
         boolean cheatsAllowed;
+        GameType mode = mc.gameMode != null ? mc.gameMode.getPlayerMode() : GameType.SURVIVAL;
+        boolean creative = mode == GameType.CREATIVE || mode == GameType.SPECTATOR;
         if (server != null) {
             storeFile = server.getWorldPath(LevelResource.ROOT).resolve("xpack.json");
             kind = "singleplayer";
             cheatsAllowed = server.getWorldData().isAllowCommands();
+            // Monde créé en créatif : un monde de test, même si le joueur est repassé en survie.
+            creative |= server.getWorldData().getGameType() == GameType.CREATIVE;
         } else {
             ServerData data = mc.getCurrentServer();
             String address = data != null ? data.ip : "inconnu";
@@ -127,7 +135,7 @@ public final class XPackClient {
         fingerprint.addProperty("modCount", modIds.size());
         fingerprint.addProperty("modVersion", modVersion);
         return new XPackCore.WorldContext(storeFile, kind, Instant.now().toString(), cheatsAllowed, mc.player.getUUID().toString(),
-                mc.player.getGameProfile().getName(), ModpackDetector.detect(gameDir, modIds), fingerprint);
+                mc.player.getGameProfile().getName(), ModpackDetector.detect(gameDir, modIds), fingerprint, creative);
     }
 
     // ------------------------------------------------------------------ crochets des mixins

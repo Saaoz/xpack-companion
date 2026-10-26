@@ -110,6 +110,7 @@ class XPackCoreTest {
     FakeUi ui;
     MutableClock clock;
     Config config;
+    Credentials creds;
     XPackCore core;
 
     static final String SESSION = """
@@ -125,17 +126,17 @@ class XPackCoreTest {
         clock = new MutableClock();
         config = new Config();
         config.consented = true;
-        core = new XPackCore(config, dir.resolve("xpack.json"), new ApiClient(api), ui, Runnable::run, clock, IntegrityRules.bundled());
+        creds = new Credentials(dir.resolve("credentials.json"));
+        core = new XPackCore(config, dir.resolve("xpack.json"), creds, new ApiClient(api), ui, Runnable::run, clock, IntegrityRules.bundled());
     }
 
     XPackCore.WorldContext world() {
         return new XPackCore.WorldContext(dir.resolve("world/xpack.json"), "singleplayer", "2026-10-01T10:00:00Z", false, UUID, "Steve",
-                new ModpackDetector.ModpackInfo("modrinth", null, null, "Engrenages", "1.4.0"), new JsonObject());
+                new ModpackDetector.ModpackInfo("modrinth", null, null, "Engrenages", "1.4.0"), new JsonObject(), false);
     }
 
     void linkedAndJoined() {
-        config.token = "jeton";
-        config.tokenUuid = XPackCore.normalizeUuid(UUID);
+        creds.put(config.apiUrl, UUID, "Steve", "jeton");
         api.reply(201, SESSION);
         core.onJoinWorld(world());
     }
@@ -155,15 +156,141 @@ class XPackCoreTest {
         assertTrue(ui.notices.contains("xpack.link.code"));
         clock.millis += 5_000;
         core.tick(); // 202 : en attente
-        assertNull(config.token);
+        assertFalse(core.isLinked(UUID));
         clock.millis += 5_000;
         core.tick(); // 200 : jeton reçu, session ouverte
-        assertEquals("jeton-mod", config.token);
-        assertEquals("0f9e1c2a3b4c4d5e8f60718293a4b5c6", config.tokenUuid);
+        assertTrue(core.isLinked(UUID));
         assertNotNull(api.last("/v1/sessions"));
+        assertEquals("jeton-mod", api.last("/v1/sessions").token());
         assertEquals(XPackCore.Status.COUNTED, core.status());
-        // Le jeton est sauvegardé pour les prochains lancements.
-        assertEquals("jeton-mod", Config.load(dir.resolve("xpack.json")).token);
+        // Sauvegardé pour les prochains lancements… mais jamais dans config/ (exporté avec les modpacks).
+        assertEquals("jeton-mod", new Credentials(dir.resolve("credentials.json")).token(config.apiUrl, UUID));
+        core.saveConfig();
+        assertFalse(readFile("xpack.json").contains("jeton-mod"));
+        assertNull(core.linkState());
+    }
+
+    String readFile(String name) {
+        try {
+            return Files.readString(dir.resolve(name));
+        } catch (java.io.IOException e) {
+            throw new AssertionError(e);
+        }
+    }
+
+    @Test
+    void deplaceUnAncienJetonHorsDeLaConfig() {
+        Config old = new Config();
+        old.consented = true;
+        old.token = "ancien-jeton";
+        old.tokenUuid = XPackCore.normalizeUuid(UUID);
+        old.save(dir.resolve("old.json"));
+        Config loaded = Config.load(dir.resolve("old.json"));
+        new XPackCore(loaded, dir.resolve("old.json"), creds, new ApiClient(api), ui, Runnable::run, clock, IntegrityRules.bundled());
+        assertEquals("ancien-jeton", creds.token(loaded.apiUrl, UUID));
+        assertFalse(readFile("old.json").contains("ancien-jeton"), "le jeton a quitté config/xpack.json");
+        assertFalse(readFile("old.json").contains("tokenUuid"));
+    }
+
+    @Test
+    void lieSonCompteDepuisLesReglagesSansEtreEnJeu() {
+        api.reply(201, "{\"deviceCode\":\"dc\",\"userCode\":\"K7Q-2MX\",\"expiresIn\":600,\"interval\":5}")
+                .reply(200, "{\"token\":\"jeton-mod\",\"playerId\":\"acc_1\"}");
+        core.startLinking(UUID, "Steve");
+        core.tick();
+        XPackCore.LinkState state = core.linkState();
+        assertEquals("K7Q-2MX", state.userCode());
+        assertEquals("https://xpack.saaoz.fr/link?code=K7Q-2MX", state.url(), "code prérempli sur le site");
+        clock.millis += 5_000;
+        core.tick();
+        assertTrue(core.isLinked(UUID));
+        assertEquals(List.of("Steve"), core.linkedNames());
+        assertNull(api.last("/v1/sessions"), "pas de monde : pas de session");
+    }
+
+    @Test
+    void unCodeExpireNeRelancePasLaLiaisonToutSeul() {
+        api.reply(201, "{\"deviceCode\":\"dc\",\"userCode\":\"K7Q-2MX\",\"expiresIn\":600,\"interval\":5}").reply(410, "{\"error\":\"expired\"}");
+        core.onJoinWorld(world());
+        core.tick();
+        clock.millis += 5_000;
+        core.tick();
+        assertTrue(ui.notices.contains("xpack.link.expired"));
+        int calls = api.calls.size();
+        for (int i = 0; i < 5; i++) {
+            clock.millis += 600_000;
+            core.tick();
+        }
+        assertEquals(calls, api.calls.size(), "aucun nouveau code sans action du joueur");
+        assertEquals(1, ui.notices.stream().filter("xpack.link.code"::equals).count());
+    }
+
+    @Test
+    void delierRevoqueLeJetonEtArreteLEnvoi() {
+        linkedAndJoined();
+        core.unlink(UUID);
+        assertFalse(core.isLinked(UUID));
+        assertEquals("DELETE", api.last("/v1/link").method());
+        assertEquals("jeton", api.last("/v1/link").token());
+        assertEquals(XPackCore.Status.UNLINKED, core.status());
+    }
+
+    // ------------------------------------------------------------------ mondes de test
+
+    XPackCore.WorldContext creativeWorld(String folder) {
+        return new XPackCore.WorldContext(dir.resolve(folder + "/xpack.json"), "singleplayer", "2026-10-01T10:00:00Z", true, UUID, "Steve",
+                new ModpackDetector.ModpackInfo("modrinth", null, null, "Engrenages", "1.4.0"), new JsonObject(), true);
+    }
+
+    @Test
+    void unNouveauMondeEnCreatifEstUnMondeDeTestOuRienNEstEnvoye() {
+        creds.put(config.apiUrl, UUID, "Steve", "jeton");
+        core.onJoinWorld(creativeWorld("test"));
+        assertEquals(XPackCore.Status.PRACTICE, core.status());
+        assertTrue(ui.notices.contains("xpack.practice.auto"));
+        core.onAdvancements(List.of("minecraft:story/root", "minecraft:end/kill_dragon"), false, 10);
+        assertTrue(core.onCommand("give @s diamond 64", c -> {}), "pas d'alerte dans un monde de test");
+        core.onPlayerState(new XPackCore.PlayerState("creative", true, true), 20);
+        clock.millis += 10_000;
+        core.tick();
+        assertTrue(api.calls.isEmpty(), "ni session, ni événement, ni signalement");
+        assertFalse(core.integrity().isFlagged(), "un monde de test n'est pas un monde signalé");
+
+        // Repassé en survie : il reste un monde de test (sinon on préparerait tout en créatif).
+        core.onLeaveWorld();
+        core.onJoinWorld(new XPackCore.WorldContext(dir.resolve("test/xpack.json"), "singleplayer", "2026-10-01T10:00:00Z", true, UUID, "Steve",
+                new ModpackDetector.ModpackInfo("modrinth", null, null, "Engrenages", "1.4.0"), new JsonObject(), false));
+        assertEquals(XPackCore.Status.PRACTICE, core.status());
+        assertEquals(1, ui.notices.stream().filter("xpack.practice.auto"::equals).count(), "prévenu une seule fois");
+        assertTrue(api.calls.isEmpty());
+    }
+
+    @Test
+    void unMondeDejaSuiviQuiPasseEnCreatifResteSuiviEtEstSignale() {
+        linkedAndJoined();
+        core.onLeaveWorld();
+        api.reply(201, SESSION);
+        core.onJoinWorld(new XPackCore.WorldContext(dir.resolve("world/xpack.json"), "singleplayer", "2026-10-01T10:00:00Z", false, UUID, "Steve",
+                new ModpackDetector.ModpackInfo("modrinth", null, null, "Engrenages", "1.4.0"), new JsonObject(), true));
+        assertEquals(XPackCore.Status.COUNTED, core.status());
+        core.onPlayerState(new XPackCore.PlayerState("creative", false, true), 30);
+        assertTrue(core.integrity().isFlagged());
+    }
+
+    @Test
+    void leJoueurPeutDeclarerUnMondeDeTest() {
+        linkedAndJoined();
+        core.onAdvancements(List.of("create:andesite_alloy"), false, 100);
+        core.markWorldPractice();
+        assertEquals(1, sentEvents().size(), "ce qui était en file part avant");
+        int calls = api.calls.size();
+        core.onAdvancements(List.of("minecraft:end/kill_dragon"), false, 200);
+        clock.millis += 10_000;
+        core.tick();
+        assertEquals(calls, api.calls.size(), "plus rien ensuite");
+        assertEquals(XPackCore.Status.PRACTICE, core.status());
+        assertTrue(ui.notices.contains("xpack.practice.manual"));
+        assertTrue(readFile("world/xpack.json").contains("\"practice\": true"), "mémorisé dans le monde");
     }
 
     @Test
@@ -234,7 +361,7 @@ class XPackCoreTest {
         // Autre monde : vol en survie interdit par le modpack.
         api.reply(201, SESSION);
         core.onJoinWorld(new XPackCore.WorldContext(dir.resolve("world2/xpack.json"), "singleplayer", "2026-10-02T10:00:00Z", false, UUID, "Steve",
-                new ModpackDetector.ModpackInfo("modrinth", null, null, "Engrenages", "1.4.0"), new JsonObject()));
+                new ModpackDetector.ModpackInfo("modrinth", null, null, "Engrenages", "1.4.0"), new JsonObject(), false));
         assertFalse(core.integrity().isFlagged());
         core.onPlayerState(new XPackCore.PlayerState("survival", false, true), 30);
         assertTrue(core.integrity().isFlagged());
@@ -255,7 +382,7 @@ class XPackCoreTest {
         assertEquals(2, saved.getAsJsonArray("pending").size());
 
         // Relance du jeu : même monde, même identifiant, statut et file restaurés.
-        XPackCore restarted = new XPackCore(config, dir.resolve("xpack.json"), new ApiClient(api), ui, Runnable::run, clock, IntegrityRules.bundled());
+        XPackCore restarted = new XPackCore(config, dir.resolve("xpack.json"), creds, new ApiClient(api), ui, Runnable::run, clock, IntegrityRules.bundled());
         api.reply(201, SESSION);
         restarted.onJoinWorld(world());
         assertTrue(restarted.integrity().isFlagged());
@@ -280,21 +407,24 @@ class XPackCoreTest {
         clock.millis += 6_000;
         api.reply(401, "{}");
         core.tick();
-        assertNull(config.token);
+        assertFalse(core.isLinked(UUID));
         assertTrue(ui.notices.contains("xpack.link.revoked"));
     }
 
     @Test
-    void nEnvoieRienPourUnAutreCompteMinecraft() {
-        config.token = "jeton";
-        config.tokenUuid = "11111111222233334444555555555555";
+    void lesJetonsDesAutresComptesMinecraftNeSontJamaisUtilises() {
+        creds.put(config.apiUrl, "11111111222233334444555555555555", "Alex", "jeton-alex");
+        api.reply(201, "{\"deviceCode\":\"dc\",\"userCode\":\"K7Q-2MX\",\"expiresIn\":600,\"interval\":5}");
         core.onJoinWorld(world());
-        assertTrue(ui.notices.contains("xpack.uuid_mismatch"));
         assertTrue(core.onCommand("give @s diamond", c -> {}), "pas d'alerte : ce compte n'est pas suivi");
         core.onAdvancements(List.of("a:b"), false, 1);
         core.tick();
         assertNull(api.last("/events"));
-        assertEquals(XPackCore.Status.DISABLED, core.status());
+        assertNull(api.last("/v1/sessions"));
+        assertTrue(api.calls.stream().noneMatch(c -> "jeton-alex".equals(c.token())));
+        // Ce compte-ci se voit proposer sa propre liaison.
+        assertEquals(XPackCore.normalizeUuid(UUID), api.last("/v1/link/start").body().get("minecraftUuid").getAsString());
+        assertEquals(XPackCore.Status.UNLINKED, core.status());
     }
 
     @SuppressWarnings("unused")
@@ -308,14 +438,13 @@ class XPackCoreTest {
 
     XPackCore.WorldContext cheatsWorld() {
         return new XPackCore.WorldContext(dir.resolve("world2/xpack.json"), "singleplayer", "2026-10-01T10:00:00Z", true, UUID, "Steve",
-                new ModpackDetector.ModpackInfo("modrinth", null, null, "Engrenages", "1.4.0"), new JsonObject());
+                new ModpackDetector.ModpackInfo("modrinth", null, null, "Engrenages", "1.4.0"), new JsonObject(), false);
     }
 
     @Test
     void demandeLeConsentementAvantDEnvoyerQuoiQueCeSoit() {
         config.consented = null;
-        config.token = "jeton";
-        config.tokenUuid = XPackCore.normalizeUuid(UUID);
+        creds.put(config.apiUrl, UUID, "Steve", "jeton");
         core.onJoinWorld(world());
         core.tick();
         assertEquals(1, ui.consentAsked);
@@ -342,8 +471,7 @@ class XPackCoreTest {
 
     @Test
     void informeUneSeuleFoisQueLesTrichesSontActiveesSansSignaler() {
-        config.token = "jeton";
-        config.tokenUuid = XPackCore.normalizeUuid(UUID);
+        creds.put(config.apiUrl, UUID, "Steve", "jeton");
         api.reply(201, SESSION);
         core.onJoinWorld(cheatsWorld());
         assertEquals(1, ui.notices.stream().filter("xpack.cheats_enabled"::equals).count());
@@ -358,8 +486,7 @@ class XPackCoreTest {
     @Test
     void signaleUnModDeTricheSaufSiLeModpackLAutorise() {
         core.setLoadedMods(List.of("minecraft", "sodium", "Meteor-Client"));
-        config.token = "jeton";
-        config.tokenUuid = XPackCore.normalizeUuid(UUID);
+        creds.put(config.apiUrl, UUID, "Steve", "jeton");
         // Le modpack fournit volontairement meteor-client : le serveur le retire de la liste.
         api.reply(201, SESSION.replace("\"sessionId\":\"s_1\",", "\"sessionId\":\"s_1\",\"blacklist\":{\"version\":1,\"modIds\":[\"wurst\"]},"));
         core.onJoinWorld(world());

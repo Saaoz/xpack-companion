@@ -33,7 +33,14 @@ import java.util.function.Consumer;
  * (progrès #35, statistiques #36, intégrité #43) mis en file puis envoyés par lots (#37).
  */
 public final class XPackCore {
-    public enum Status { DISABLED, UNLINKED, OFFLINE, COUNTED, NOT_COUNTED }
+    /**
+     * {@code PRACTICE} : monde de test (créatif dès le départ, ou choisi par le joueur). Rien n'y est
+     * envoyé et rien n'y est signalé : pour XPack, ce monde n'existe pas.
+     */
+    public enum Status { DISABLED, UNLINKED, OFFLINE, COUNTED, NOT_COUNTED, PRACTICE }
+
+    /** Liaison en cours (#34). {@code userCode} reste null tant que le serveur n'a pas répondu. */
+    public record LinkState(String minecraftName, String userCode, String url, boolean failed) {}
 
     /** Contexte d'une partie, fourni par le code Minecraft à l'entrée dans un monde. */
     public record WorldContext(
@@ -44,18 +51,22 @@ public final class XPackCore {
             String playerUuid,
             String playerName,
             ModpackDetector.ModpackInfo modpack,
-            JsonObject fingerprint) {}
+            JsonObject fingerprint,
+            /** Créatif ou spectateur à l'entrée, ou monde créé en créatif : candidat « monde de test ». */
+            boolean creativeAtJoin) {}
 
     /** État du joueur à chaque tick (#47, #48). */
     public record PlayerState(String gameMode, boolean invulnerable, boolean mayfly) {}
 
     static final long FLUSH_INTERVAL_MS = 5_000;
     static final long MAX_BACKOFF_MS = 300_000;
+    static final long LINK_RETRY_MS = 30_000;
     static final int MAX_BATCH = 200;
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 
     private final Config config;
     private final Path configFile;
+    private final Credentials credentials;
     private final ApiClient api;
     private final Ui ui;
     private final Executor mainThread;
@@ -77,6 +88,9 @@ public final class XPackCore {
     private boolean allowsFlight;
     private Set<String> trackedStats = Set.of();
     private boolean uuidMismatch;
+    /** Jeton du compte Minecraft qui joue ce monde (lu dans {@link Credentials}). */
+    private String token;
+    private boolean practice;
 
     // Réseau
     private boolean inFlight;
@@ -84,11 +98,15 @@ public final class XPackCore {
     private long backoffMs = FLUSH_INTERVAL_MS;
     private boolean lastSendFailed;
 
-    // Liaison
+    // Liaison : indépendante du monde, elle peut partir des réglages depuis le menu principal.
+    private String linkUuid;
+    private String linkName;
     private String deviceCode;
+    private String userCode;
+    private boolean linkFailed;
+    private boolean linkInFlight;
     private long nextPollAt;
     private long pollIntervalMs = 5_000;
-    private boolean linking;
 
     /** Identifiants des mods chargés, comparés à la liste noire (#50). */
     private List<String> loadedMods = List.of();
@@ -97,14 +115,26 @@ public final class XPackCore {
     /** Commande confirmée par le joueur après l'alerte : laissée passer une fois. */
     private String bypassCommand;
 
-    public XPackCore(Config config, Path configFile, ApiClient api, Ui ui, Executor mainThread, Clock clock, IntegrityRules rules) {
+    public XPackCore(Config config, Path configFile, Credentials credentials, ApiClient api, Ui ui, Executor mainThread, Clock clock,
+            IntegrityRules rules) {
         this.config = config;
         this.configFile = configFile;
+        this.credentials = credentials;
         this.api = api;
         this.ui = ui;
         this.mainThread = mainThread;
         this.clock = clock;
         this.rules = rules;
+        migrateLegacyToken();
+    }
+
+    /** Anciennes versions : jeton rangé dans config/xpack.json, exporté avec les modpacks. On le déplace. */
+    private void migrateLegacyToken() {
+        if (config.token == null) return;
+        if (config.tokenUuid != null) credentials.put(config.apiUrl, config.tokenUuid, null, config.token);
+        config.token = null;
+        config.tokenUuid = null;
+        config.save(configFile);
     }
 
     public void setLoadedMods(Collection<String> modIds) {
@@ -115,10 +145,7 @@ public final class XPackCore {
     public void setConsent(boolean accepted) {
         config.consented = accepted;
         config.save(configFile);
-        if (accepted && world != null) {
-            noticeCheats();
-            openSession();
-        }
+        if (accepted && world != null && !practice) startTracking();
     }
 
     public Config config() {
@@ -128,22 +155,60 @@ public final class XPackCore {
     /** Réglages modifiés depuis l'écran du mod : sauvegardés aussitôt. */
     public void saveConfig() {
         config.save(configFile);
-        if (active() && world != null) openSession();
+        if (tracking() && token != null) openSession();
     }
 
-    /** Délie ce jeu du compte XPack (le jeton est révoqué côté serveur si possible). */
-    public void unlink() {
-        if (config.token != null) api.unlink(config.token);
-        config.token = null;
-        config.tokenUuid = null;
-        config.save(configFile);
-        sessionId = null;
-        deviceCode = null;
-        linking = false;
+    public boolean isLinked(String minecraftUuid) {
+        return credentials.token(config.apiUrl, minecraftUuid) != null;
+    }
+
+    /** Pseudos Minecraft liés à XPack sur cette machine. */
+    public List<String> linkedNames() {
+        return credentials.linkedNames(config.apiUrl);
+    }
+
+    /** Délie ce compte Minecraft de XPack (le jeton est aussi révoqué côté serveur si possible). */
+    public void unlink(String minecraftUuid) {
+        String uuid = normalizeUuid(minecraftUuid);
+        String removed = credentials.remove(config.apiUrl, uuid);
+        if (removed != null) api.unlink(removed);
+        if (uuid.equals(linkUuid)) cancelLinking();
+        if (world != null && uuid.equals(normalizeUuid(world.playerUuid()))) {
+            token = null;
+            sessionId = null;
+        }
     }
 
     private boolean active() {
         return config.enabled && Boolean.TRUE.equals(config.consented) && !uuidMismatch;
+    }
+
+    /** Ce monde est suivi : consentement, envoi activé, et ce n'est pas un monde de test. */
+    private boolean tracking() {
+        return world != null && active() && !practice;
+    }
+
+    public boolean inWorld() {
+        return world != null;
+    }
+
+    public boolean isPracticeWorld() {
+        return world != null && practice;
+    }
+
+    /**
+     * Le joueur déclare ce monde « monde de test » (créatif pour le plaisir, essais…). C'est définitif
+     * pour ce monde : sinon on pourrait tout préparer en créatif puis le remettre en suivi. Ce qui
+     * était déjà en file part d'abord ; ensuite plus rien n'est envoyé. Le monde n'est pas « signalé ».
+     */
+    public void markWorldPractice() {
+        if (world == null || practice) return;
+        flushNow();
+        practice = true;
+        pending.clear();
+        sessionId = null;
+        saveWorld();
+        ui.notify("xpack.practice.manual");
     }
 
     private String now() {
@@ -159,14 +224,19 @@ public final class XPackCore {
         worldId = store.worldId;
         // Date de création connue du mod : la première fois qu'il voit ce monde.
         firstSeen = store.firstSeen != null ? store.firstSeen : ctx.createdAt();
+        // Chaque compte Minecraft a son propre jeton : changer de compte ne mélange rien.
+        token = credentials.token(config.apiUrl, ctx.playerUuid());
+        cheatsNoticeShown = store.cheatsNoticeShown;
+        // Monde de test : déjà déclaré, ou monde que le mod découvre alors qu'il est en créatif.
+        // Un monde déjà suivi qui passe ensuite en créatif reste suivi, puis signalé.
+        practice = store.practice || (store.fresh && ctx.creativeAtJoin());
+        if (practice) {
+            if (!store.practice) ui.notify("xpack.practice.auto");
+            saveWorld();
+            return;
+        }
         integrity.syncFromServer(store.status, store.flaggedAt);
         pending.addAll(store.pending);
-        if (config.token != null && config.tokenUuid != null && !config.tokenUuid.equalsIgnoreCase(normalizeUuid(ctx.playerUuid()))) {
-            // Le jeton appartient à un autre compte Minecraft : on n'envoie rien pour celui-ci.
-            uuidMismatch = true;
-            ui.notify("xpack.uuid_mismatch");
-        }
-        cheatsNoticeShown = store.cheatsNoticeShown;
         saveWorld();
         if (config.consented == null) {
             if (!consentShown) {
@@ -175,15 +245,21 @@ public final class XPackCore {
             }
             return;
         }
+        if (active()) startTracking();
+    }
+
+    /** Monde suivi : information sur les triches, puis session (ou liaison si ce compte n'est pas lié). */
+    private void startTracking() {
         noticeCheats();
-        openSession();
+        if (token == null) startLinking(world.playerUuid(), world.playerName());
+        else openSession();
     }
 
     private boolean cheatsNoticeShown;
 
     /** #46 : information (pas de signalement) à la première entrée dans un monde avec triches activées. */
     private void noticeCheats() {
-        if (world == null || !active() || !world.cheatsAllowed() || cheatsNoticeShown || integrity.isFlagged()) return;
+        if (!tracking() || !world.cheatsAllowed() || cheatsNoticeShown || integrity.isFlagged()) return;
         cheatsNoticeShown = true;
         ui.notify("xpack.cheats_enabled");
         saveWorld();
@@ -194,7 +270,7 @@ public final class XPackCore {
      * liste du serveur qui exclut déjà les mods fournis volontairement par le modpack.
      */
     private void checkBlacklist() {
-        if (world == null || !active() || integrity.isFlagged()) return;
+        if (!tracking() || integrity.isFlagged()) return;
         List<String> found = rules.blacklisted(loadedMods);
         if (!found.isEmpty()) flagWithNotice(WorldIntegrity.Reason.BLACKLISTED_MOD, String.join(",", found), "xpack.flagged.blacklist", String.join(", ", found));
     }
@@ -212,6 +288,8 @@ public final class XPackCore {
         lastStats.clear();
         integrity.reset();
         uuidMismatch = false;
+        token = null;
+        practice = false;
         cheatsNoticeShown = false;
         allowedCommands = List.of();
         allowsFlight = false;
@@ -219,7 +297,7 @@ public final class XPackCore {
     }
 
     private void openSession() {
-        if (world == null || !active() || config.token == null || sessionId != null || sessionPending) return;
+        if (!tracking() || token == null || sessionId != null || sessionPending) return;
         sessionPending = true;
         JsonObject body = new JsonObject();
         JsonObject w = new JsonObject();
@@ -239,7 +317,6 @@ public final class XPackCore {
         p.addProperty("uuid", world.playerUuid());
         body.add("player", p);
         body.add("fingerprint", world.fingerprint() == null ? new JsonObject() : world.fingerprint());
-        String token = config.token;
         String wid = worldId;
         api.openSession(body, token).thenAcceptAsync(res -> {
             sessionPending = false;
@@ -299,7 +376,7 @@ public final class XPackCore {
      * envoyé comme instantané — le serveur ne le compte ni dans la vraisemblance ni en speedrun.
      */
     public void onAdvancements(Collection<String> doneIds, boolean initialSync, long playtimeTicks) {
-        if (world == null) return;
+        if (world == null || practice) return;
         for (String id : doneIds) {
             if (id.contains(":recipes/")) continue; // les recettes débloquées ne sont pas des succès
             if (!knownAdvancements.add(id) && !initialSync) continue;
@@ -313,7 +390,7 @@ public final class XPackCore {
     }
 
     public void onStats(Map<String, Integer> stats, long playtimeTicks) {
-        if (world == null) return;
+        if (world == null || practice) return;
         for (Map.Entry<String, Integer> s : stats.entrySet()) {
             if (!trackedStats.contains(s.getKey())) continue;
             Integer prev = lastStats.put(s.getKey(), s.getValue());
@@ -340,7 +417,7 @@ public final class XPackCore {
             bypassCommand = null;
             return true;
         }
-        if (world == null || !active() || config.token == null || integrity.isFlagged()) return true;
+        if (!tracking() || token == null || integrity.isFlagged()) return true;
         if (rules.classify(command, allowedCommands) != IntegrityRules.Verdict.CHEAT) return true;
         ui.showCheatWarning(command, () -> {
             flag(WorldIntegrity.Reason.COMMAND, "/" + stripSlash(command));
@@ -351,7 +428,7 @@ public final class XPackCore {
     }
 
     public void onPlayerState(PlayerState s, long playtimeTicks) {
-        if (world == null || !active() || integrity.isFlagged()) return;
+        if (!tracking() || integrity.isFlagged()) return;
         switch (s.gameMode()) {
             case "creative" -> flagWithNotice(WorldIntegrity.Reason.CREATIVE, null, "xpack.flagged.creative");
             case "spectator" -> flagWithNotice(WorldIntegrity.Reason.SPECTATOR, null, "xpack.flagged.spectator");
@@ -407,12 +484,9 @@ public final class XPackCore {
     /** À appeler à chaque tick client : liaison du compte et envoi périodique. */
     public void tick() {
         long t = clock.millis();
-        if (!active()) return;
-        if (config.token == null) {
-            tickLinking(t);
-            return;
-        }
-        if (world != null && sessionId == null && !sessionPending && t >= nextFlushAt) {
+        tickLinking(t);
+        if (!tracking() || token == null) return;
+        if (sessionId == null && !sessionPending && t >= nextFlushAt) {
             nextFlushAt = t + backoffMs;
             openSession();
         }
@@ -420,7 +494,7 @@ public final class XPackCore {
     }
 
     private void flushNow() {
-        if (sessionId == null || inFlight || pending.isEmpty() || config.token == null) return;
+        if (sessionId == null || inFlight || pending.isEmpty() || token == null) return;
         List<JsonObject> batch = new ArrayList<>(pending.subList(0, Math.min(MAX_BATCH, pending.size())));
         JsonArray events = new JsonArray();
         for (JsonObject e : batch) {
@@ -433,7 +507,7 @@ public final class XPackCore {
         inFlight = true;
         String sid = sessionId;
         String wid = worldId;
-        api.postEvents(sid, body, config.token).thenAcceptAsync(res -> {
+        api.postEvents(sid, body, token).thenAcceptAsync(res -> {
             inFlight = false;
             // Réponse d'un monde quitté : les événements restent sauvegardés dans son fichier et
             // seront renvoyés (dédoublonnés par identifiant) au prochain passage.
@@ -472,59 +546,96 @@ public final class XPackCore {
 
     // ------------------------------------------------------------------ liaison du compte (#34)
 
+    /**
+     * Démarre la liaison de ce compte Minecraft : depuis un monde suivi, ou depuis les réglages,
+     * menu principal compris. Sans effet si elle est déjà en cours pour ce compte.
+     */
+    public void startLinking(String minecraftUuid, String minecraftName) {
+        String uuid = normalizeUuid(minecraftUuid);
+        if (uuid.equals(linkUuid) && !linkFailed) return;
+        cancelLinking();
+        linkUuid = uuid;
+        linkName = minecraftName;
+        nextPollAt = 0;
+    }
+
+    public void cancelLinking() {
+        linkUuid = null;
+        linkName = null;
+        deviceCode = null;
+        userCode = null;
+        linkFailed = false;
+        linkInFlight = false;
+    }
+
+    /** Liaison en cours, ou null. */
+    public LinkState linkState() {
+        if (linkUuid == null) return null;
+        return new LinkState(linkName, userCode, userCode == null ? null : linkUrl(userCode), linkFailed);
+    }
+
+    /** Lien direct vers la page de liaison, code prérempli : le joueur n'a plus qu'à confirmer. */
+    String linkUrl(String code) {
+        return config.linkUrl + (config.linkUrl.contains("?") ? "&" : "?") + "code=" + code;
+    }
+
     private void tickLinking(long t) {
-        if (world == null || linking && t < nextPollAt) return;
+        if (linkUuid == null || linkInFlight || t < nextPollAt) return;
+        String uuid = linkUuid;
+        linkInFlight = true;
         if (deviceCode == null) {
-            if (linking) return;
-            linking = true;
-            nextPollAt = Long.MAX_VALUE;
-            api.linkStart(normalizeUuid(world.playerUuid()), world.playerName()).thenAcceptAsync(res -> {
+            api.linkStart(uuid, linkName).thenAcceptAsync(res -> {
+                if (!uuid.equals(linkUuid)) return; // liaison annulée ou relancée entre-temps
+                linkInFlight = false;
                 if (!res.ok()) {
-                    linking = false;
-                    nextPollAt = clock.millis() + MAX_BACKOFF_MS; // API injoignable : on réessaiera plus tard
+                    linkFailed = true; // API injoignable : nouvel essai un peu plus tard
+                    nextPollAt = clock.millis() + LINK_RETRY_MS;
                     return;
                 }
+                linkFailed = false;
                 deviceCode = res.body().get("deviceCode").getAsString();
+                userCode = res.body().get("userCode").getAsString();
                 pollIntervalMs = res.body().get("interval").getAsLong() * 1000;
                 nextPollAt = clock.millis() + pollIntervalMs;
-                ui.notify("xpack.link.code", config.linkUrl, res.body().get("userCode").getAsString());
+                ui.notify("xpack.link.code", linkUrl(userCode), userCode);
             }, mainThread);
             return;
         }
-        nextPollAt = Long.MAX_VALUE;
-        String uuid = normalizeUuid(world.playerUuid());
         api.linkPoll(deviceCode).thenAcceptAsync(res -> {
+            if (!uuid.equals(linkUuid)) return;
+            linkInFlight = false;
             if (res.status() == 200) {
-                config.token = res.body().get("token").getAsString();
-                config.tokenUuid = uuid;
-                config.save(configFile);
-                deviceCode = null;
-                linking = false;
+                String newToken = res.body().get("token").getAsString();
+                credentials.put(config.apiUrl, uuid, linkName, newToken);
+                cancelLinking();
                 ui.notify("xpack.link.done");
-                openSession();
+                if (world != null && uuid.equals(normalizeUuid(world.playerUuid()))) {
+                    token = newToken;
+                    openSession();
+                }
             } else if (res.status() == 202 || res.status() == 0) {
                 nextPollAt = clock.millis() + pollIntervalMs;
             } else {
-                // Code expiré ou inconnu : nouvelle demande au prochain tick.
-                deviceCode = null;
-                linking = false;
-                nextPollAt = 0;
+                // Code expiré : pas de relance automatique (sinon un message toutes les 10 min).
+                cancelLinking();
+                ui.notify("xpack.link.expired");
             }
         }, mainThread);
     }
 
     private void forgetToken() {
-        config.token = null;
-        config.tokenUuid = null;
-        config.save(configFile);
+        if (world != null) credentials.remove(config.apiUrl, world.playerUuid());
+        token = null;
         sessionId = null;
         ui.notify("xpack.link.revoked");
+        if (tracking()) startLinking(world.playerUuid(), world.playerName());
     }
 
     public Status status() {
+        if (world != null && practice) return Status.PRACTICE;
         if (!active()) return Status.DISABLED;
         if (integrity.isFlagged()) return Status.NOT_COUNTED;
-        if (config.token == null) return Status.UNLINKED;
+        if (token == null) return Status.UNLINKED;
         if (sessionId == null || lastSendFailed) return Status.OFFLINE;
         return Status.COUNTED;
     }
@@ -540,6 +651,7 @@ public final class XPackCore {
         s.flaggedAt = integrity.flaggedAt();
         s.pending = new ArrayList<>(pending);
         s.cheatsNoticeShown = cheatsNoticeShown;
+        s.practice = practice;
         s.save(world.storeFile());
     }
 
@@ -550,7 +662,11 @@ public final class XPackCore {
         String status;
         String flaggedAt;
         boolean cheatsNoticeShown;
+        /** Monde de test : rien n'est envoyé (voir {@link XPackCore#markWorldPractice()}). */
+        boolean practice;
         List<JsonObject> pending = new ArrayList<>();
+        /** Premier passage du mod dans ce monde (aucun fichier). Non sauvegardé. */
+        transient boolean fresh;
 
         static WorldStore load(Path file) {
             WorldStore s = null;
@@ -560,6 +676,7 @@ public final class XPackCore {
                 // fichier abîmé : on repart d'un état neuf (le serveur garde le statut d'intégrité)
             }
             if (s == null) s = new WorldStore();
+            s.fresh = !Files.isRegularFile(file);
             if (s.worldId == null) s.worldId = UUID.randomUUID().toString();
             if (s.pending == null) s.pending = new ArrayList<>();
             return s;

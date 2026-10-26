@@ -20,13 +20,14 @@ public final class StatusBadge {
             case COUNTED -> 0x55FF55;
             case OFFLINE, UNLINKED -> 0xFFD24A;
             case NOT_COUNTED -> 0xFF5555;
-            case DISABLED -> 0x888888;
+            case DISABLED, PRACTICE -> 0x888888;
         };
         Minecraft mc = Minecraft.getInstance();
         Component label = Component.literal("● ").withColor(color)
                 .append(Component.literal("XPack · ").withStyle(ChatFormatting.WHITE))
                 .append(Texts.tr("xpack.badge." + status.name().toLowerCase(java.util.Locale.ROOT)).withStyle(ChatFormatting.GRAY));
-        g.drawString(mc.font, label, 6, 6, 0xFFFFFF);
+        // À droite du bouton ⚙ (PauseScreenMixin).
+        g.drawString(mc.font, label, 28, 10, 0xFFFFFF);
         if (!logged) {
             logged = true;
             SmokeTest.log("badge rendered status=" + status);
