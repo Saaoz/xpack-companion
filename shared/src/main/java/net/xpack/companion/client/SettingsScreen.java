@@ -1,5 +1,6 @@
 package net.xpack.companion.client;
 
+import java.util.List;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.User;
 import net.minecraft.client.gui.GuiGraphics;
@@ -17,7 +18,9 @@ import net.xpack.companion.core.XPackCore;
  * cours (aussi depuis le menu principal) et « monde de test » pour le monde ouvert.
  */
 public final class SettingsScreen extends Screen {
-    private static final int ROW = 24;
+    /** Hauteur d'une ligne : 8 lignes au plus tiennent au-dessus du texte du bas en échelle d'interface 4 (1080p). */
+    private static final int ROW = 22;
+    private static final List<Integer> VOLUMES = List.of(0, 20, 40, 60, 80, 100);
     private final Screen parent;
     /** État affiché : les boutons sont reconstruits quand il change (code reçu, liaison terminée…). */
     private String shownState = "";
@@ -56,6 +59,26 @@ public final class SettingsScreen extends Screen {
             c.badge = v;
             core.saveConfig();
         }));
+
+        // Son des succès (#59) : choix du son, volume, et écoute d'une rareté à chaque clic.
+        y += ROW;
+        addRenderableWidget(CycleButton.<String>builder(p -> Texts.tr("xpack.settings.sound." + p)).withValues(XPackSounds.PRESETS)
+                .withInitialValue(XPackSounds.PRESETS.contains(c.sound) ? c.sound : "carillon")
+                .create(x, y, 120, 20, Texts.tr("xpack.settings.sound"), (b, v) -> {
+                    c.sound = v;
+                    core.saveConfig();
+                }));
+        addRenderableWidget(CycleButton.<Integer>builder(v -> Component.literal(v + " %")).withValues(VOLUMES)
+                .withInitialValue(VOLUMES.contains(c.soundVolume) ? c.soundVolume : 80)
+                .create(x + 130, y, 85, 20, Texts.tr("xpack.settings.volume"), (b, v) -> {
+                    c.soundVolume = v;
+                    core.saveConfig();
+                }));
+        addRenderableWidget(Button.builder(listenLabel(), b -> {
+            XPackSounds.play(c, XPackSounds.RARITIES.get(listened));
+            listened = (listened + 1) % XPackSounds.RARITIES.size();
+            b.setMessage(listenLabel());
+        }).bounds(x + 225, y, 85, 20).build());
 
         // Compte : lier / délier le compte Minecraft actuellement connecté.
         y += ROW;
@@ -103,6 +126,13 @@ public final class SettingsScreen extends Screen {
             addRenderableWidget(support);
         }
         addRenderableWidget(Button.builder(Component.translatable("gui.done"), b -> onClose()).bounds(width / 2 - 100, height - 28, 200, 20).build());
+    }
+
+    /** Prochaine rareté jouée par « Écouter » : on passe de commun à légendaire, clic après clic. */
+    private static int listened;
+
+    private static Component listenLabel() {
+        return Texts.tr("xpack.settings.listen", Texts.tr("xpack.rarity." + XPackSounds.RARITIES.get(listened)));
     }
 
     private String state(XPackCore core) {

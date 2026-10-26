@@ -35,7 +35,7 @@ final class XPackToast implements Toast {
         return new XPackToast(Texts.tr("xpack.toast.summary", unlocks.size(), points), Component.literal(names), color);
     }
 
-    private static int rank(String rarity) {
+    static int rank(String rarity) {
         return switch (rarity) {
             case "peu_commun" -> 1;
             case "rare" -> 2;

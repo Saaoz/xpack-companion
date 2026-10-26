@@ -31,6 +31,10 @@ public final class Config {
     public boolean enabled = true;
     /** Notifications « Succès débloqué » en jeu (#39). */
     public boolean toasts = true;
+    /** Son joué avec le toast d'un succès (#59) : {@code carillon}, {@code cloche}, {@code fanfare} ou {@code off}. */
+    public String sound = "carillon";
+    /** Volume de ce son, de 0 à 100 (en plus du volume général du jeu). */
+    public int soundVolume = 80;
     /** Badge d'état (comptabilisé / hors-ligne / non comptabilisé) dans le menu pause (#39). */
     public boolean badge = true;
     /**

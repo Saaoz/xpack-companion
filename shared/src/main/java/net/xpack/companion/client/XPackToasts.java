@@ -2,6 +2,7 @@ package net.xpack.companion.client;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.Deque;
 import java.util.List;
 import net.minecraft.client.Minecraft;
@@ -54,6 +55,9 @@ final class XPackToasts {
         }
         if (!unlocks.isEmpty()) {
             toasts.addToast(XPackToast.of(List.copyOf(unlocks)));
+            // Un seul son pour le toast : celui du plus rare des succès qu'il regroupe.
+            unlocks.stream().map(Unlock::rarity).max(Comparator.comparingInt(XPackToast::rank))
+                    .ifPresent(r -> XPackSounds.play(XPackClient.core().config(), r));
             unlocks.clear();
         }
     }

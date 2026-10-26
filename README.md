@@ -36,6 +36,7 @@ Mod **client uniquement** qui envoie en temps réel tes progrès Minecraft à XP
   - détection du mode créatif ou spectateur, de l'invulnérabilité et du vol en survie ;
   - un monde signalé le reste, et le serveur fait foi.
 - **Toast** « Succès XPack » (#39) et messages en français et en anglais.
+- **Son des succès** (#59), joué avec le toast. Trois sons au choix (carillon, cloche, fanfare) ou coupé, avec un volume réglable. Plus le succès est rare, plus le son est marqué. Ce sont des sons du jeu : ils marchent aussi sur Fabric sans Fabric API. Le bouton **▶** des réglages fait écouter chaque rareté, de commune à légendaire.
 
 ## Structure
 
@@ -82,6 +83,8 @@ Prérequis : Java 21, Node 20+, `xvfb-run`, Mesa, et `pip install nbtlib`.
 | `enabled` | Coupe tout envoi sans délier le compte |
 | `toasts` | Notifications de succès en jeu |
 | `badge` | Pastille d'état XPack dans le menu pause (comptabilisé / hors-ligne / non comptabilisé) |
+| `sound` | Son des succès : `carillon` (défaut), `cloche`, `fanfare` ou `off` |
+| `soundVolume` | Volume de ce son, de 0 à 100 (défaut 80), en plus du volume général du jeu |
 | `supportKey` | Touche qui ouvre le support pendant une alerte (`key.keyboard.k` par défaut ; J est pris par JourneyMap) |
 
 Ces réglages sont aussi modifiables en jeu : bouton **⚙** du menu pause, bouton **Configurer** de la liste des mods sur NeoForge, ou Mod Menu sur Fabric (facultatif).
