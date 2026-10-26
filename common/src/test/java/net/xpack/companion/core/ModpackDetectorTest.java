@@ -14,6 +14,18 @@ class ModpackDetectorTest {
     @TempDir
     Path instance;
 
+    /** Fixture réelle (spec/launcher-fixtures/bmc4-manifest-curseforge) : manifest sans id de projet. */
+    @Test
+    void fixtureReelleBmc4NeDonneQueLeNomEtLaVersion() throws IOException {
+        Path fixture = Path.of(System.getProperty("xpack.spec"), "launcher-fixtures", "bmc4-manifest-curseforge");
+        Files.copy(fixture.resolve("manifest.json"), instance.resolve("manifest.json"));
+        var info = ModpackDetector.detect(instance, List.of());
+        assertEquals("curseforge", info.source());
+        assertEquals(null, info.projectId(), "le manifest n'a pas d'id de projet : la résolution devra se faire côté serveur");
+        assertEquals("BMC4", info.name());
+        assertEquals("v62hf", info.version());
+    }
+
     @Test
     void litUnPackModrinth() throws IOException {
         Files.writeString(instance.resolve("modrinth.index.json"), "{\"name\":\"Engrenages\",\"versionId\":\"1.4.0\",\"files\":[]}");

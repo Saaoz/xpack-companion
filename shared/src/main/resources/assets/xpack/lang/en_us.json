@@ -1,7 +1,7 @@
 {
-  "xpack.link.code": "To track your achievements, open %s and enter the code %s",
+  "xpack.link.hint": "Your XPack account is not linked yet: pause menu → ⚙ → Link my account (or /xpack settings).",
   "xpack.link.done": "Account linked! Your achievements are now tracked.",
-  "xpack.link.revoked": "Link revoked. A new code will be offered.",
+  "xpack.link.revoked": "Link revoked: link your account again from the pause menu → ⚙.",
   "xpack.link.expired": "Link code expired. To get a new one: pause menu → ⚙ → Link my account.",
   "xpack.practice.auto": "Creative world: this is a test world, XPack does not track it (nothing is sent, nothing is flagged).",
   "xpack.practice.manual": "This world is now a test world: XPack no longer tracks it. Your other worlds are not affected.",
@@ -64,7 +64,12 @@
   "xpack.support.sent": "Sent! The answer will arrive at your XPack account email.",
   "xpack.support.failed": "Could not send right now. Try again in a few minutes.",
   "xpack.support.needLink": "Link your XPack account first: support will answer by email.",
-  "xpack.command.help": "Commands: /xpack diagnostic (what the mod detects about your modpack), /xpack support, /xpack settings",
+  "xpack.command.help.title": "XPack commands:",
+  "xpack.command.click": "Click to write it in the chat",
+  "xpack.command.settings": "settings: link or unlink your account, test world",
+  "xpack.command.diagnostic": "what the mod detects about your modpack (folder to send for tests)",
+  "xpack.command.support": "contact support (dispute a detection)",
+  "xpack.command.help": "this help",
   "xpack.diagnostic.done": "Diagnostic ready. Detected modpack: %s. Files found: %s.",
   "xpack.diagnostic.open": "[Open folder]",
   "xpack.diagnostic.failed": "Diagnostic failed: %s"

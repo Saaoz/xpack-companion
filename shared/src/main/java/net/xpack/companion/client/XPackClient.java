@@ -125,7 +125,7 @@ public final class XPackClient {
             // Différé : le chat se ferme juste après l'envoi de la commande.
             case "support" -> mc.tell(() -> mc.setScreen(new SupportScreen(null)));
             case "settings", "reglages", "réglages" -> mc.tell(() -> mc.setScreen(new SettingsScreen(null)));
-            default -> MinecraftUi.say(Texts.tr("xpack.command.help"));
+            default -> XPackCommands.help(); // /xpack, /xpack help, ou commande inconnue
         }
         return true;
     }

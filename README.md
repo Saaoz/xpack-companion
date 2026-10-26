@@ -12,7 +12,7 @@ Mod **client uniquement** qui envoie en temps réel tes progrès Minecraft à XP
 
 ## Ce que fait le mod
 
-- **Liaison du compte** (#34) : au premier monde suivi, un code s'affiche dans le chat. On peut aussi lier son compte depuis les réglages, y compris au menu principal : **Ouvrir le site** arrive sur `/link?code=…` avec le code prérempli, et le site demande « Lier le compte Minecraft *Steve* ? » avant de lier quoi que ce soit. Un code expiré n'est pas relancé tout seul.
+- **Liaison du compte** (#34) : uniquement depuis les réglages (menu pause → ⚙, ou `/xpack settings`, aussi au menu principal). Le code s'y affiche avec **Ouvrir le site** (`/link?code=…` prérempli, le site demande « Lier le compte Minecraft *Steve* ? ») et **Copier le code**. Dans le chat, un seul rappel par lancement (« lie ton compte via ⚙ »), jamais de code ni de lien. Un code expiré n'est pas relancé tout seul.
 - **Mondes de test** : un monde que le mod découvre en créatif (ou en spectateur, ou créé en mode créatif) est un monde de test. Le joueur peut aussi en déclarer un depuis les réglages. Dans ces mondes, **rien n'est envoyé et rien n'est signalé** : ni succès, ni pénalité. C'est définitif pour le monde concerné, et les autres mondes ne changent pas. En revanche, un monde déjà suivi qui passe en créatif reste suivi et devient « signalé ».
 - **Bouton ⚙ dans le menu pause** : réglages, liaison, déliaison, monde de test, contacter le support.
 - **Détection automatique sans blocage** : créatif, spectateur, vol, invulnérabilité, mod interdit. Une notification reste 20 s : « Ce monde n'est plus comptabilisé », avec la raison et **[K] Contacter le support** (touche réglable avec `supportKey`). Le même message s'affiche dans le chat, avec un lien cliquable. Les commandes de triche gardent leur écran de confirmation.
@@ -25,6 +25,7 @@ Mod **client uniquement** qui envoie en temps réel tes progrès Minecraft à XP
 | `/xpack diagnostic` | Copie, anonymisés, les fichiers du lanceur qui décrivent le modpack dans `<instance>/xpack-diagnostic/diagnostic-<date>/`, avec la liste des mods et ce que le mod a détecté. Un lien du chat ouvre le dossier. C'est ce dossier qu'il faut envoyer pour les tests de détection |
 | `/xpack support` | Écran de contact du support |
 | `/xpack settings` | Réglages du mod |
+| `/xpack` ou `/xpack help` | Aide : une ligne par commande, cliquable. Les commandes sont proposées en suggestion pendant la saisie, comme celles des autres mods (ajoutées à l'arbre de commandes du client) |
 - **Progrès en temps réel** (#35) : lus dans les paquets que le serveur envoie au client, donc aussi sur un serveur distant sans mod. Le premier paquet (état complet) est envoyé comme « instantané », non vérifié.
 - **Statistiques** (#36) : demandées au serveur toutes les 60 s, seulement celles utilisées par les succès du modpack.
 - **File d'envoi** (#37) : lots toutes les 5 s, reprise en cas de coupure, événements non envoyés sauvegardés dans le monde.

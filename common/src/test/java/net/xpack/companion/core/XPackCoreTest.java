@@ -161,7 +161,17 @@ class XPackCoreTest {
                 .reply(201, SESSION);
         core.onJoinWorld(world());
         core.tick();
-        assertTrue(ui.notices.contains("xpack.link.code"));
+        // Compte non lié : un rappel vers les réglages, mais ni code ni lien envoyés d'office.
+        assertEquals(List.of("xpack.link.hint"), ui.notices);
+        assertTrue(api.calls.isEmpty());
+        core.onLeaveWorld();
+        core.onJoinWorld(world());
+        assertEquals(1, ui.notices.stream().filter("xpack.link.hint"::equals).count(), "un seul rappel par lancement");
+
+        core.startLinking(UUID, "Steve"); // bouton « Lier mon compte » des réglages
+        core.tick();
+        assertEquals("K7Q-2MX", core.linkState().userCode(), "le code s'affiche dans les réglages");
+        assertFalse(ui.notices.contains("xpack.link.code"), "pas dans le chat");
         clock.millis += 5_000;
         core.tick(); // 202 : en attente
         assertFalse(core.isLinked(UUID));
@@ -220,17 +230,19 @@ class XPackCoreTest {
     void unCodeExpireNeRelancePasLaLiaisonToutSeul() {
         api.reply(201, "{\"deviceCode\":\"dc\",\"userCode\":\"K7Q-2MX\",\"expiresIn\":600,\"interval\":5}").reply(410, "{\"error\":\"expired\"}");
         core.onJoinWorld(world());
+        core.startLinking(UUID, "Steve");
         core.tick();
         clock.millis += 5_000;
         core.tick();
         assertTrue(ui.notices.contains("xpack.link.expired"));
+        assertNull(core.linkState());
         int calls = api.calls.size();
         for (int i = 0; i < 5; i++) {
             clock.millis += 600_000;
             core.tick();
         }
         assertEquals(calls, api.calls.size(), "aucun nouveau code sans action du joueur");
-        assertEquals(1, ui.notices.stream().filter("xpack.link.code"::equals).count());
+        assertEquals(2, calls, "un seul code demandé, puis un seul poll");
     }
 
     @Test
@@ -430,8 +442,9 @@ class XPackCoreTest {
         assertNull(api.last("/events"));
         assertNull(api.last("/v1/sessions"));
         assertTrue(api.calls.stream().noneMatch(c -> "jeton-alex".equals(c.token())));
-        // Ce compte-ci se voit proposer sa propre liaison.
-        assertEquals(XPackCore.normalizeUuid(UUID), api.last("/v1/link/start").body().get("minecraftUuid").getAsString());
+        // Ce compte-ci n'est pas lié : on lui rappelle les réglages, sans rien demander au serveur.
+        assertTrue(ui.notices.contains("xpack.link.hint"));
+        assertTrue(api.calls.isEmpty());
         assertEquals(XPackCore.Status.UNLINKED, core.status());
     }
 

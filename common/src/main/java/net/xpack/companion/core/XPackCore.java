@@ -248,12 +248,21 @@ public final class XPackCore {
         if (active()) startTracking();
     }
 
-    /** Monde suivi : information sur les triches, puis session (ou liaison si ce compte n'est pas lié). */
+    /**
+     * Monde suivi : information sur les triches, puis session. Compte non lié : un seul rappel par
+     * lancement vers les réglages (⚙) ; la liaison ne démarre que si le joueur la demande là-bas,
+     * jamais de code ni de lien envoyés d'office dans le chat.
+     */
     private void startTracking() {
         noticeCheats();
-        if (token == null) startLinking(world.playerUuid(), world.playerName());
-        else openSession();
+        if (token != null) openSession();
+        else if (!linkHintShown) {
+            linkHintShown = true;
+            ui.notify("xpack.link.hint");
+        }
     }
+
+    private boolean linkHintShown;
 
     private boolean cheatsNoticeShown;
 
@@ -651,7 +660,6 @@ public final class XPackCore {
                 userCode = res.body().get("userCode").getAsString();
                 pollIntervalMs = res.body().get("interval").getAsLong() * 1000;
                 nextPollAt = clock.millis() + pollIntervalMs;
-                ui.notify("xpack.link.code", linkUrl(userCode), userCode);
             }, mainThread);
             return;
         }
@@ -681,8 +689,7 @@ public final class XPackCore {
         if (world != null) credentials.remove(config.apiUrl, world.playerUuid());
         token = null;
         sessionId = null;
-        ui.notify("xpack.link.revoked");
-        if (tracking()) startLinking(world.playerUuid(), world.playerName());
+        ui.notify("xpack.link.revoked"); // « relie ton compte via ⚙ »
     }
 
     public Status status() {

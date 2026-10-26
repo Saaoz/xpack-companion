@@ -15,5 +15,7 @@ processResources {
 }
 
 test {
+    // Fixtures réelles partagées avec l'API (spec/launcher-fixtures).
+    systemProperty "xpack.spec", "${rootDir}/../spec"
     useJUnitPlatform()
 }

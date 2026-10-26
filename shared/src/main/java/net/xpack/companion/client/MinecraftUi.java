@@ -35,13 +35,7 @@ final class MinecraftUi implements Ui {
     @Override
     public void notify(String translationKey, Object... args) {
         SmokeTest.log("notice " + translationKey);
-        Minecraft mc = Minecraft.getInstance();
-        MutableComponent message = Texts.tr(translationKey, args);
-        // Le lien de liaison est cliquable.
-        if ("xpack.link.code".equals(translationKey) && args.length > 0) {
-            message = message.withStyle(s -> s.withClickEvent(new ClickEvent(ClickEvent.Action.OPEN_URL, String.valueOf(args[0]))).withUnderlined(true));
-        }
-        say(message);
+        say(Texts.tr(translationKey, args));
     }
 
     @Override
@@ -60,8 +54,12 @@ final class MinecraftUi implements Ui {
 
     /** Ligne « [XPack] … » dans le chat. */
     static void say(Component message) {
+        line(Component.empty().append(PREFIX).append(message));
+    }
+
+    /** Ligne de chat sans préfixe (suite d'un message, ex. une commande de l'aide). */
+    static void line(Component message) {
         Minecraft mc = Minecraft.getInstance();
-        Component line = Component.empty().append(PREFIX).append(message);
-        mc.tell(() -> mc.gui.getChat().addMessage(line));
+        mc.tell(() -> mc.gui.getChat().addMessage(message));
     }
 }
