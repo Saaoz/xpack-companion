@@ -28,8 +28,7 @@ final class MinecraftUi implements Ui {
 
     @Override
     public void toastUnlocked(String name, int points, String rarity) {
-        Minecraft mc = Minecraft.getInstance();
-        mc.getToasts().addToast(new XPackToast(name, points, rarity));
+        XPackToasts.unlocked(name, points, rarity); // affiché après les progrès du jeu
     }
 
     @Override
@@ -41,10 +40,8 @@ final class MinecraftUi implements Ui {
     @Override
     public void integrityAlert(String translationKey, Object... args) {
         SmokeTest.log("alert " + translationKey);
-        Minecraft mc = Minecraft.getInstance();
         MutableComponent reason = Texts.tr(translationKey, args);
-        mc.getToasts().addToast(new IntegrityToast(reason, XPackClient.supportKeyName()));
-        XPackClient.alertShown();
+        XPackToasts.alert(new IntegrityToast(reason, XPackClient.supportKeyName())); // après les toasts du jeu
         // Même message dans le chat, avec un lien cliquable : il reste lisible après le toast.
         MutableComponent link = Texts.tr("xpack.alert.supportLink").withStyle(s -> s.withColor(ChatFormatting.AQUA).withUnderlined(true)
                 .withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/xpack support"))

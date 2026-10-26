@@ -160,6 +160,7 @@ public final class XPackClient {
         inWorld = nowInWorld;
         SmokeTest.tick(mc, inWorld);
         checkSupportKey(mc);
+        XPackToasts.tick(mc);
 
         if (inWorld) {
             long playtime = mc.level.getGameTime();

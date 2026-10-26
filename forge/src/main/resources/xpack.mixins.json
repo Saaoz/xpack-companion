@@ -4,6 +4,6 @@
   "package": "net.xpack.companion.mixin",
   "compatibilityLevel": "JAVA_17",
   "refmap": "xpack.refmap.json",
-  "client": ["MinecraftMixin", "ClientAdvancementsMixin", "ClientPacketListenerMixin", "ScreenMixin", "PauseScreenMixin", "CommandTreeMixin", "PauseScreenAccessor"],
+  "client": ["MinecraftMixin", "ClientAdvancementsMixin", "ClientPacketListenerMixin", "ScreenMixin", "PauseScreenMixin", "CommandTreeMixin", "ToastComponentAccessor", "PauseScreenAccessor"],
   "injectors": { "defaultRequire": 1 }
 }
