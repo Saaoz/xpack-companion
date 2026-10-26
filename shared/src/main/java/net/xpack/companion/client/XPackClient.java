@@ -1,6 +1,12 @@
 package net.xpack.companion.client;
 
 import com.google.gson.JsonObject;
+import com.mojang.blaze3d.platform.InputConstants;
+import java.util.Locale;
+import net.minecraft.ChatFormatting;
+import net.minecraft.network.chat.ClickEvent;
+import net.minecraft.network.chat.MutableComponent;
+import net.xpack.companion.core.Diagnostics;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.security.MessageDigest;
@@ -72,6 +78,74 @@ public final class XPackClient {
         return core;
     }
 
+    // ------------------------------------------------------------------ alerte de triche → support
+
+    /** Fin de la fenêtre pendant laquelle la touche du support est active (durée du toast). */
+    private static long alertUntil;
+
+    static void alertShown() {
+        alertUntil = System.currentTimeMillis() + IntegrityToast.DISPLAY_MS;
+    }
+
+    private static InputConstants.Key supportKey() {
+        try {
+            return InputConstants.getKey(core.config().supportKey);
+        } catch (RuntimeException e) {
+            return InputConstants.Type.KEYSYM.getOrCreate(InputConstants.KEY_K);
+        }
+    }
+
+    static String supportKeyName() {
+        return core == null ? "K" : supportKey().getDisplayName().getString();
+    }
+
+    /** Pendant l'alerte, et seulement en jeu (aucun écran ouvert) : la touche ouvre le support. */
+    private static void checkSupportKey(Minecraft mc) {
+        if (alertUntil == 0 || System.currentTimeMillis() > alertUntil || mc.screen != null) return;
+        InputConstants.Key key = supportKey();
+        if (key.getType() == InputConstants.Type.KEYSYM && InputConstants.isKeyDown(mc.getWindow().getWindow(), key.getValue())) {
+            alertUntil = 0;
+            mc.setScreen(new SupportScreen(null));
+        }
+    }
+
+    // ------------------------------------------------------------------ commandes locales /xpack
+
+    /**
+     * Commandes du mod, traitées dans le client et jamais envoyées au serveur (aucune API de
+     * commandes nécessaire, identique sur Fabric et NeoForge). Renvoie vrai si la commande est à nous.
+     */
+    public static boolean handleLocalCommand(String command) {
+        String c = command.strip();
+        if (core == null || !(c.equalsIgnoreCase("xpack") || c.toLowerCase(Locale.ROOT).startsWith("xpack "))) return false;
+        String sub = c.length() > 5 ? c.substring(5).strip().toLowerCase(Locale.ROOT) : "";
+        Minecraft mc = Minecraft.getInstance();
+        switch (sub) {
+            case "diagnostic", "diag" -> runDiagnostic(mc);
+            // Différé : le chat se ferme juste après l'envoi de la commande.
+            case "support" -> mc.tell(() -> mc.setScreen(new SupportScreen(null)));
+            case "settings", "reglages", "réglages" -> mc.tell(() -> mc.setScreen(new SettingsScreen(null)));
+            default -> MinecraftUi.say(Texts.tr("xpack.command.help"));
+        }
+        return true;
+    }
+
+    /** /xpack diagnostic : fichiers du lanceur (anonymisés) + modpack détecté, dans un dossier à envoyer. */
+    private static void runDiagnostic(Minecraft mc) {
+        ModpackDetector.ModpackInfo detected = ModpackDetector.detect(gameDir, modIds);
+        String summary = "XPack Companion " + modVersion + " (" + loader + "), Minecraft " + SharedConstants.getCurrentVersion().getName()
+                + "\nModpack détecté : " + Diagnostics.describe(detected) + "\nMods chargés : " + modIds.size();
+        try {
+            Diagnostics.Result r = Diagnostics.write(gameDir, gameDir.resolve("xpack-diagnostic"), summary, modIds, Clock.systemUTC());
+            String files = r.found().isEmpty() ? "-" : String.join(", ", r.found());
+            MutableComponent open = Texts.tr("xpack.diagnostic.open").withStyle(s -> s.withColor(ChatFormatting.AQUA).withUnderlined(true)
+                    .withClickEvent(new ClickEvent(ClickEvent.Action.OPEN_FILE, r.folder().toAbsolutePath().toString())));
+            MinecraftUi.say(Texts.tr("xpack.diagnostic.done", Diagnostics.describe(detected), files).append(" ").append(open));
+        } catch (java.io.IOException e) {
+            MinecraftUi.say(Texts.tr("xpack.diagnostic.failed", e.getMessage()));
+        }
+    }
+
     // ------------------------------------------------------------------ tick client
 
     public static void onClientTick(Minecraft mc) {
@@ -85,6 +159,7 @@ public final class XPackClient {
         }
         inWorld = nowInWorld;
         SmokeTest.tick(mc, inWorld);
+        checkSupportKey(mc);
 
         if (inWorld) {
             long playtime = mc.level.getGameTime();

@@ -17,12 +17,21 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 public abstract class ClientPacketListenerMixin {
     @Inject(method = "sendCommand", at = @At("HEAD"), cancellable = true)
     private void xpack$beforeCommand(String command, CallbackInfo ci) {
+        if (XPackClient.handleLocalCommand(command)) {
+            ci.cancel(); // /xpack … : traité dans le client, jamais envoyé au serveur
+            return;
+        }
         ClientPacketListener self = (ClientPacketListener) (Object) this;
         if (!XPackClient.beforeCommand(command, self::sendCommand)) ci.cancel();
     }
 
     @Inject(method = "sendUnsignedCommand", at = @At("HEAD"), cancellable = true)
     private void xpack$beforeUnsignedCommand(String command, CallbackInfoReturnable<Boolean> cir) {
+        // Aussi le chemin des liens cliquables du chat (« Contacter le support » → /xpack support).
+        if (XPackClient.handleLocalCommand(command)) {
+            cir.setReturnValue(true);
+            return;
+        }
         ClientPacketListener self = (ClientPacketListener) (Object) this;
         if (!XPackClient.beforeCommand(command, self::sendUnsignedCommand)) cir.setReturnValue(false);
     }

@@ -78,9 +78,17 @@ class XPackCoreTest {
             toasts.add(name + ":" + points + ":" + rarity);
         }
 
+        final List<String> alerts = new ArrayList<>();
+
         @Override
         public void notify(String key, Object... args) {
             notices.add(key);
+        }
+
+        @Override
+        public void integrityAlert(String key, Object... args) {
+            notices.add(key);
+            alerts.add(key);
         }
     }
 
@@ -509,5 +517,43 @@ class XPackCoreTest {
         core.setLoadedMods(List.of("baritone"));
         linkedAndJoined();
         assertTrue(core.integrity().isFlagged());
+    }
+
+    // ------------------------------------------------------------------ alertes et support
+
+    @Test
+    void uneDetectionAutomatiqueAvertitSansBloquerEtLeSupportRecoitLeContexte() {
+        core.setLoadedMods(List.of("minecraft", "mekanism"));
+        linkedAndJoined();
+        core.onPlayerState(new XPackCore.PlayerState("survival", false, true), 30);
+        assertEquals(List.of("xpack.flagged.flight"), ui.alerts, "notification avec accès au support");
+
+        assertTrue(core.canContactSupport());
+        JsonObject report = core.supportReport();
+        assertEquals("NOT_COUNTED", report.get("status").getAsString());
+        JsonObject detection = report.getAsJsonArray("detections").get(0).getAsJsonObject();
+        assertEquals("abilities", detection.get("reason").getAsString());
+        assertEquals("mayfly", detection.get("detail").getAsString());
+        assertEquals("Engrenages", report.getAsJsonObject("modpack").get("name").getAsString());
+        assertTrue(report.getAsJsonArray("mods").toString().contains("mekanism"), "utile pour repérer un jetpack légitime");
+
+        api.reply(201, "{\"id\":\"sup_1\",\"mailed\":true}");
+        List<Boolean> sent = new ArrayList<>();
+        core.sendSupport("  J'avais un jetpack Mekanism  ", sent::add);
+        assertEquals(List.of(true), sent);
+        XPackCoreTest.FakeApi.Call call = api.last("/v1/support/reports");
+        assertEquals("jeton", call.token());
+        assertEquals("J'avais un jetpack Mekanism", call.body().get("message").getAsString());
+        assertEquals("abilities", call.body().getAsJsonObject("report").getAsJsonArray("detections").get(0).getAsJsonObject().get("reason").getAsString());
+    }
+
+    @Test
+    void sansCompteLieLeSupportNePeutPasRepondre() {
+        core.onJoinWorld(world());
+        assertFalse(core.canContactSupport());
+        List<Boolean> sent = new ArrayList<>();
+        core.sendSupport("aide", sent::add);
+        assertEquals(List.of(false), sent);
+        assertNull(api.last("/v1/support/reports"));
     }
 }

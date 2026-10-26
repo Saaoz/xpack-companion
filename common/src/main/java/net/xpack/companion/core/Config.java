@@ -33,6 +33,11 @@ public final class Config {
     public boolean toasts = true;
     /** Badge d'état (comptabilisé / hors-ligne / non comptabilisé) dans le menu pause (#39). */
     public boolean badge = true;
+    /**
+     * Touche qui ouvre le support pendant une alerte de triche (~20 s). Nom de touche Minecraft
+     * ({@code key.keyboard.k}) ; K par défaut, car J sert déjà à JourneyMap.
+     */
+    public String supportKey = "key.keyboard.k";
 
     public static Config load(Path file) {
         try {

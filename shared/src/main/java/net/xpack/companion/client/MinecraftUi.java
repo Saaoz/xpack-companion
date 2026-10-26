@@ -4,6 +4,7 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.HoverEvent;
 import net.minecraft.network.chat.MutableComponent;
 import net.xpack.companion.core.Ui;
 
@@ -40,6 +41,26 @@ final class MinecraftUi implements Ui {
         if ("xpack.link.code".equals(translationKey) && args.length > 0) {
             message = message.withStyle(s -> s.withClickEvent(new ClickEvent(ClickEvent.Action.OPEN_URL, String.valueOf(args[0]))).withUnderlined(true));
         }
+        say(message);
+    }
+
+    @Override
+    public void integrityAlert(String translationKey, Object... args) {
+        SmokeTest.log("alert " + translationKey);
+        Minecraft mc = Minecraft.getInstance();
+        MutableComponent reason = Texts.tr(translationKey, args);
+        mc.getToasts().addToast(new IntegrityToast(reason, XPackClient.supportKeyName()));
+        XPackClient.alertShown();
+        // Même message dans le chat, avec un lien cliquable : il reste lisible après le toast.
+        MutableComponent link = Texts.tr("xpack.alert.supportLink").withStyle(s -> s.withColor(ChatFormatting.AQUA).withUnderlined(true)
+                .withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/xpack support"))
+                .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Texts.tr("xpack.alert.supportHover"))));
+        say(reason.copy().append(" ").append(link));
+    }
+
+    /** Ligne « [XPack] … » dans le chat. */
+    static void say(Component message) {
+        Minecraft mc = Minecraft.getInstance();
         Component line = Component.empty().append(PREFIX).append(message);
         mc.tell(() -> mc.gui.getChat().addMessage(line));
     }

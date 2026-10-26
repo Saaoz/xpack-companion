@@ -13,4 +13,10 @@ public interface Ui {
 
     /** Message système dans le chat, à partir d'une clé de traduction du mod. */
     void notify(String translationKey, Object... args);
+
+    /**
+     * Triche détectée automatiquement (créatif, vol, mod interdit…) : le monde n'est plus
+     * comptabilisé. Notification qui reste ~20 s avec un accès au support (contestation).
+     */
+    void integrityAlert(String translationKey, Object... args);
 }

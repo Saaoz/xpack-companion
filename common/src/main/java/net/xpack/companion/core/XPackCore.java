@@ -439,8 +439,62 @@ public final class XPackCore {
         }
     }
 
+    /** Détection automatique : on ne bloque rien, on prévient pourquoi le monde ne compte plus. */
     private void flagWithNotice(WorldIntegrity.Reason reason, String detail, String messageKey, Object... args) {
-        if (flag(reason, detail)) ui.notify(messageKey, args);
+        if (flag(reason, detail)) ui.integrityAlert(messageKey, args);
+    }
+
+    // ------------------------------------------------------------------ support (contestation)
+
+    /** Le support peut répondre : il faut un compte lié (son e-mail sert à la réponse). */
+    public boolean canContactSupport() {
+        return world != null && token != null;
+    }
+
+    /**
+     * Rapport joint à une demande de support : uniquement ce qui sert à comprendre une détection.
+     * Ni chat, ni journal du jeu, ni chemins : le joueur voit ce résumé avant l'envoi.
+     */
+    public JsonObject supportReport() {
+        JsonObject r = new JsonObject();
+        r.addProperty("status", status().name());
+        if (world != null) {
+            r.addProperty("worldId", worldId);
+            r.addProperty("kind", world.kind());
+            ModpackDetector.ModpackInfo info = world.modpack();
+            JsonObject m = new JsonObject();
+            m.addProperty("source", info.source());
+            if (info.projectId() != null) m.addProperty("projectId", info.projectId());
+            if (info.name() != null) m.addProperty("name", info.name());
+            if (info.version() != null) m.addProperty("version", info.version());
+            r.add("modpack", m);
+            r.add("fingerprint", world.fingerprint() == null ? new JsonObject() : world.fingerprint().deepCopy());
+        }
+        JsonArray detections = new JsonArray();
+        for (WorldIntegrity.Flag f : integrity.reasons()) {
+            JsonObject d = new JsonObject();
+            d.addProperty("reason", f.reason().wire);
+            d.addProperty("at", f.at());
+            if (f.detail() != null) d.addProperty("detail", f.detail());
+            detections.add(d);
+        }
+        r.add("detections", detections);
+        JsonArray mods = new JsonArray();
+        loadedMods.stream().sorted().forEach(mods::add);
+        r.add("mods", mods);
+        return r;
+    }
+
+    /** Envoie la demande ; {@code done} reçoit vrai si le serveur l'a enregistrée. */
+    public void sendSupport(String message, Consumer<Boolean> done) {
+        if (!canContactSupport()) {
+            done.accept(false);
+            return;
+        }
+        JsonObject body = new JsonObject();
+        body.addProperty("message", message == null ? "" : message.strip());
+        body.add("report", supportReport());
+        api.supportReport(body, token).thenAcceptAsync(res -> done.accept(res.ok()), mainThread);
     }
 
     private boolean flag(WorldIntegrity.Reason reason, String detail) {

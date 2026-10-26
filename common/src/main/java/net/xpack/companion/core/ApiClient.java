@@ -81,6 +81,11 @@ public final class ApiClient {
         return transport.send("POST", "/v1/sessions/" + sessionId + "/events", body, token);
     }
 
+    /** Demande au support (contestation d'une détection), envoyée par e-mail à l'équipe. */
+    public CompletableFuture<Response> supportReport(JsonObject body, String token) {
+        return transport.send("POST", "/v1/support/reports", body, token);
+    }
+
     public CompletableFuture<Response> unlink(String token) {
         return transport.send("DELETE", "/v1/link", null, token);
     }

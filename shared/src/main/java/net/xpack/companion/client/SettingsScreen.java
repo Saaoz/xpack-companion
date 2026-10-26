@@ -98,6 +98,10 @@ public final class SettingsScreen extends Screen {
                     }, Texts.tr("xpack.settings.practiceConfirmTitle"), Texts.tr("xpack.settings.practiceConfirm")))).bounds(x, y, 310, 20).build();
             practice.active = !core.isPracticeWorld();
             addRenderableWidget(practice);
+            y += ROW;
+            Button support = Button.builder(Texts.tr("xpack.settings.support"), b -> minecraft.setScreen(new SupportScreen(this))).bounds(x, y, 310, 20).build();
+            support.active = core.canContactSupport();
+            addRenderableWidget(support);
         }
         addRenderableWidget(Button.builder(Component.translatable("gui.done"), b -> onClose()).bounds(width / 2 - 100, height - 28, 200, 20).build());
     }
