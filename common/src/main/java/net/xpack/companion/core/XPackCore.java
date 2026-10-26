@@ -58,6 +58,13 @@ public final class XPackCore {
     /** État du joueur à chaque tick (#47, #48). */
     public record PlayerState(String gameMode, boolean invulnerable, boolean mayfly) {}
 
+    /**
+     * Un progrès du modpack tel que le jeu l'affiche (#80) : titre et description dans la langue
+     * du joueur, cadre ({@code task}, {@code goal}, {@code challenge}), objet de l'icône. Ce sont
+     * ces progrès qui deviennent les succès XPack ; on ne rédige rien nous-mêmes.
+     */
+    public record AdvancementInfo(String id, String parent, String title, String description, String frame, String icon, boolean hidden) {}
+
     static final long FLUSH_INTERVAL_MS = 5_000;
     static final long MAX_BACKOFF_MS = 300_000;
     static final long LINK_RETRY_MS = 30_000;
@@ -303,6 +310,10 @@ public final class XPackCore {
         allowedCommands = List.of();
         allowsFlight = false;
         trackedStats = Set.of();
+        catalog = null;
+        catalogSentHash = null;
+        catalogInFlight = false;
+        nextCatalogAt = 0;
     }
 
     private void openSession() {
@@ -354,6 +365,7 @@ public final class XPackCore {
             checkBlacklist();
             lastSendFailed = false;
             nextFlushAt = 0;
+            sendCatalog(); // le catalogue arrivé avant l'ouverture de la session part maintenant
         }, mainThread);
     }
 
@@ -409,6 +421,66 @@ public final class XPackCore {
             e.addProperty("value", s.getValue());
             enqueue(e);
         }
+    }
+
+    // ------------------------------------------------------------------ catalogue des progrès (#80)
+
+    static final int MAX_CATALOG = 5_000;
+    static final long CATALOG_RETRY_MS = 60_000;
+    private List<AdvancementInfo> catalog;
+    private String catalogLang;
+    private String catalogHash;
+    /** Empreinte du dernier catalogue envoyé pendant cette partie : on ne renvoie que s'il change. */
+    private String catalogSentHash;
+    private boolean catalogInFlight;
+    private long nextCatalogAt;
+
+    /**
+     * Catalogue des progrès du modpack (solo : l'arbre complet du serveur intégré ; multijoueur :
+     * ce que le serveur a rendu visible). Envoyé une fois par partie, puis seulement s'il change.
+     */
+    public void onAdvancementCatalog(List<AdvancementInfo> advancements, String lang) {
+        if (world == null || practice) return;
+        List<AdvancementInfo> kept = advancements.stream().filter(a -> !a.id().contains(":recipes/")).limit(MAX_CATALOG).toList();
+        if (kept.isEmpty()) return;
+        catalog = kept;
+        catalogLang = lang;
+        catalogHash = hashOf(kept, lang);
+        sendCatalog();
+    }
+
+    private static String hashOf(List<AdvancementInfo> catalog, String lang) {
+        StringBuilder sb = new StringBuilder(lang).append('|');
+        catalog.stream().map(AdvancementInfo::id).sorted().forEach(id -> sb.append(id).append(','));
+        return shortHash(sb.toString());
+    }
+
+    private void sendCatalog() {
+        if (catalog == null || catalogInFlight || catalogHash.equals(catalogSentHash) || sessionId == null || token == null || !tracking()) return;
+        String hash = catalogHash;
+        JsonArray list = new JsonArray();
+        for (AdvancementInfo a : catalog) {
+            JsonObject o = new JsonObject();
+            o.addProperty("id", a.id());
+            if (a.parent() != null) o.addProperty("parent", a.parent());
+            o.addProperty("title", a.title());
+            if (a.description() != null && !a.description().isBlank()) o.addProperty("description", a.description());
+            o.addProperty("frame", a.frame());
+            if (a.icon() != null) o.addProperty("icon", a.icon());
+            if (a.hidden()) o.addProperty("hidden", true);
+            list.add(o);
+        }
+        JsonObject body = new JsonObject();
+        body.addProperty("lang", catalogLang);
+        body.add("advancements", list);
+        catalogInFlight = true;
+        String wid = worldId;
+        api.postCatalog(sessionId, body, token).thenAcceptAsync(res -> {
+            catalogInFlight = false;
+            if (!wid.equals(worldId)) return;
+            if (res.ok() || res.status() == 422) catalogSentHash = hash; // 422 : inutile de renvoyer le même
+            else nextCatalogAt = clock.millis() + CATALOG_RETRY_MS;
+        }, mainThread);
     }
 
     public Set<String> trackedStats() {
@@ -554,6 +626,7 @@ public final class XPackCore {
             openSession();
         }
         if (t >= nextFlushAt) flushNow();
+        if (catalog != null && !catalogHash.equals(catalogSentHash) && t >= nextCatalogAt) sendCatalog();
     }
 
     private void flushNow() {

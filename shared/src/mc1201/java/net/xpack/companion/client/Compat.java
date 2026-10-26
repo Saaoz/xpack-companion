@@ -1,5 +1,9 @@
 package net.xpack.companion.client;
 
+import java.util.ArrayList;
+import java.util.List;
+import net.minecraft.advancements.Advancement;
+import net.minecraft.advancements.DisplayInfo;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.toasts.ToastComponent;
@@ -7,6 +11,8 @@ import net.minecraft.client.gui.screens.ConfirmLinkScreen;
 import net.minecraft.client.gui.screens.PauseScreen;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.server.IntegratedServer;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.xpack.companion.core.XPackCore;
 import net.xpack.companion.mixin.PauseScreenAccessor;
 
 /**
@@ -32,6 +38,25 @@ public final class Compat {
 
     static String userUuid(Minecraft mc) {
         return mc.getUser().getGameProfile().getId().toString();
+    }
+
+    /**
+     * Catalogue des progrès affichables (#80). Solo : l'arbre complet du serveur intégré, progrès
+     * cachés compris. Multijoueur : ce que le serveur a rendu visible au client (il complète au fil du jeu).
+     */
+    static List<XPackCore.AdvancementInfo> advancementCatalog(Minecraft mc) {
+        IntegratedServer server = mc.getSingleplayerServer();
+        Iterable<Advancement> all = server != null
+                ? server.getAdvancements().getAllAdvancements()
+                : mc.getConnection() != null ? mc.getConnection().getAdvancements().getAdvancements().getAllAdvancements() : List.of();
+        List<XPackCore.AdvancementInfo> out = new ArrayList<>();
+        for (Advancement a : all) {
+            DisplayInfo d = a.getDisplay();
+            if (d == null) continue;
+            out.add(new XPackCore.AdvancementInfo(a.getId().toString(), a.getParent() == null ? null : a.getParent().getId().toString(), d.getTitle().getString(),
+                    d.getDescription().getString(), d.getFrame().getName(), BuiltInRegistries.ITEM.getKey(d.getIcon().getItem()).toString(), d.isHidden()));
+        }
+        return out;
     }
 
     static boolean allowCommands(IntegratedServer server) {

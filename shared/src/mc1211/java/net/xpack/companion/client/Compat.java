@@ -1,5 +1,10 @@
 package net.xpack.companion.client;
 
+import java.util.ArrayList;
+import java.util.List;
+import net.minecraft.advancements.AdvancementHolder;
+import net.minecraft.advancements.AdvancementNode;
+import net.minecraft.advancements.DisplayInfo;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.toasts.ToastComponent;
@@ -7,7 +12,9 @@ import net.minecraft.client.gui.screens.ConfirmLinkScreen;
 import net.minecraft.client.gui.screens.PauseScreen;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.server.IntegratedServer;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
+import net.xpack.companion.core.XPackCore;
 
 /**
  * Appels Minecraft qui changent d'une version à l'autre — ici 1.21.1 (Fabric, NeoForge). La
@@ -33,6 +40,32 @@ public final class Compat {
 
     static String userUuid(Minecraft mc) {
         return mc.getUser().getProfileId().toString();
+    }
+
+    /**
+     * Catalogue des progrès affichables (#80). Solo : l'arbre complet du serveur intégré, progrès
+     * cachés compris. Multijoueur : ce que le serveur a rendu visible au client (il complète au fil du jeu).
+     */
+    static List<XPackCore.AdvancementInfo> advancementCatalog(Minecraft mc) {
+        List<XPackCore.AdvancementInfo> out = new ArrayList<>();
+        IntegratedServer server = mc.getSingleplayerServer();
+        if (server != null) {
+            for (AdvancementHolder h : server.getAdvancements().getAllAdvancements()) {
+                h.value().display().ifPresent(d -> out.add(info(h.id().toString(), h.value().parent().map(Object::toString).orElse(null), d)));
+            }
+        } else if (mc.getConnection() != null) {
+            for (AdvancementNode node : mc.getConnection().getAdvancements().getTree().nodes()) {
+                AdvancementHolder h = node.holder();
+                String parent = node.parent() == null ? null : node.parent().holder().id().toString();
+                h.value().display().ifPresent(d -> out.add(info(h.id().toString(), parent, d)));
+            }
+        }
+        return out;
+    }
+
+    private static XPackCore.AdvancementInfo info(String id, String parent, DisplayInfo d) {
+        return new XPackCore.AdvancementInfo(id, parent, d.getTitle().getString(), d.getDescription().getString(), d.getType().getSerializedName(),
+                BuiltInRegistries.ITEM.getKey(d.getIcon().getItem()).toString(), d.isHidden());
     }
 
     static boolean allowCommands(IntegratedServer server) {

@@ -81,6 +81,11 @@ public final class ApiClient {
         return transport.send("POST", "/v1/sessions/" + sessionId + "/events", body, token);
     }
 
+    /** Catalogue des progrès du modpack (#80) : ils deviennent les succès XPack. */
+    public CompletableFuture<Response> postCatalog(String sessionId, JsonObject body, String token) {
+        return transport.send("POST", "/v1/sessions/" + sessionId + "/catalog", body, token);
+    }
+
     /** Demande au support (contestation d'une détection), envoyée par e-mail à l'équipe. */
     public CompletableFuture<Response> supportReport(JsonObject body, String token) {
         return transport.send("POST", "/v1/support/reports", body, token);

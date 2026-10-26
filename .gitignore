@@ -7,3 +7,6 @@ run/
 .idea/
 *.iml
 out/
+.vscode/
+bin/
+*/bin/

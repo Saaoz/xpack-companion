@@ -569,4 +569,48 @@ class XPackCoreTest {
         assertEquals(List.of(false), sent);
         assertNull(api.last("/v1/support/reports"));
     }
+
+    // ------------------------------------------------------------------ catalogue des progrès (#80)
+
+    static XPackCore.AdvancementInfo adv(String id, String parent, String frame) {
+        return new XPackCore.AdvancementInfo(id, parent, "Titre " + id, "Description " + id, frame, "minecraft:stone", false);
+    }
+
+    @Test
+    void envoieLeCatalogueDesProgresUneFoisParPartieEtSeulementSIlChange() {
+        creds.put(config.apiUrl, UUID, "Steve", "jeton");
+        api.reply(201, SESSION);
+        core.onJoinWorld(world());
+        // Le catalogue peut arriver avant la réponse de session : il part dès qu'elle est ouverte.
+        List<XPackCore.AdvancementInfo> catalog = List.of(
+                adv("farmersdelight:main/root", null, "task"),
+                adv("farmersdelight:main/cutting_board", "farmersdelight:main/root", "goal"),
+                adv("minecraft:recipes/misc/torch", null, "task"));
+        core.onAdvancementCatalog(catalog, "fr_fr");
+        XPackCoreTest.FakeApi.Call sent = api.last("/catalog");
+        assertNotNull(sent);
+        assertEquals("/v1/sessions/s_1/catalog", sent.path());
+        assertEquals("fr_fr", sent.body().get("lang").getAsString());
+        JsonArray list = sent.body().getAsJsonArray("advancements");
+        assertEquals(2, list.size(), "les recettes ne sont pas des succès");
+        JsonObject board = list.get(1).getAsJsonObject();
+        assertEquals("farmersdelight:main/root", board.get("parent").getAsString());
+        assertEquals("goal", board.get("frame").getAsString());
+        assertEquals("Titre farmersdelight:main/cutting_board", board.get("title").getAsString());
+
+        core.onAdvancementCatalog(catalog, "fr_fr"); // même catalogue (paquet de mise à jour) : rien
+        clock.millis += 120_000;
+        core.tick();
+        assertEquals(1, api.calls.stream().filter(c -> c.path().endsWith("/catalog")).count(), "pas de renvoi");
+        core.onAdvancementCatalog(List.of(catalog.get(0), catalog.get(1), adv("farmersdelight:main/knife", "farmersdelight:main/root", "task")), "fr_fr");
+        assertEquals(3, api.last("/catalog").body().getAsJsonArray("advancements").size(), "nouveau progrès visible : renvoyé");
+    }
+
+    @Test
+    void pasDeCatalogueDansUnMondeDeTest() {
+        creds.put(config.apiUrl, UUID, "Steve", "jeton");
+        core.onJoinWorld(creativeWorld("test2"));
+        core.onAdvancementCatalog(List.of(adv("minecraft:story/root", null, "task")), "fr_fr");
+        assertNull(api.last("/catalog"));
+    }
 }

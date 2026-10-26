@@ -182,6 +182,7 @@ public final class XPackClient {
         XPackCore.WorldContext ctx = worldContext(mc);
         SmokeTest.log("joined " + ctx.kind() + " world, modpack=" + ctx.modpack());
         core.onJoinWorld(ctx);
+        refreshCatalog(mc);
     }
 
     private static XPackCore.WorldContext worldContext(Minecraft mc) {
@@ -227,6 +228,13 @@ public final class XPackClient {
         }
         SmokeTest.log("advancements done=" + doneIds + " initial=" + initialSync);
         core.onAdvancements(doneIds, initialSync, mc.level.getGameTime());
+    }
+
+    /** Catalogue des progrès du modpack (#80), relu à l'entrée dans le monde et à chaque mise à jour des progrès. */
+    public static void refreshCatalog(Minecraft mc) {
+        if (core == null || mc.level == null) return;
+        String lang = mc.options == null ? "en_us" : mc.options.languageCode;
+        core.onAdvancementCatalog(Compat.advancementCatalog(mc), lang);
     }
 
     /** Statistiques reçues après notre demande (#36). */

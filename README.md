@@ -26,6 +26,7 @@ Mod **client uniquement** qui envoie en temps réel tes progrès Minecraft à XP
 | `/xpack support` | Écran de contact du support |
 | `/xpack settings` | Réglages du mod |
 | `/xpack` ou `/xpack help` | Aide : une ligne par commande, cliquable. Les commandes sont proposées en suggestion pendant la saisie, comme celles des autres mods (ajoutées à l'arbre de commandes du client) |
+- **Les progrès du modpack sont les succès** (#80) : le mod envoie l'arbre des progrès tel que le jeu l'affiche (titres et descriptions du jeu et des mods, dans la langue du joueur). En solo, c'est l'arbre complet (progrès cachés compris) ; en multijoueur, ce que le serveur a rendu visible. Points : progrès 5, objectif 10, défi 25.
 - **Progrès en temps réel** (#35) : lus dans les paquets que le serveur envoie au client, donc aussi sur un serveur distant sans mod. Le premier paquet (état complet) est envoyé comme « instantané », non vérifié.
 - **Statistiques** (#36) : demandées au serveur toutes les 60 s, seulement celles utilisées par les succès du modpack.
 - **File d'envoi** (#37) : lots toutes les 5 s, reprise en cas de coupure, événements non envoyés sauvegardés dans le monde.

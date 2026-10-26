@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Map;
 import net.minecraft.advancements.AdvancementHolder;
 import net.minecraft.advancements.AdvancementProgress;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientAdvancements;
 import net.minecraft.network.protocol.game.ClientboundUpdateAdvancementsPacket;
 import net.minecraft.resources.ResourceLocation;
@@ -38,5 +39,7 @@ public abstract class ClientAdvancementsMixin {
             if (p != null && p.isDone()) done.add(id.toString());
         }
         if (!done.isEmpty()) XPackClient.onAdvancements(done, packet.shouldReset());
+        // Progrès nouvellement visibles (multijoueur) : le catalogue envoyé à XPack s'enrichit (#80).
+        if (packet.shouldReset() || !packet.getAdded().isEmpty()) XPackClient.refreshCatalog(Minecraft.getInstance());
     }
 }
