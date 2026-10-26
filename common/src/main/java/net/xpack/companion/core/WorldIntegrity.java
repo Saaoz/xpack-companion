@@ -1,5 +1,6 @@
 package net.xpack.companion.core;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -52,8 +53,17 @@ public final class WorldIntegrity {
         return first;
     }
 
-    /** Alignement sur le statut renvoyé par le serveur. */
-    public void syncFromServer(String serverStatus, String serverFlaggedAt) {
+    /**
+     * Alignement sur le statut renvoyé par le serveur. {@code serverClearedAt} : date à laquelle un
+     * modérateur a retiré le signalement (#75) ; le nôtre disparaît s'il lui est antérieur, une
+     * triche détectée après reste signalée.
+     */
+    public void syncFromServer(String serverStatus, String serverFlaggedAt, String serverClearedAt) {
+        if ("propre".equals(serverStatus) && status == Status.SIGNALE && serverClearedAt != null && flaggedAt != null
+                && !Instant.parse(flaggedAt).isAfter(Instant.parse(serverClearedAt))) {
+            reset();
+            return;
+        }
         if ("signale".equals(serverStatus)) {
             status = Status.SIGNALE;
             if (serverFlaggedAt != null && (flaggedAt == null || serverFlaggedAt.compareTo(flaggedAt) < 0)) flaggedAt = serverFlaggedAt;

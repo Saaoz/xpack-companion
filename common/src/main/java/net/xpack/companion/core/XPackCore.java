@@ -23,6 +23,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.Executor;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
 /**
@@ -53,7 +54,12 @@ public final class XPackCore {
             ModpackDetector.ModpackInfo modpack,
             JsonObject fingerprint,
             /** Créatif ou spectateur à l'entrée, ou monde créé en créatif : candidat « monde de test ». */
-            boolean creativeAtJoin) {}
+            boolean creativeAtJoin) {
+
+        WorldContext withCheatsAllowed() {
+            return new WorldContext(storeFile, kind, createdAt, true, playerUuid, playerName, modpack, fingerprint, creativeAtJoin);
+        }
+    }
 
     /** État du joueur à chaque tick (#47, #48). */
     public record PlayerState(String gameMode, boolean invulnerable, boolean mayfly) {}
@@ -234,6 +240,7 @@ public final class XPackCore {
         // Chaque compte Minecraft a son propre jeton : changer de compte ne mélange rien.
         token = credentials.token(config.apiUrl, ctx.playerUuid());
         cheatsNoticeShown = store.cheatsNoticeShown;
+        playtimeFloor = store.playtime;
         // Monde de test : déjà déclaré, ou monde que le mod découvre alors qu'il est en créatif.
         // Un monde déjà suivi qui passe ensuite en créatif reste suivi, puis signalé.
         practice = store.practice || (store.fresh && ctx.creativeAtJoin());
@@ -242,7 +249,7 @@ public final class XPackCore {
             saveWorld();
             return;
         }
-        integrity.syncFromServer(store.status, store.flaggedAt);
+        integrity.syncFromServer(store.status, store.flaggedAt, null);
         pending.addAll(store.pending);
         saveWorld();
         if (config.consented == null) {
@@ -273,6 +280,16 @@ public final class XPackCore {
 
     private boolean cheatsNoticeShown;
 
+    /**
+     * Triches activées en cours de partie (#74) : « Ouvrir au LAN » avec les commandes, ou le
+     * joueur nommé opérateur. Vérifié régulièrement, pas seulement à l'entrée dans le monde.
+     */
+    public void onCheatsAllowed(boolean allowed) {
+        if (world == null || !allowed || world.cheatsAllowed()) return;
+        world = world.withCheatsAllowed();
+        noticeCheats();
+    }
+
     /** #46 : information (pas de signalement) à la première entrée dans un monde avec triches activées. */
     private void noticeCheats() {
         if (!tracking() || !world.cheatsAllowed() || cheatsNoticeShown || integrity.isFlagged()) return;
@@ -295,6 +312,7 @@ public final class XPackCore {
         if (world == null) return;
         flushNow();
         saveWorld();
+        flushWorldFile(); // avant que le monde suivant ne remplace l'écriture en attente
         world = null;
         worldId = null;
         sessionId = null;
@@ -386,8 +404,13 @@ public final class XPackCore {
     private void syncIntegrity(JsonObject integ) {
         JsonElement s = integ.get("status");
         JsonElement f = integ.get("flaggedAt");
-        integrity.syncFromServer(s == null || s.isJsonNull() ? null : s.getAsString(), f == null || f.isJsonNull() ? null : f.getAsString());
+        JsonElement c = integ.get("clearedAt");
+        integrity.syncFromServer(text(s), text(f), text(c));
         saveWorld();
+    }
+
+    private static String text(JsonElement e) {
+        return e == null || e.isJsonNull() ? null : e.getAsString();
     }
 
     // ------------------------------------------------------------------ captures (#35, #36)
@@ -596,9 +619,19 @@ public final class XPackCore {
     // ------------------------------------------------------------------ envoi (#37)
 
     private long currentPlaytime;
+    /** Dernier temps de jeu connu de ce monde (sauvegardé) : plancher en multijoueur, voir {@link #playtimeFloor()}. */
+    private long playtimeFloor;
 
     public void setPlaytime(long ticks) {
         currentPlaytime = ticks;
+    }
+
+    /**
+     * Multijoueur (#74) : le temps du joueur n'arrive qu'avec ses statistiques, quelques secondes
+     * après la connexion. D'ici là, on repart du dernier temps envoyé pour qu'il ne recule pas.
+     */
+    public long playtimeFloor() {
+        return Math.max(playtimeFloor, currentPlaytime);
     }
 
     private JsonObject event(String type, long playtimeTicks) {
@@ -786,7 +819,23 @@ public final class XPackCore {
         s.pending = new ArrayList<>(pending);
         s.cheatsNoticeShown = cheatsNoticeShown;
         s.practice = practice;
-        s.save(world.storeFile());
+        s.playtime = playtimeFloor();
+        worldWriter.write(world.storeFile(), GSON.toJson(s));
+    }
+
+    /**
+     * Écritures du fichier de monde (#74) : synchrones par défaut (tests), en arrière-plan en jeu
+     * pour ne pas faire saccader le thread client à chaque événement.
+     */
+    private WorldWriter worldWriter = new WorldWriter(Runnable::run);
+
+    public void writeWorldFilesWith(Executor executor) {
+        worldWriter = new WorldWriter(executor);
+    }
+
+    /** Écrit tout de suite la dernière version en attente (sortie du monde, fermeture du jeu). */
+    public void flushWorldFile() {
+        worldWriter.flush();
     }
 
     /** Fichier {@code xpack.json} du monde : identifiant stable, statut, événements non envoyés. */
@@ -798,6 +847,8 @@ public final class XPackCore {
         boolean cheatsNoticeShown;
         /** Monde de test : rien n'est envoyé (voir {@link XPackCore#markWorldPractice()}). */
         boolean practice;
+        /** Dernier temps de jeu connu (ticks), plancher du temps de jeu en multijoueur (#74). */
+        long playtime;
         List<JsonObject> pending = new ArrayList<>();
         /** Premier passage du mod dans ce monde (aucun fichier). Non sauvegardé. */
         transient boolean fresh;
@@ -816,10 +867,28 @@ public final class XPackCore {
             return s;
         }
 
-        void save(Path file) {
+    }
+
+    /** Ne garde que la dernière version à écrire : une rafale d'événements donne une seule écriture. */
+    static final class WorldWriter {
+        private final Executor executor;
+        private final AtomicReference<Map.Entry<Path, String>> latest = new AtomicReference<>();
+
+        WorldWriter(Executor executor) {
+            this.executor = executor;
+        }
+
+        void write(Path file, String json) {
+            if (latest.getAndSet(Map.entry(file, json)) == null) executor.execute(this::flush);
+        }
+
+        /** Synchronisé : une écriture plus ancienne ne peut pas passer après une plus récente. */
+        synchronized void flush() {
+            Map.Entry<Path, String> w = latest.getAndSet(null);
+            if (w == null) return;
             try {
-                Files.createDirectories(file.getParent());
-                Files.writeString(file, GSON.toJson(this), StandardCharsets.UTF_8);
+                Files.createDirectories(w.getKey().getParent());
+                Files.writeString(w.getKey(), w.getValue(), StandardCharsets.UTF_8);
             } catch (IOException ignored) {
                 // disque indisponible : les événements restent en mémoire
             }

@@ -52,4 +52,20 @@ class IntegrityRulesTest {
         assertTrue(w.unlockCounts("2026-01-15T00:00:00Z"));
         assertFalse(w.unlockCounts("2026-02-15T00:00:00Z"));
     }
+
+    @Test
+    void signalementRetireParUnModerateur() {
+        WorldIntegrity w = new WorldIntegrity();
+        w.flag(WorldIntegrity.Reason.COMMAND, "2026-02-01T00:00:00Z", "/give");
+        // Pas de retrait : le serveur « propre » ne suffit pas (l'événement n'est peut-être pas encore parti).
+        w.syncFromServer("propre", null, null);
+        assertTrue(w.isFlagged());
+        // Retrait antérieur à notre détection : elle reste.
+        w.syncFromServer("propre", null, "2026-01-01T00:00:00.000Z");
+        assertTrue(w.isFlagged());
+        w.syncFromServer("propre", null, "2026-02-03T12:00:00.000Z");
+        assertFalse(w.isFlagged());
+        assertTrue(w.reasons().isEmpty());
+        assertTrue(w.unlockCounts("2026-02-15T00:00:00Z"));
+    }
 }

@@ -505,6 +505,36 @@ class XPackCoreTest {
     }
 
     @Test
+    void informeAussiQuandLesTrichesSontActiveesEnCoursDePartie() {
+        linkedAndJoined(); // monde sans triches à l'entrée
+        core.onCheatsAllowed(false);
+        assertFalse(ui.notices.contains("xpack.cheats_enabled"));
+        core.onCheatsAllowed(true); // « Ouvrir au LAN » avec les commandes
+        core.onCheatsAllowed(true);
+        assertEquals(1, ui.notices.stream().filter("xpack.cheats_enabled"::equals).count());
+        assertFalse(core.integrity().isFlagged(), "seule l'utilisation d'une triche compte");
+    }
+
+    @Test
+    void ecritLeFichierDuMondeEnArrierePlanEtNeGardeQueLaDerniereVersion() {
+        List<Runnable> disk = new ArrayList<>();
+        core.writeWorldFilesWith(disk::add);
+        linkedAndJoined();
+        core.setPlaytime(1234);
+        core.onAdvancements(List.of("minecraft:story/root", "minecraft:story/mine_stone"), false, 1234);
+        assertFalse(Files.exists(dir.resolve("world/xpack.json")), "rien d'écrit sur le thread de jeu");
+        assertEquals(1, disk.size(), "une seule écriture pour toute la rafale");
+        disk.forEach(Runnable::run);
+        JsonObject saved = JsonParser.parseString(readFile("world/xpack.json")).getAsJsonObject();
+        assertEquals(1234, saved.get("playtime").getAsLong());
+        // À la sortie du monde, l'écriture est faite tout de suite (le monde suivant ne l'écrase pas).
+        core.onLeaveWorld();
+        api.reply(201, SESSION);
+        core.onJoinWorld(world());
+        assertEquals(1234, core.playtimeFloor(), "plancher du temps de jeu relu depuis le fichier du monde");
+    }
+
+    @Test
     void signaleUnModDeTricheSaufSiLeModpackLAutorise() {
         core.setLoadedMods(List.of("minecraft", "sodium", "Meteor-Client"));
         creds.put(config.apiUrl, UUID, "Steve", "jeton");

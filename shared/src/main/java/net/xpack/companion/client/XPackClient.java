@@ -16,6 +16,8 @@ import java.util.HashMap;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.function.Consumer;
 import net.minecraft.SharedConstants;
 import net.minecraft.client.Minecraft;
@@ -72,6 +74,14 @@ public final class XPackClient {
         core = new XPackCore(config, configFile, credentials, api, new MinecraftUi(), r -> Minecraft.getInstance().execute(r), Clock.systemUTC(),
                 IntegrityRules.bundled());
         core.setLoadedMods(modIds);
+        // Fichier du monde écrit hors du thread de jeu (#74), et une dernière fois à la fermeture.
+        ExecutorService disk = Executors.newSingleThreadExecutor(r -> {
+            Thread t = new Thread(r, "XPack disk");
+            t.setDaemon(true);
+            return t;
+        });
+        core.writeWorldFilesWith(disk);
+        Runtime.getRuntime().addShutdownHook(new Thread(core::flushWorldFile, "XPack flush"));
     }
 
     public static XPackCore core() {
@@ -164,12 +174,14 @@ public final class XPackClient {
         XPackSounds.tick(mc);
 
         if (inWorld) {
-            long playtime = mc.level.getGameTime();
+            ticksSinceStats++;
+            long playtime = playtime(mc);
             core.setPlaytime(playtime);
             ticks++;
             if (ticks % STATE_INTERVAL_TICKS == 0 && mc.gameMode != null) {
                 var abilities = mc.player.getAbilities();
                 core.onPlayerState(new XPackCore.PlayerState(mc.gameMode.getPlayerMode().getName(), abilities.invulnerable, abilities.mayfly), playtime);
+                core.onCheatsAllowed(cheatsAllowed(mc));
             }
             // Première demande 5 s après l'entrée dans le monde, puis toutes les 60 s.
             if ((ticks == 100 || ticks % STATS_INTERVAL_TICKS == 0) && !core.trackedStats().isEmpty()) {
@@ -180,6 +192,8 @@ public final class XPackClient {
     }
 
     private static void join(Minecraft mc) {
+        playerPlaytime = -1;
+        ticksSinceStats = 0;
         XPackCore.WorldContext ctx = worldContext(mc);
         SmokeTest.log("joined " + ctx.kind() + " world, modpack=" + ctx.modpack());
         core.onJoinWorld(ctx);
@@ -212,6 +226,8 @@ public final class XPackClient {
         fingerprint.addProperty("modsHash", ModpackDetector.modsHash(modIds));
         fingerprint.addProperty("modCount", modIds.size());
         fingerprint.addProperty("modVersion", modVersion);
+        // Horloge de playtimeTicks (#74) : le serveur ne prend pas le changement d'horloge pour un recul.
+        fingerprint.addProperty("playtimeClock", server != null ? "world" : "player");
         return new XPackCore.WorldContext(storeFile, kind, Instant.now().toString(), cheatsAllowed, mc.player.getUUID().toString(),
                 mc.player.getGameProfile().getName(), ModpackDetector.detect(gameDir, modIds), fingerprint, creative);
     }
@@ -228,7 +244,7 @@ public final class XPackClient {
             inWorld = true;
         }
         SmokeTest.log("advancements done=" + doneIds + " initial=" + initialSync);
-        core.onAdvancements(doneIds, initialSync, mc.level.getGameTime());
+        core.onAdvancements(doneIds, initialSync, playtime(mc));
     }
 
     /** Catalogue des progrès du modpack (#80), relu à l'entrée dans le monde et à chaque mise à jour des progrès. */
@@ -248,7 +264,34 @@ public final class XPackClient {
             if (key != null) out.put(key, value);
         });
         SmokeTest.log("stats received=" + out.size());
-        core.onStats(out, mc.level.getGameTime());
+        Integer played = out.get(PLAY_TIME);
+        if (played != null) {
+            playerPlaytime = played;
+            ticksSinceStats = 0;
+        }
+        core.onStats(out, playtime(mc));
+    }
+
+    private static final String PLAY_TIME = "minecraft:custom/minecraft:play_time";
+    /** Multijoueur : temps joué reçu avec les dernières statistiques (-1 : pas encore reçu). */
+    private static long playerPlaytime = -1;
+    private static long ticksSinceStats;
+
+    /**
+     * Temps de jeu des événements (#74). Solo : l'âge du monde. Multijoueur : le temps joué par le
+     * joueur, car l'âge du monde est celui du serveur (il compte aussi le temps des autres joueurs).
+     * Les statistiques n'arrivent que toutes les 60 s : on ajoute les ticks écoulés depuis.
+     */
+    static long playtime(Minecraft mc) {
+        if (mc.getSingleplayerServer() != null) return mc.level.getGameTime();
+        long played = playerPlaytime < 0 ? 0 : playerPlaytime + ticksSinceStats;
+        return Math.max(played, core.playtimeFloor());
+    }
+
+    /** Commandes de triche possibles : monde ouvert au LAN avec les commandes, ou joueur opérateur. */
+    private static boolean cheatsAllowed(Minecraft mc) {
+        IntegratedServer server = mc.getSingleplayerServer();
+        return server != null ? Compat.allowCommands(server) : mc.player.hasPermissions(2);
     }
 
     /** Même format que le site et le serveur : {@code minecraft:mined/minecraft:diamond_ore}. */
