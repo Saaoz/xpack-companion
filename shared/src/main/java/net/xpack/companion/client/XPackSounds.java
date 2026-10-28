@@ -57,6 +57,22 @@ final class XPackSounds {
         }
     }
 
+    /**
+     * Modpack terminé à 100 % (#60) : plus marqué que le plus rare des succès, quel que soit le son
+     * choisi (le volume et « aucun son » sont respectés). Fanfare du jeu, puis arpège sur deux octaves.
+     */
+    static void playCompletion(Config c) {
+        if ("off".equals(c.sound) || c.soundVolume <= 0) return;
+        float volume = Math.min(c.soundVolume, 100) / 100f;
+        pending.clear();
+        note(0, SoundEvents.UI_TOAST_CHALLENGE_COMPLETE, 1.0f, volume * 0.8f);
+        SoundEvent chime = SoundEvents.NOTE_BLOCK_CHIME.value();
+        int[] run = {0, 4, 7, 12, 16, 19, 24};
+        for (int i = 0; i < run.length; i++) note(10 + i * 2L, chime, semitones(run[i] - 12), volume);
+        note(10 + run.length * 2L + 2, SoundEvents.AMETHYST_BLOCK_CHIME, 1.0f, volume);
+        note(10 + run.length * 2L + 2, SoundEvents.BELL_BLOCK, 1.5f, volume * 0.4f);
+    }
+
     /** Appelé à chaque tick client : joue les notes arrivées à échéance. */
     static void tick(Minecraft mc) {
         now++;

@@ -8,6 +8,9 @@ public interface Ui {
     /** Toast « Succès débloqué » (#39). */
     void toastUnlocked(String name, int points, String rarity);
 
+    /** Toast « Modpack terminé à 100 % » (#60), plus marqué qu'un succès. {@code modpackName} peut être null. */
+    void toastCompleted(String modpackName, int achievements, long playtimeTicks);
+
     /** Écran de consentement au premier lancement (#40). {@code answer} reçoit le choix du joueur. */
     void askConsent(java.util.function.Consumer<Boolean> answer);
 

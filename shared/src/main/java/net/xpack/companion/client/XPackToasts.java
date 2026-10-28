@@ -24,6 +24,7 @@ final class XPackToasts {
 
     private static final List<Unlock> unlocks = new ArrayList<>();
     private static final Deque<IntegrityToast> alerts = new ArrayDeque<>();
+    private static final Deque<CompletionToast> completions = new ArrayDeque<>();
     private static long gameToastSeenAt;
 
     private XPackToasts() {}
@@ -36,9 +37,13 @@ final class XPackToasts {
         alerts.add(toast);
     }
 
+    static void completed(CompletionToast toast) {
+        completions.add(toast);
+    }
+
     /** Appelé à chaque tick client. */
     static void tick(Minecraft mc) {
-        if (unlocks.isEmpty() && alerts.isEmpty()) return;
+        if (unlocks.isEmpty() && alerts.isEmpty() && completions.isEmpty()) return;
         ToastComponent toasts = mc.getToasts();
         long now = System.currentTimeMillis();
         boolean gameBusy = toasts.getToast(AdvancementToast.class, Toast.NO_TOKEN) != null
@@ -59,6 +64,11 @@ final class XPackToasts {
             unlocks.stream().map(Unlock::rarity).max(Comparator.comparingInt(XPackToast::rank))
                     .ifPresent(r -> XPackSounds.play(XPackClient.core().config(), r));
             unlocks.clear();
+        }
+        // 100 % (#60) : une fois le toast du dernier succès parti, avec son propre son.
+        if (unlocks.isEmpty() && !completions.isEmpty() && toasts.getToast(XPackToast.class, Toast.NO_TOKEN) == null) {
+            toasts.addToast(completions.poll());
+            XPackSounds.playCompletion(XPackClient.core().config());
         }
     }
 }

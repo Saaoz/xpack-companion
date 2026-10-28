@@ -711,6 +711,12 @@ public final class XPackCore {
             JsonObject u = el.getAsJsonObject();
             ui.toastUnlocked(u.get("name").getAsString(), u.get("points").getAsInt(), u.has("rarity") ? u.get("rarity").getAsString() : "commun");
         }
+        // Dernier succès du modpack (#60) : toast spécial, après ceux des succès du lot.
+        if (b.has("completed") && b.get("completed").isJsonObject()) {
+            JsonObject c = b.getAsJsonObject("completed");
+            String name = world != null ? world.modpack().name() : null;
+            ui.toastCompleted(name, c.has("achievements") ? c.get("achievements").getAsInt() : 0, c.has("playtimeTicks") ? c.get("playtimeTicks").getAsLong() : 0);
+        }
     }
 
     // ------------------------------------------------------------------ liaison du compte (#34)

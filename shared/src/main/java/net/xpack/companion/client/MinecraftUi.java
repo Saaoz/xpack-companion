@@ -32,6 +32,11 @@ final class MinecraftUi implements Ui {
     }
 
     @Override
+    public void toastCompleted(String modpackName, int achievements, long playtimeTicks) {
+        XPackToasts.completed(new CompletionToast(modpackName, achievements, playtimeTicks));
+    }
+
+    @Override
     public void notify(String translationKey, Object... args) {
         SmokeTest.log("notice " + translationKey);
         say(Texts.tr(translationKey, args));

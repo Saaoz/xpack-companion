@@ -78,6 +78,11 @@ class XPackCoreTest {
             toasts.add(name + ":" + points + ":" + rarity);
         }
 
+        @Override
+        public void toastCompleted(String modpackName, int achievements, long playtimeTicks) {
+            toasts.add("100%:" + modpackName + ":" + achievements + ":" + playtimeTicks);
+        }
+
         final List<String> alerts = new ArrayList<>();
 
         @Override
@@ -331,6 +336,18 @@ class XPackCoreTest {
         assertFalse(events.get(1).getAsJsonObject().has("snapshot"));
         assertTrue(first.get("id").getAsString().startsWith("adv-"), "identifiant déterministe pour le dédoublonnage");
         assertEquals(List.of("Alliage:10:rare"), ui.toasts);
+    }
+
+    @Test
+    void annonceLeModpackTermineACentPourCent() {
+        linkedAndJoined();
+        core.onAdvancements(List.of("create:andesite_alloy"), false, 2_000);
+        api.reply(200, "{\"accepted\":1,\"unlocked\":[{\"achievementId\":\"x/alliage\",\"name\":\"Alliage\",\"points\":10,\"rarity\":\"rare\"}],"
+                + "\"completed\":{\"version\":\"1.2\",\"achievements\":42,\"playtimeTicks\":720000},\"integrity\":{\"status\":\"propre\",\"flaggedAt\":null}}");
+        core.tick();
+        assertEquals(2, ui.toasts.size());
+        assertTrue(ui.toasts.get(1).startsWith("100%:"), "le toast du 100 % suit celui du succès");
+        assertTrue(ui.toasts.get(1).endsWith(":42:720000"));
     }
 
     @Test
