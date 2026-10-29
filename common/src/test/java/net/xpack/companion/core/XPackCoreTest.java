@@ -83,6 +83,11 @@ class XPackCoreTest {
             toasts.add("100%:" + modpackName + ":" + achievements + ":" + playtimeTicks);
         }
 
+        @Override
+        public void toastMilestone(String modpackName, int tier, int achievements, int total) {
+            toasts.add("palier:" + tier + ":" + achievements + "/" + total);
+        }
+
         final List<String> alerts = new ArrayList<>();
 
         @Override
@@ -348,6 +353,16 @@ class XPackCoreTest {
         assertEquals(2, ui.toasts.size());
         assertTrue(ui.toasts.get(1).startsWith("100%:"), "le toast du 100 % suit celui du succès");
         assertTrue(ui.toasts.get(1).endsWith(":42:720000"));
+    }
+
+    @Test
+    void annonceUnPalierDeCompletion() {
+        linkedAndJoined();
+        core.onAdvancements(List.of("create:andesite_alloy"), false, 2_000);
+        api.reply(200, "{\"accepted\":1,\"unlocked\":[{\"achievementId\":\"x/alliage\",\"name\":\"Alliage\",\"points\":10,\"rarity\":\"rare\"}],"
+                + "\"completed\":null,\"milestone\":{\"version\":\"1.2\",\"tier\":50,\"achievements\":21,\"total\":42,\"playtimeTicks\":720000},\"integrity\":{\"status\":\"propre\",\"flaggedAt\":null}}");
+        core.tick();
+        assertEquals(List.of("Alliage:10:rare", "palier:50:21/42"), ui.toasts);
     }
 
     @Test

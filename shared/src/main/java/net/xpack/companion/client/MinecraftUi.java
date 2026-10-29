@@ -33,7 +33,12 @@ final class MinecraftUi implements Ui {
 
     @Override
     public void toastCompleted(String modpackName, int achievements, long playtimeTicks) {
-        XPackToasts.completed(new CompletionToast(modpackName, achievements, playtimeTicks));
+        XPackToasts.completed(CompletionToast.completed(modpackName, achievements, playtimeTicks));
+    }
+
+    @Override
+    public void toastMilestone(String modpackName, int tier, int achievements, int total) {
+        XPackToasts.completed(CompletionToast.milestone(modpackName, tier, achievements, total));
     }
 
     @Override

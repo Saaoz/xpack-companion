@@ -18,6 +18,8 @@
   "xpack.toast.summary": "%s succès XPack · +%s points",
   "xpack.toast.completed": "Modpack terminé à 100 % !",
   "xpack.toast.completedDetail": "%s succès · %s h",
+  "xpack.toast.milestone": "Palier %s %% atteint !",
+  "xpack.toast.milestoneDetail": "%s / %s succès",
   "xpack.cheats_enabled": "Les triches sont activées sur ce monde. Tes succès restent comptabilisés tant que tu n'utilises aucune commande de triche.",
   "xpack.flagged.blacklist": "Mod de triche détecté (%s) : ce monde n'est plus comptabilisé sur XPack.",
   "xpack.consent.title": "XPack Companion",

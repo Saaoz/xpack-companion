@@ -11,6 +11,9 @@ public interface Ui {
     /** Toast « Modpack terminé à 100 % » (#60), plus marqué qu'un succès. {@code modpackName} peut être null. */
     void toastCompleted(String modpackName, int achievements, long playtimeTicks);
 
+    /** Toast « Palier 25/50/75 % atteint » (#60). {@code modpackName} peut être null. */
+    void toastMilestone(String modpackName, int tier, int achievements, int total);
+
     /** Écran de consentement au premier lancement (#40). {@code answer} reçoit le choix du joueur. */
     void askConsent(java.util.function.Consumer<Boolean> answer);
 

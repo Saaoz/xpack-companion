@@ -18,6 +18,8 @@
   "xpack.toast.summary": "%s XPack achievements · +%s points",
   "xpack.toast.completed": "Modpack 100% complete!",
   "xpack.toast.completedDetail": "%s achievements · %s h",
+  "xpack.toast.milestone": "%s%% milestone reached!",
+  "xpack.toast.milestoneDetail": "%s / %s achievements",
   "xpack.cheats_enabled": "Cheats are enabled on this world. Your achievements still count as long as you don't use any cheat command.",
   "xpack.flagged.blacklist": "Cheat mod detected (%s): this world no longer counts on XPack.",
   "xpack.consent.title": "XPack Companion",

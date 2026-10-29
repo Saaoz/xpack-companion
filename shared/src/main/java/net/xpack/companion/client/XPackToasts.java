@@ -65,10 +65,12 @@ final class XPackToasts {
                     .ifPresent(r -> XPackSounds.play(XPackClient.core().config(), r));
             unlocks.clear();
         }
-        // 100 % (#60) : une fois le toast du dernier succès parti, avec son propre son.
+        // Palier (#60) : une fois le toast du dernier succès parti, avec son propre son.
         if (unlocks.isEmpty() && !completions.isEmpty() && toasts.getToast(XPackToast.class, Toast.NO_TOKEN) == null) {
-            toasts.addToast(completions.poll());
-            XPackSounds.playCompletion(XPackClient.core().config());
+            CompletionToast toast = completions.poll();
+            toasts.addToast(toast);
+            if (toast.tier() == 100) XPackSounds.playCompletion(XPackClient.core().config());
+            else XPackSounds.play(XPackClient.core().config(), toast.tier() == 75 ? "legendaire" : toast.tier() == 50 ? "epique" : "rare");
         }
     }
 }
