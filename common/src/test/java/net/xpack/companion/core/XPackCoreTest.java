@@ -400,6 +400,34 @@ class XPackCoreTest {
     }
 
     @Test
+    void envoieLesPacksDeTexturesEtLeMinageQuandIlsChangent() {
+        linkedAndJoined();
+        core.onResourcePacks(List.of("XRay_Ultimate.zip", "Faithful"), 100);
+        core.onResourcePacks(List.of("Faithful", "XRay_Ultimate.zip"), 110); // même choix : rien de nouveau
+        core.onBlockBroken("minecraft:diamond_ore", "minecraft:iron_pickaxe");
+        Map<String, Integer> stats = Map.of("minecraft:mined/minecraft:diamond_ore", 3, "minecraft:mined/minecraft:stone", 200);
+        core.onStats(stats, 1_200);
+        core.onStats(stats, 2_400); // inchangé : pas de nouvel envoi
+        core.tick();
+        JsonArray events = sentEvents();
+        JsonObject packs = events.get(0).getAsJsonObject();
+        assertEquals("resource_packs", packs.get("type").getAsString());
+        assertEquals("[\"Faithful\",\"XRay_Ultimate.zip\"]", packs.get("packs").toString());
+        JsonObject mined = null;
+        int miningEvents = 0;
+        for (var e : events) {
+            if (!e.getAsJsonObject().get("type").getAsString().equals("mining")) continue;
+            mined = e.getAsJsonObject();
+            miningEvents++;
+        }
+        assertEquals(1, miningEvents);
+        assertEquals(3, mined.getAsJsonObject("ores").get("minecraft:diamond_ore").getAsInt());
+        assertEquals(200, mined.get("stone").getAsInt());
+        assertEquals(1, mined.getAsJsonObject("hand").get("minecraft:diamond_ore").getAsInt());
+        assertEquals("[\"minecraft:iron_pickaxe\"]", mined.get("tools").toString());
+    }
+
+    @Test
     void unMondeCommenceSansLeModNeComptePasEtLeDitUneFois() {
         linkedAndJoined();
         core.onAdvancements(List.of("minecraft:story/root"), false, 200_000);
@@ -463,9 +491,10 @@ class XPackCoreTest {
         core.onStats(Map.of("minecraft:mined/minecraft:diamond_ore", 3), 200);
         core.onStats(Map.of("minecraft:mined/minecraft:diamond_ore", 5), 300);
         core.tick();
-        JsonArray events = sentEvents();
-        assertEquals(2, events.size());
-        assertEquals(5, events.get(1).getAsJsonObject().get("value").getAsInt());
+        List<JsonObject> events = new ArrayList<>();
+        for (var e : sentEvents()) if (e.getAsJsonObject().get("type").getAsString().equals("stat")) events.add(e.getAsJsonObject());
+        assertEquals(2, events.size(), "le résumé du minage (#129) part à part");
+        assertEquals(5, events.get(1).get("value").getAsInt());
     }
 
     @Test

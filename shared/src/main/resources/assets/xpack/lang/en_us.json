@@ -24,7 +24,7 @@
   "xpack.flagged.blacklist": "Cheat mod detected (%s): this world no longer counts on XPack.",
   "xpack.consent.title": "XPack Companion",
   "xpack.consent.sentTitle": "What is sent to XPack",
-  "xpack.consent.sent": "Your advancements, the statistics needed for the modpack's achievements, the modpack name and version, cheat detections for this world and where the valuable items you receive come from (picked up, chest, quest…).",
+  "xpack.consent.sent": "Your advancements, the statistics needed for the modpack's achievements, the modpack name and version, cheat detections for this world, where the valuable items you receive come from (picked up, chest, quest…), the names of your resource packs and what you mine (ores, stone, tool).",
   "xpack.consent.neverTitle": "What is never sent",
   "xpack.consent.never": "Chat, other players, the content of your worlds, your files and your game IP address.",
   "xpack.consent.footer": "You can change your mind anytime in the mod settings, and export or delete your data on xpack.saaoz.fr.",

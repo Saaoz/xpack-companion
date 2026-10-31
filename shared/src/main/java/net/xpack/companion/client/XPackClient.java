@@ -23,6 +23,7 @@ import net.minecraft.SharedConstants;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ServerData;
 import net.minecraft.client.server.IntegratedServer;
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.protocol.game.ServerboundClientCommandPacket;
 import net.minecraft.resources.ResourceLocation;
@@ -205,6 +206,7 @@ public final class XPackClient {
                 var data = mc.level.getLevelData();
                 String difficulty = data.isHardcore() ? "hardcore" : mc.level.getDifficulty().getKey();
                 core.onDifficulty(difficulty, mc.getSingleplayerServer() != null && !data.isDifficultyLocked() && !data.isHardcore(), playtime);
+                core.onResourcePacks(resourcePacks(mc), playtime);
             }
             if (mc.player != lastPlayer) {
                 // Réapparition ou changement de dimension : nouveau joueur, inventaire renvoyé par le serveur.
@@ -261,6 +263,22 @@ public final class XPackClient {
         return screen.getClass().getSimpleName();
     }
 
+    // ------------------------------------------------------------------ x-ray (#129)
+
+    /** Bloc que le joueur finit de casser, et l'objet qu'il tient (l'outil). */
+    public static void onBlockBroken(BlockPos pos) {
+        Minecraft mc = Minecraft.getInstance();
+        if (core == null || mc.level == null || mc.player == null) return;
+        String block = BuiltInRegistries.BLOCK.getKey(mc.level.getBlockState(pos).getBlock()).toString();
+        ItemStack tool = mc.player.getMainHandItem();
+        core.onBlockBroken(block, tool.isEmpty() ? null : itemId(tool));
+    }
+
+    /** Packs de textures ajoutés par le joueur (dossier resourcepacks), sans ceux du jeu, des mods ou du serveur. */
+    private static List<String> resourcePacks(Minecraft mc) {
+        return mc.getResourcePackRepository().getSelectedIds().stream().filter(id -> id.startsWith("file/")).map(id -> id.substring(5)).toList();
+    }
+
     /** Le serveur annonce un ramassage (paquet de l'animation) : l'entité de l'objet est encore là. */
     public static void onTakeItem(int itemEntityId, int playerId, int amount) {
         Minecraft mc = Minecraft.getInstance();
@@ -306,6 +324,10 @@ public final class XPackClient {
         fingerprint.addProperty("modsHash", ModpackDetector.modsHash(modIds));
         fingerprint.addProperty("modCount", modIds.size());
         fingerprint.addProperty("modVersion", modVersion);
+        // Mods qui minent plusieurs blocs d'un coup ou pour le joueur (#129) : expliquent un ratio de minerais élevé.
+        com.google.gson.JsonArray helpers = new com.google.gson.JsonArray();
+        core.miningHelpers().forEach(helpers::add);
+        fingerprint.add("miningMods", helpers);
         // Horloge de playtimeTicks (#74) : le serveur ne prend pas le changement d'horloge pour un recul.
         fingerprint.addProperty("playtimeClock", server != null ? "world" : "player");
         return new XPackCore.WorldContext(storeFile, kind, Instant.now().toString(), cheatsAllowed, mc.player.getUUID().toString(),

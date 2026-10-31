@@ -334,6 +334,10 @@ public final class XPackCore {
         knownAdvancements.clear();
         lastStats.clear();
         itemLog.reset();
+        mining.reset();
+        lastMining = null;
+        lastHand = null;
+        lastPacks = null;
         integrity.reset();
         uuidMismatch = false;
         token = null;
@@ -459,6 +463,7 @@ public final class XPackCore {
 
     public void onStats(Map<String, Integer> stats, long playtimeTicks) {
         if (world == null || practice) return;
+        miningEvent(stats, playtimeTicks);
         for (Map.Entry<String, Integer> s : stats.entrySet()) {
             if (!trackedStats.contains(s.getKey())) continue;
             Integer prev = lastStats.put(s.getKey(), s.getValue());
@@ -606,6 +611,64 @@ public final class XPackCore {
             if (a.quest()) e.addProperty("quest", true);
             enqueue(e);
         }
+    }
+
+    // ------------------------------------------------------------------ x-ray (#129)
+
+    private final Mining mining = Mining.bundled();
+    private Mining.Summary lastMining;
+    private Map<String, Integer> lastHand;
+    private List<String> lastPacks;
+
+    /** Mods du modpack qui minent plusieurs blocs d'un coup ou à la place du joueur (empreinte de session). */
+    public List<String> miningHelpers() {
+        return mining.helpers(loadedMods);
+    }
+
+    /** Bloc cassé par le joueur lui-même, avec l'objet tenu. */
+    public void onBlockBroken(String blockId, String toolId) {
+        if (tracking()) mining.onBlockBroken(blockId, toolId);
+    }
+
+    /** Packs de textures choisis par le joueur : envoyés à l'entrée puis à chaque changement. */
+    public void onResourcePacks(List<String> packs, long playtimeTicks) {
+        if (!tracking()) return;
+        List<String> sorted = packs.stream().sorted().toList();
+        if (sorted.equals(lastPacks)) return;
+        lastPacks = sorted;
+        JsonObject e = event("resource_packs", playtimeTicks);
+        JsonArray list = new JsonArray();
+        sorted.forEach(list::add);
+        e.add("packs", list);
+        enqueue(e);
+    }
+
+    /**
+     * Minerais et roche minés (statistiques), minerais cassés à la main et outils de la session :
+     * envoyés avec les statistiques quand ils changent. Analysés après coup, jamais en direct.
+     */
+    private void miningEvent(Map<String, Integer> stats, long playtimeTicks) {
+        if (!tracking()) return;
+        Mining.Summary s = mining.summarize(stats);
+        Map<String, Integer> hand = mining.hand();
+        if (s.equals(lastMining) && hand.equals(lastHand)) return;
+        lastMining = s;
+        lastHand = hand;
+        if (s.ores().isEmpty() && s.stone() == 0 && hand.isEmpty()) return;
+        JsonObject e = event("mining", playtimeTicks);
+        e.add("ores", counts(s.ores()));
+        e.addProperty("stone", s.stone());
+        if (!hand.isEmpty()) e.add("hand", counts(hand));
+        JsonArray tools = new JsonArray();
+        mining.tools().stream().sorted().forEach(tools::add);
+        if (!tools.isEmpty()) e.add("tools", tools);
+        enqueue(e);
+    }
+
+    private static JsonObject counts(Map<String, Integer> map) {
+        JsonObject o = new JsonObject();
+        new java.util.TreeMap<>(map).forEach(o::addProperty);
+        return o;
     }
 
     /** Du plus facile au plus dur, comme le serveur (#116). */
