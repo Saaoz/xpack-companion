@@ -289,6 +289,8 @@ public final class XPackCore {
     private boolean difficultyWarned;
     /** Dernière difficulté envoyée pendant cette partie. */
     private String lastDifficulty;
+    /** Un autre joueur est connecté (#119) : les progrès et statistiques partent avec « team ». */
+    private boolean othersOnline;
 
     /**
      * Triches activées en cours de partie (#74) : « Ouvrir au LAN » avec les commandes, ou le
@@ -339,6 +341,7 @@ public final class XPackCore {
         lateNoticeShown = false;
         difficultyWarned = false;
         lastDifficulty = null;
+        othersOnline = false;
         allowedCommands = List.of();
         allowsFlight = false;
         trackedStats = Set.of();
@@ -581,6 +584,11 @@ public final class XPackCore {
         }
     }
 
+    /** Au moins un autre joueur connecté (serveur, ou monde ouvert au LAN) : badge « Équipe » (#119). */
+    public void setOthersOnline(boolean others) {
+        othersOnline = others;
+    }
+
     /** Verdict du serveur sur le monde (#116) : commencé sans le mod, il ne compte pas, et on le dit une fois. */
     private void syncWorld(JsonObject w) {
         if (!w.has("startedWithoutMod") || !w.get("startedWithoutMod").getAsBoolean() || startedLate) return;
@@ -690,6 +698,8 @@ public final class XPackCore {
         e.addProperty("type", type);
         e.addProperty("at", now());
         e.addProperty("playtimeTicks", playtimeTicks);
+        // Partie à plusieurs (#119) : seulement ce booléen, ni pseudos ni nombre de joueurs.
+        if (othersOnline && (type.equals("advancement") || type.equals("stat"))) e.addProperty("team", true);
         return e;
     }
 

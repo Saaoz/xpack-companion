@@ -182,6 +182,8 @@ public final class XPackClient {
                 var abilities = mc.player.getAbilities();
                 core.onPlayerState(new XPackCore.PlayerState(mc.gameMode.getPlayerMode().getName(), abilities.invulnerable, abilities.mayfly), playtime);
                 core.onCheatsAllowed(cheatsAllowed(mc));
+                // Jouer à plusieurs (#119) : la liste des joueurs du client contient au moins un autre joueur.
+                core.setOthersOnline(mc.getConnection().getOnlinePlayers().size() > 1);
                 // Badge de difficulté (#116) : en solo comme en multijoueur, le client connaît la difficulté.
                 var data = mc.level.getLevelData();
                 String difficulty = data.isHardcore() ? "hardcore" : mc.level.getDifficulty().getKey();

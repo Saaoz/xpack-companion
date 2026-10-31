@@ -352,6 +352,24 @@ class XPackCoreTest {
     }
 
     @Test
+    void marqueLesProgresObtenusAvecDAutresJoueursCommeEquipe() {
+        linkedAndJoined();
+        core.onAdvancements(List.of("minecraft:story/root"), false, 100);
+        core.setOthersOnline(true);
+        core.onAdvancements(List.of("minecraft:story/mine_stone"), false, 200);
+        core.onStats(java.util.Map.of("minecraft:custom/minecraft:play_time", 300), 300);
+        core.onDifficulty("hard", true, 300);
+        core.tick();
+        JsonArray events = sentEvents();
+        assertFalse(events.get(0).getAsJsonObject().has("team"), "seul : pas d'équipe");
+        assertTrue(events.get(1).getAsJsonObject().get("team").getAsBoolean());
+        for (var e : events) {
+            JsonObject o = e.getAsJsonObject();
+            if (o.get("type").getAsString().equals("difficulty")) assertFalse(o.has("team"), "la difficulté ne porte pas d'équipe");
+        }
+    }
+
+    @Test
     void unMondeCommenceSansLeModNeComptePasEtLeDitUneFois() {
         linkedAndJoined();
         core.onAdvancements(List.of("minecraft:story/root"), false, 200_000);
