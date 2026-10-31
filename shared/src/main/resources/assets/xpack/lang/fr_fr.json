@@ -24,7 +24,7 @@
   "xpack.flagged.blacklist": "Mod de triche détecté (%s) : ce monde n'est plus comptabilisé sur XPack.",
   "xpack.consent.title": "XPack Companion",
   "xpack.consent.sentTitle": "Ce qui est envoyé à XPack",
-  "xpack.consent.sent": "Tes progrès (advancements), les statistiques utiles aux succès du modpack, le nom et la version du modpack, et les détections de triche de ce monde.",
+  "xpack.consent.sent": "Tes progrès (advancements), les statistiques utiles aux succès du modpack, le nom et la version du modpack, les détections de triche de ce monde et la provenance des objets de valeur que tu reçois (ramassés, coffre, quête…).",
   "xpack.consent.neverTitle": "Ce qui n'est jamais envoyé",
   "xpack.consent.never": "Le chat, les autres joueurs, le contenu de tes mondes, tes fichiers et ton adresse IP de jeu.",
   "xpack.consent.footer": "Tu peux changer d'avis à tout moment dans les réglages du mod, et exporter ou supprimer tes données sur xpack.saaoz.fr.",

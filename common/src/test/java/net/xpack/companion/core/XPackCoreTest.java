@@ -377,6 +377,29 @@ class XPackCoreTest {
     }
 
     @Test
+    void noteLaProvenanceDesObjetsDeValeurRecus() {
+        linkedAndJoined();
+        core.setQuestRewards(java.util.Set.of("minecraft:pig_spawn_egg"));
+        var none = new ItemArrivals.Context(null, false);
+        core.onInventory(Map.of("minecraft:dirt", 3), none, 100); // point de départ : rien n'est noté
+        core.onItemPickup("minecraft:diamond_block", 2);
+        core.onInventory(Map.of("minecraft:dirt", 4, "minecraft:diamond_block", 2), none, 120);
+        core.onInventory(Map.of("minecraft:dirt", 4, "minecraft:diamond_block", 2, "minecraft:pig_spawn_egg", 1), new ItemArrivals.Context("QuestScreen", false), 140);
+        core.tick();
+        JsonArray events = sentEvents();
+        assertEquals(2, events.size(), "la terre n'est pas un objet de valeur");
+        JsonObject picked = events.get(0).getAsJsonObject();
+        assertEquals("item", picked.get("type").getAsString());
+        assertEquals("minecraft:diamond_block", picked.get("key").getAsString());
+        assertEquals(2, picked.get("value").getAsInt());
+        assertEquals("pickup", picked.get("via").getAsString());
+        JsonObject egg = events.get(1).getAsJsonObject();
+        assertEquals("screen", egg.get("via").getAsString());
+        assertEquals("QuestScreen", egg.get("screen").getAsString());
+        assertTrue(egg.get("quest").getAsBoolean());
+    }
+
+    @Test
     void unMondeCommenceSansLeModNeComptePasEtLeDitUneFois() {
         linkedAndJoined();
         core.onAdvancements(List.of("minecraft:story/root"), false, 200_000);

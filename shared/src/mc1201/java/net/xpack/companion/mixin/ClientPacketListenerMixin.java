@@ -2,8 +2,10 @@ package net.xpack.companion.mixin;
 
 import java.util.HashMap;
 import java.util.Map;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.network.protocol.game.ClientboundAwardStatsPacket;
+import net.minecraft.network.protocol.game.ClientboundTakeItemEntityPacket;
 import net.minecraft.stats.Stat;
 import net.xpack.companion.client.XPackClient;
 import org.spongepowered.asm.mixin.Mixin;
@@ -42,5 +44,11 @@ public abstract class ClientPacketListenerMixin {
         Map<Stat<?>, Integer> stats = new HashMap<>();
         packet.getStats().forEach(stats::put);
         XPackClient.onStats(stats);
+    }
+
+    /** Ramassage d'un objet (#128). Au premier passage (thread réseau), la méthode se relance sur le thread client : on attend celui-là. */
+    @Inject(method = "handleTakeItemEntity", at = @At("HEAD"))
+    private void xpack$beforeTakeItem(ClientboundTakeItemEntityPacket packet, CallbackInfo ci) {
+        if (Minecraft.getInstance().isSameThread()) XPackClient.onTakeItem(packet.getItemId(), packet.getPlayerId(), packet.getAmount());
     }
 }

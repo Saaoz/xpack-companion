@@ -333,6 +333,7 @@ public final class XPackCore {
         pending.clear();
         knownAdvancements.clear();
         lastStats.clear();
+        itemLog.reset();
         integrity.reset();
         uuidMismatch = false;
         token = null;
@@ -564,6 +565,46 @@ public final class XPackCore {
                 if (s.invulnerable()) flagWithNotice(WorldIntegrity.Reason.ABILITIES, "invulnerable", "xpack.flagged.godmode");
                 else if (s.mayfly() && !allowsFlight) flagWithNotice(WorldIntegrity.Reason.ABILITIES, "mayfly", "xpack.flagged.flight");
             }
+        }
+    }
+
+    // ------------------------------------------------------------------ objets reçus (#128)
+
+    private final ItemArrivals itemLog = ItemArrivals.bundled();
+
+    /** Objets des récompenses de quêtes du modpack : une arrivée de l'un d'eux est expliquée. */
+    public void setQuestRewards(Set<String> items) {
+        itemLog.setQuestRewards(items);
+    }
+
+    /** Le serveur annonce que le joueur ramasse un objet par terre. */
+    public void onItemPickup(String item, int count) {
+        if (tracking()) itemLog.onPickup(item, count);
+    }
+
+    /** Nouveau joueur côté client (réapparition, changement de dimension) : l'inventaire repart de zéro. */
+    public void resetInventory() {
+        itemLog.reset();
+    }
+
+    /**
+     * Relevé de l'inventaire, chaque seconde : les objets de valeur arrivés partent avec leur
+     * provenance, pour une analyse après coup sur le serveur. Rien n'est signalé ici.
+     */
+    public void onInventory(Map<String, Integer> inventory, ItemArrivals.Context ctx, long playtimeTicks) {
+        if (!tracking()) {
+            itemLog.reset();
+            return;
+        }
+        for (ItemArrivals.Arrival a : itemLog.observe(inventory, ctx, clock.millis())) {
+            JsonObject e = event("item", playtimeTicks);
+            e.addProperty("key", a.item());
+            e.addProperty("value", a.count());
+            e.addProperty("via", a.via().name().toLowerCase(java.util.Locale.ROOT));
+            if (a.screen() != null) e.addProperty("screen", a.screen());
+            if (a.nearPlayer()) e.addProperty("nearPlayer", true);
+            if (a.quest()) e.addProperty("quest", true);
+            enqueue(e);
         }
     }
 

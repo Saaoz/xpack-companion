@@ -33,8 +33,17 @@ import net.minecraft.world.level.storage.LevelResource;
 import net.xpack.companion.core.ApiClient;
 import net.xpack.companion.core.Config;
 import net.xpack.companion.core.Credentials;
+import net.minecraft.client.gui.screens.ChatScreen;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
+import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.inventory.AbstractContainerMenu;
+import net.minecraft.world.inventory.InventoryMenu;
+import net.minecraft.world.item.ItemStack;
 import net.xpack.companion.core.IntegrityRules;
+import net.xpack.companion.core.ItemArrivals;
 import net.xpack.companion.core.ModpackDetector;
+import net.xpack.companion.core.QuestRewards;
 import net.xpack.companion.core.XPackCore;
 
 /**
@@ -46,6 +55,8 @@ public final class XPackClient {
     private static final int STATS_INTERVAL_TICKS = 20 * 60;
     /** Vérification du mode de jeu et des capacités (#47, #48). */
     private static final int STATE_INTERVAL_TICKS = 10;
+    /** Relevé de l'inventaire pour le journal des objets reçus (#128). */
+    private static final int ITEMS_INTERVAL_TICKS = 20;
 
     private static XPackCore core;
     private static Path configDir;
@@ -195,6 +206,12 @@ public final class XPackClient {
                 String difficulty = data.isHardcore() ? "hardcore" : mc.level.getDifficulty().getKey();
                 core.onDifficulty(difficulty, mc.getSingleplayerServer() != null && !data.isDifficultyLocked() && !data.isHardcore(), playtime);
             }
+            if (mc.player != lastPlayer) {
+                // Réapparition ou changement de dimension : nouveau joueur, inventaire renvoyé par le serveur.
+                lastPlayer = mc.player;
+                core.resetInventory();
+            }
+            if (ticks % ITEMS_INTERVAL_TICKS == 0) observeInventory(mc, playtime);
             // Première demande 5 s après l'entrée dans le monde, puis toutes les 60 s.
             if ((ticks == 100 || ticks % STATS_INTERVAL_TICKS == 0) && !core.trackedStats().isEmpty()) {
                 mc.getConnection().send(new ServerboundClientCommandPacket(ServerboundClientCommandPacket.Action.REQUEST_STATS));
@@ -203,9 +220,60 @@ public final class XPackClient {
         core.tick();
     }
 
+    // ------------------------------------------------------------------ objets reçus (#128)
+
+    private static net.minecraft.client.player.LocalPlayer lastPlayer;
+    /** Récompenses des quêtes de l'instance : lues une fois par lancement. */
+    private static java.util.Set<String> questRewards;
+
+    /** Inventaire complet (armure, seconde main) et objet tenu au curseur, par identifiant d'objet. */
+    private static void observeInventory(Minecraft mc, long playtime) {
+        Map<String, Integer> counts = new HashMap<>();
+        var inventory = mc.player.getInventory();
+        for (int i = 0; i < inventory.getContainerSize(); i++) count(counts, inventory.getItem(i));
+        count(counts, mc.player.containerMenu.getCarried());
+        boolean nearPlayer = mc.level.players().stream().anyMatch(p -> p != mc.player && p.distanceToSqr(mc.player) < 64);
+        core.onInventory(counts, new ItemArrivals.Context(screenId(mc.screen), nearPlayer), playtime);
+    }
+
+    private static void count(Map<String, Integer> counts, ItemStack stack) {
+        if (!stack.isEmpty()) counts.merge(itemId(stack), stack.getCount(), Integer::sum);
+    }
+
+    private static String itemId(ItemStack stack) {
+        return BuiltInRegistries.ITEM.getKey(stack.getItem()).toString();
+    }
+
+    /** Écran ouvert à l'arrivée d'un objet : type de menu (coffre, four…), chat, ou nom de l'écran (quêtes d'un mod). */
+    static String screenId(Screen screen) {
+        if (screen == null) return null;
+        if (screen instanceof ChatScreen) return "chat";
+        if (screen instanceof AbstractContainerScreen<?> container) {
+            AbstractContainerMenu menu = container.getMenu();
+            if (menu instanceof InventoryMenu) return "inventory";
+            try {
+                ResourceLocation type = BuiltInRegistries.MENU.getKey(menu.getType());
+                if (type != null) return type.toString();
+            } catch (UnsupportedOperationException e) {
+                // Menu sans type enregistré (inventaire créatif…) : on garde le nom de l'écran.
+            }
+        }
+        return screen.getClass().getSimpleName();
+    }
+
+    /** Le serveur annonce un ramassage (paquet de l'animation) : l'entité de l'objet est encore là. */
+    public static void onTakeItem(int itemEntityId, int playerId, int amount) {
+        Minecraft mc = Minecraft.getInstance();
+        if (core == null || mc.level == null || mc.player == null || playerId != mc.player.getId()) return;
+        if (mc.level.getEntity(itemEntityId) instanceof ItemEntity item) core.onItemPickup(itemId(item.getItem()), amount);
+    }
+
     private static void join(Minecraft mc) {
         playerPlaytime = -1;
         ticksSinceStats = 0;
+        lastPlayer = mc.player;
+        if (questRewards == null) questRewards = QuestRewards.scan(gameDir);
+        core.setQuestRewards(questRewards);
         XPackCore.WorldContext ctx = worldContext(mc);
         SmokeTest.log("joined " + ctx.kind() + " world, modpack=" + ctx.modpack());
         core.onJoinWorld(ctx);
