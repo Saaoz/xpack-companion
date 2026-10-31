@@ -32,4 +32,10 @@ public interface Ui {
      * en solo) ou accepter. Montré une seule fois par monde.
      */
     void difficultyWarning(String from, String to, boolean canRevert);
+
+    /**
+     * Résultat de {@code /xpack check} (#126) : pour chaque autre joueur connecté, mod XPack lié,
+     * installé sans compte, ou non détecté. {@code selfLinked} : le compte du joueur est lié.
+     */
+    void presenceReport(boolean selfLinked, java.util.List<Presence.Player> players);
 }

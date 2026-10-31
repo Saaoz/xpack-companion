@@ -132,6 +132,7 @@ public final class XPackClient {
         Minecraft mc = Minecraft.getInstance();
         switch (sub) {
             case "diagnostic", "diag" -> runDiagnostic(mc);
+            case "check", "verifier", "vérifier" -> core.checkPresence();
             // Différé : le chat se ferme juste après l'envoi de la commande.
             case "support" -> mc.tell(() -> mc.setScreen(new SupportScreen(null)));
             case "settings", "reglages", "réglages" -> mc.tell(() -> mc.setScreen(new SettingsScreen(null)));
@@ -182,8 +183,13 @@ public final class XPackClient {
                 var abilities = mc.player.getAbilities();
                 core.onPlayerState(new XPackCore.PlayerState(mc.gameMode.getPlayerMode().getName(), abilities.invulnerable, abilities.mayfly), playtime);
                 core.onCheatsAllowed(cheatsAllowed(mc));
-                // Jouer à plusieurs (#119) : la liste des joueurs du client contient au moins un autre joueur.
-                core.setOthersOnline(mc.getConnection().getOnlinePlayers().size() > 1);
+                // Jouer à plusieurs (#119, #126) : les autres joueurs de la liste du client (Tab).
+                java.util.Map<String, String> others = new java.util.HashMap<>();
+                for (var info : mc.getConnection().getOnlinePlayers()) {
+                    var profile = info.getProfile();
+                    if (!profile.getId().equals(mc.player.getUUID())) others.put(profile.getId().toString(), profile.getName());
+                }
+                core.setOtherPlayers(others);
                 // Badge de difficulté (#116) : en solo comme en multijoueur, le client connaît la difficulté.
                 var data = mc.level.getLevelData();
                 String difficulty = data.isHardcore() ? "hardcore" : mc.level.getDifficulty().getKey();

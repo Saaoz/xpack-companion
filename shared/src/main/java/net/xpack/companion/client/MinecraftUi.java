@@ -67,6 +67,25 @@ final class MinecraftUi implements Ui {
     }
 
     /** Ligne « [XPack] … » dans le chat. */
+    @Override
+    public void presenceReport(boolean selfLinked, java.util.List<net.xpack.companion.core.Presence.Player> players) {
+        say(Texts.tr(selfLinked ? "xpack.check.title" : "xpack.check.title_unlinked"));
+        for (net.xpack.companion.core.Presence.Player p : players) {
+            String key = switch (p.status()) {
+                case LINKED -> "xpack.check.linked";
+                case INSTALLED -> "xpack.check.installed";
+                case UNKNOWN -> "xpack.check.unknown";
+            };
+            net.minecraft.ChatFormatting color = switch (p.status()) {
+                case LINKED -> net.minecraft.ChatFormatting.GREEN;
+                case INSTALLED -> net.minecraft.ChatFormatting.YELLOW;
+                case UNKNOWN -> net.minecraft.ChatFormatting.RED;
+            };
+            line(Component.literal("  " + p.name() + " — ").append(Texts.tr(key)).withStyle(color));
+        }
+        if (players.stream().anyMatch(p -> p.status() != net.xpack.companion.core.Presence.Status.LINKED)) say(Texts.tr("xpack.check.hint"));
+    }
+
     static void say(Component message) {
         line(Component.empty().append(PREFIX).append(message));
     }

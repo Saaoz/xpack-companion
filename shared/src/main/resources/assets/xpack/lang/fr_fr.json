@@ -102,5 +102,17 @@
   "xpack.difficulty_warning.server": "Le serveur est passé de %s à %s. Si le monde reste plus de 10 minutes plus bas, le badge de difficulté de ce monde baisse et ses succès rapportent moins de points.",
   "xpack.difficulty_warning.revert": "Remettre %s",
   "xpack.difficulty_warning.accept": "J'accepte un badge plus bas",
-  "xpack.difficulty_warning.ok": "Compris"
+  "xpack.difficulty_warning.ok": "Compris",
+  "xpack.command.check": "Qui, parmi les joueurs connectés, a le mod XPack",
+  "xpack.team.reminder": "Tu joues à plusieurs : tes succès d'équipe ne sont vérifiés que si tout le groupe a le mod XPack, installé et lié. Tape /xpack check pour le savoir.",
+  "xpack.check.title": "Mod XPack chez les autres joueurs :",
+  "xpack.check.title_unlinked": "Mod XPack chez les autres joueurs (ton compte n'est pas encore lié : /xpack settings) :",
+  "xpack.check.linked": "installé et lié",
+  "xpack.check.installed": "installé, compte non lié",
+  "xpack.check.unknown": "non détecté",
+  "xpack.check.hint": "Tant que tout le groupe n'a pas le mod lié, vos succès d'équipe comptent mais restent « non vérifiés ». Lien du mod : xpack.saaoz.fr/mod",
+  "xpack.check.alone": "Aucun autre joueur connecté.",
+  "xpack.check.no_world": "Rejoins un monde ou un serveur pour vérifier les autres joueurs.",
+  "xpack.check.inactive": "Le suivi XPack est désactivé ici (monde de test, envoi désactivé ou consentement refusé).",
+  "xpack.check.offline": "Impossible de joindre XPack pour le moment. Réessaie dans un instant."
 }

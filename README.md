@@ -23,6 +23,7 @@ Mod **client uniquement** qui envoie en temps réel tes progrès Minecraft à XP
 | Commande | Rôle |
 |---|---|
 | `/xpack diagnostic` | Copie, anonymisés, les fichiers du lanceur qui décrivent le modpack dans `<instance>/xpack-diagnostic/diagnostic-<date>/`, avec la liste des mods et ce que le mod a détecté. Un lien du chat ouvre le dossier. C'est ce dossier qu'il faut envoyer pour les tests de détection |
+| `/xpack check` | Pour chaque autre joueur connecté : mod XPack « installé et lié », « installé, compte non lié » ou « non détecté » (#126). Les succès d'équipe ne sont vérifiés que si tout le groupe a le mod lié ; un rappel s'affiche une fois par jour quand on joue à plusieurs, et à chaque équipe rejointe |
 | `/xpack support` | Écran de contact du support |
 | `/xpack settings` | Réglages du mod |
 | `/xpack` ou `/xpack help` | Aide : une ligne par commande, cliquable. Les commandes sont proposées en suggestion pendant la saisie, comme celles des autres mods (ajoutées à l'arbre de commandes du client) |

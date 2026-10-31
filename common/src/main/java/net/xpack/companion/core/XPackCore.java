@@ -243,6 +243,7 @@ public final class XPackCore {
         startedLate = store.startedLate;
         lateNoticeShown = store.lateNoticeShown;
         difficultyWarned = store.difficultyWarned;
+        teamReminderDay = store.teamReminderDay;
         playtimeFloor = store.playtime;
         // Monde de test : déjà déclaré, ou monde que le mod découvre alors qu'il est en créatif.
         // Un monde déjà suivi qui passe ensuite en créatif reste suivi, puis signalé.
@@ -342,6 +343,11 @@ public final class XPackCore {
         difficultyWarned = false;
         lastDifficulty = null;
         othersOnline = false;
+        otherPlayers = Map.of();
+        presenceStatuses = Map.of();
+        presenceAt = -1;
+        nextPresenceAt = 0;
+        afterPresence.clear();
         allowedCommands = List.of();
         allowsFlight = false;
         trackedStats = Set.of();
@@ -538,6 +544,7 @@ public final class XPackCore {
             bypassCommand = null;
             return true;
         }
+        if (joinsTeam(command)) remindTeam(true);
         if (!tracking() || token == null || integrity.isFlagged()) return true;
         if (rules.classify(command, allowedCommands) != IntegrityRules.Verdict.CHEAT) return true;
         ui.showCheatWarning(command, () -> {
@@ -586,7 +593,120 @@ public final class XPackCore {
 
     /** Au moins un autre joueur connecté (serveur, ou monde ouvert au LAN) : badge « Équipe » (#119). */
     public void setOthersOnline(boolean others) {
+        boolean before = othersOnline;
         othersOnline = others;
+        if (others && !before) remindTeam(false);
+    }
+
+    // ------------------------------------------------------------------ jeu en groupe (#126)
+
+    static final long PRESENCE_INTERVAL_MS = 60_000;
+    /** Un mod sans compte ne peut pas renvoyer sa présence plus souvent (le serveur répond 429). */
+    static final long PRESENCE_FRESH_MS = 30_000;
+    /** Le serveur n'en garde pas plus. */
+    static final int MAX_OTHERS = 100;
+    /**
+     * Commandes qui font rejoindre une équipe (FTB Teams, équipes de plugins, vanilla) : les progrès
+     * deviennent souvent partagés, d'où le rappel. Rien n'est bloqué.
+     */
+    private static final List<String> TEAM_JOIN = List.of("ftbteams party join", "ftbteams party accept", "team join", "teams join", "party join",
+            "party accept");
+
+    /** Autres joueurs de la liste (Tab) : UUID → pseudo. */
+    private Map<String, String> otherPlayers = Map.of();
+    private long nextPresenceAt;
+    private boolean presenceInFlight;
+    /** Dernière réponse du serveur (empreinte → statut) et son heure, pour {@code /xpack check}. */
+    private Map<String, Presence.Status> presenceStatuses = Map.of();
+    private long presenceAt = -1;
+    /** Jour (UTC) du dernier rappel « tout le groupe doit avoir le mod » dans ce monde. */
+    private String teamReminderDay;
+    private final List<Runnable> afterPresence = new ArrayList<>();
+
+    /** Autres joueurs connectés, lus régulièrement dans la liste du client. */
+    public void setOtherPlayers(Map<String, String> players) {
+        otherPlayers = Map.copyOf(players);
+        setOthersOnline(!players.isEmpty());
+    }
+
+    /** Rappel : vérifié seulement si tout le groupe a le mod. Une fois par jour et par monde, ou à chaque équipe rejointe. */
+    private void remindTeam(boolean joiningTeam) {
+        if (world == null || practice || !active()) return;
+        String today = java.time.LocalDate.now(clock).toString();
+        if (!joiningTeam && today.equals(teamReminderDay)) return;
+        teamReminderDay = today;
+        saveWorld();
+        ui.notify("xpack.team.reminder");
+    }
+
+    private static boolean joinsTeam(String command) {
+        String c = stripSlash(command.strip()).toLowerCase(java.util.Locale.ROOT).replaceAll("\\s+", " ");
+        return TEAM_JOIN.stream().anyMatch(c::startsWith);
+    }
+
+    private void tickPresence(long t) {
+        if (world == null || practice || !active() || otherPlayers.isEmpty() || presenceInFlight || t < nextPresenceAt) return;
+        sendPresence(t);
+    }
+
+    private void sendPresence(long t) {
+        nextPresenceAt = t + PRESENCE_INTERVAL_MS;
+        presenceInFlight = true;
+        JsonObject body = new JsonObject();
+        JsonArray others = new JsonArray();
+        otherPlayers.keySet().stream().limit(MAX_OTHERS).map(Presence::hash).forEach(others::add);
+        body.add("others", others);
+        // Compte lié : le serveur connaît déjà l'UUID du joueur, il ne le demande pas.
+        if (token == null) body.addProperty("uuidHash", Presence.hash(world.playerUuid()));
+        String wid = worldId;
+        api.presence(body, token).thenAcceptAsync(res -> {
+            presenceInFlight = false;
+            if (res.ok() && res.body() != null && res.body().has("players") && wid.equals(worldId)) {
+                Map<String, Presence.Status> statuses = new HashMap<>();
+                for (Map.Entry<String, JsonElement> e : res.body().getAsJsonObject("players").entrySet()) {
+                    statuses.put(e.getKey(), Presence.parse(e.getValue().isJsonNull() ? null : e.getValue().getAsString()));
+                }
+                presenceStatuses = statuses;
+                presenceAt = t;
+            }
+            List<Runnable> waiting = new ArrayList<>(afterPresence);
+            afterPresence.clear();
+            waiting.forEach(Runnable::run);
+        }, mainThread);
+    }
+
+    /** {@code /xpack check} : qui, parmi les joueurs connectés, a le mod XPack (lié ou non). */
+    public void checkPresence() {
+        if (world == null) {
+            ui.notify("xpack.check.no_world");
+            return;
+        }
+        if (practice || !active()) {
+            ui.notify("xpack.check.inactive");
+            return;
+        }
+        if (otherPlayers.isEmpty()) {
+            ui.notify("xpack.check.alone");
+            return;
+        }
+        long t = clock.millis();
+        if (presenceAt >= 0 && t - presenceAt < PRESENCE_FRESH_MS) {
+            reportPresence();
+            return;
+        }
+        afterPresence.add(this::reportPresence);
+        if (!presenceInFlight) sendPresence(t);
+    }
+
+    private void reportPresence() {
+        if (presenceAt < 0) {
+            ui.notify("xpack.check.offline");
+            return;
+        }
+        List<Presence.Player> players = new ArrayList<>();
+        otherPlayers.forEach((uuid, name) -> players.add(new Presence.Player(name, presenceStatuses.getOrDefault(Presence.hash(uuid), Presence.Status.UNKNOWN))));
+        players.sort(java.util.Comparator.comparing(Presence.Player::name, String.CASE_INSENSITIVE_ORDER));
+        ui.presenceReport(token != null, players);
     }
 
     /** Verdict du serveur sur le monde (#116) : commencé sans le mod, il ne compte pas, et on le dit une fois. */
@@ -712,6 +832,7 @@ public final class XPackCore {
     public void tick() {
         long t = clock.millis();
         tickLinking(t);
+        tickPresence(t);
         if (!tracking() || token == null) return;
         if (sessionId == null && !sessionPending && t >= nextFlushAt) {
             nextFlushAt = t + backoffMs;
@@ -892,6 +1013,7 @@ public final class XPackCore {
         s.startedLate = startedLate;
         s.lateNoticeShown = lateNoticeShown;
         s.difficultyWarned = difficultyWarned;
+        s.teamReminderDay = teamReminderDay;
         s.practice = practice;
         s.playtime = playtimeFloor();
         worldWriter.write(world.storeFile(), GSON.toJson(s));
@@ -924,6 +1046,8 @@ public final class XPackCore {
         boolean lateNoticeShown;
         /** Avertissement de baisse de difficulté déjà montré (#116). */
         boolean difficultyWarned;
+        /** Jour (UTC) du dernier rappel « tout le groupe doit avoir le mod » (#126). */
+        String teamReminderDay;
         /** Monde de test : rien n'est envoyé (voir {@link XPackCore#markWorldPractice()}). */
         boolean practice;
         /** Dernier temps de jeu connu (ticks), plancher du temps de jeu en multijoueur (#74). */

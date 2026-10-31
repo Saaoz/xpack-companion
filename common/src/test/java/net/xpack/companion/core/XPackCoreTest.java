@@ -101,6 +101,13 @@ class XPackCoreTest {
             alerts.add(key);
         }
 
+        final List<String> presenceReports = new ArrayList<>();
+
+        @Override
+        public void presenceReport(boolean selfLinked, List<Presence.Player> players) {
+            presenceReports.add(selfLinked + ":" + players);
+        }
+
         final List<String> difficultyWarnings = new ArrayList<>();
 
         @Override
@@ -735,5 +742,95 @@ class XPackCoreTest {
         core.onJoinWorld(creativeWorld("test2"));
         core.onAdvancementCatalog(List.of(adv("minecraft:story/root", null, "task")), "fr_fr");
         assertNull(api.last("/catalog"));
+    }
+
+    // ------------------------------------------------------------------ jeu en groupe (#126)
+
+    static final String ALEX = "11111111-1111-4111-8111-111111111111";
+    static final String SAM = "22222222-2222-4222-8222-222222222222";
+
+    @Test
+    void envoieLaPresenceChaqueMinuteSansUuidEnClair() {
+        linkedAndJoined();
+        core.tick();
+        assertNull(api.last("/v1/presence"), "seul : rien à envoyer");
+        core.setOtherPlayers(Map.of(ALEX, "Alex", SAM, "Sam"));
+        core.tick();
+        var call = api.last("/v1/presence");
+        assertNotNull(call);
+        assertEquals("jeton", call.token());
+        assertFalse(call.body().has("uuidHash"), "compte lié : le serveur connaît déjà l'UUID");
+        List<String> others = new ArrayList<>();
+        call.body().getAsJsonArray("others").forEach(e -> others.add(e.getAsString()));
+        assertEquals(List.of(Presence.hash(ALEX), Presence.hash(SAM)).stream().sorted().toList(), others.stream().sorted().toList());
+        assertFalse(call.body().toString().contains(ALEX), "jamais d'UUID en clair");
+
+        int sent = (int) api.calls.stream().filter(c -> c.path().equals("/v1/presence")).count();
+        clock.millis += 30_000;
+        core.tick();
+        assertEquals(sent, api.calls.stream().filter(c -> c.path().equals("/v1/presence")).count(), "pas avant une minute");
+        clock.millis += 31_000;
+        core.tick();
+        assertEquals(sent + 1, api.calls.stream().filter(c -> c.path().equals("/v1/presence")).count());
+    }
+
+    @Test
+    void sansCompteLieLaPresencePorteLEmpreinteDuJoueur() {
+        core.onJoinWorld(world());
+        core.setOtherPlayers(Map.of(ALEX, "Alex"));
+        core.tick();
+        var call = api.last("/v1/presence");
+        assertNull(call.token());
+        assertEquals(Presence.hash(UUID), call.body().get("uuidHash").getAsString());
+        // Même calcul que le serveur : sans tirets, en minuscules.
+        assertEquals(Presence.hash(UUID.replace("-", "").toUpperCase()), Presence.hash(UUID));
+    }
+
+    @Test
+    void xpackCheckDitQuiALeMod() {
+        linkedAndJoined();
+        core.setOtherPlayers(Map.of(ALEX, "Alex", SAM, "Sam"));
+        api.reply(200, "{\"players\":{\"" + Presence.hash(ALEX) + "\":\"linked\",\"" + Presence.hash(SAM) + "\":\"unknown\"}}");
+        core.checkPresence();
+        assertEquals(List.of("true:[Player[name=Alex, status=LINKED], Player[name=Sam, status=UNKNOWN]]"), ui.presenceReports);
+        // Réponse récente : pas de nouvelle requête.
+        int calls = api.calls.size();
+        core.checkPresence();
+        assertEquals(calls, api.calls.size());
+        assertEquals(2, ui.presenceReports.size());
+    }
+
+    @Test
+    void xpackCheckSeulOuHorsLigne() {
+        core.checkPresence();
+        assertEquals(List.of("xpack.check.no_world"), ui.notices);
+        linkedAndJoined();
+        core.checkPresence();
+        assertTrue(ui.notices.contains("xpack.check.alone"));
+        core.setOtherPlayers(Map.of(ALEX, "Alex"));
+        api.reply(503, "{}");
+        core.checkPresence();
+        assertTrue(ui.notices.contains("xpack.check.offline"));
+        assertTrue(ui.presenceReports.isEmpty());
+    }
+
+    @Test
+    void rappelleUneFoisParJourQueToutLeGroupeDoitAvoirLeMod() {
+        linkedAndJoined();
+        core.setOtherPlayers(Map.of(ALEX, "Alex"));
+        assertEquals(1, ui.notices.stream().filter("xpack.team.reminder"::equals).count());
+        core.setOtherPlayers(Map.of());
+        core.setOtherPlayers(Map.of(SAM, "Sam"));
+        assertEquals(1, ui.notices.stream().filter("xpack.team.reminder"::equals).count(), "une fois par jour");
+        // Rejoindre une équipe : rappel à chaque fois, sans bloquer la commande.
+        assertTrue(core.onCommand("/ftbteams party join Mineurs", c -> {}));
+        assertEquals(2, ui.notices.stream().filter("xpack.team.reminder"::equals).count());
+        // Le lendemain, dans le même monde (mémorisé dans le monde).
+        core.onLeaveWorld();
+        clock.millis += 24 * 3_600_000L;
+        api.reply(201, SESSION);
+        core.onJoinWorld(world());
+        core.setOtherPlayers(Map.of(ALEX, "Alex"));
+        assertEquals(3, ui.notices.stream().filter("xpack.team.reminder"::equals).count());
     }
 }

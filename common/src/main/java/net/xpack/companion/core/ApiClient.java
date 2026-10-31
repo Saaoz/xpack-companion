@@ -91,6 +91,14 @@ public final class ApiClient {
         return transport.send("POST", "/v1/support/reports", body, token);
     }
 
+    /**
+     * Présence en multijoueur (#126) : empreintes des autres joueurs de la liste. Sans jeton (compte
+     * pas encore lié), {@code body} porte l'empreinte du joueur. La réponse sert à {@code /xpack check}.
+     */
+    public CompletableFuture<Response> presence(JsonObject body, String token) {
+        return transport.send("POST", "/v1/presence", body, token);
+    }
+
     public CompletableFuture<Response> unlink(String token) {
         return transport.send("DELETE", "/v1/link", null, token);
     }
