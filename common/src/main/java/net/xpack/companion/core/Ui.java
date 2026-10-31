@@ -5,6 +5,13 @@ public interface Ui {
     /** Alerte avant une commande de triche (#44). {@code onContinue} est appelé si le joueur confirme. */
     void showCheatWarning(String command, Runnable onContinue);
 
+    /**
+     * Mode triche d'un mod activé (#49) : {@code jei}, {@code rei}, {@code emi} (donner des objets) ou
+     * {@code ftbquests} (mode édition des quêtes). {@code onDisable} l'éteint (aussi en fermant
+     * l'écran), {@code onContinue} le garde et signale le monde.
+     */
+    void showCheatModeWarning(String mode, Runnable onDisable, Runnable onContinue);
+
     /** Toast « Succès débloqué » (#39). */
     void toastUnlocked(String name, int points, String rarity);
 

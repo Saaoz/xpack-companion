@@ -73,6 +73,17 @@ class XPackCoreTest {
             this.onContinue = onContinue;
         }
 
+        final List<String> cheatModes = new ArrayList<>();
+        Runnable onDisableMode;
+        Runnable onKeepMode;
+
+        @Override
+        public void showCheatModeWarning(String mode, Runnable onDisable, Runnable onContinue) {
+            cheatModes.add(mode);
+            onDisableMode = onDisable;
+            onKeepMode = onContinue;
+        }
+
         @Override
         public void toastUnlocked(String name, int points, String rarity) {
             toasts.add(name + ":" + points + ":" + rarity);
@@ -294,7 +305,7 @@ class XPackCoreTest {
         assertTrue(ui.notices.contains("xpack.practice.auto"));
         core.onAdvancements(List.of("minecraft:story/root", "minecraft:end/kill_dragon"), false, 10);
         assertTrue(core.onCommand("give @s diamond 64", c -> {}), "pas d'alerte dans un monde de test");
-        core.onPlayerState(new XPackCore.PlayerState("creative", true, true), 20);
+        core.onPlayerState(new XPackCore.PlayerState("creative", true), 20);
         clock.millis += 10_000;
         core.tick();
         assertTrue(api.calls.isEmpty(), "ni session, ni événement, ni signalement");
@@ -317,7 +328,7 @@ class XPackCoreTest {
         core.onJoinWorld(new XPackCore.WorldContext(dir.resolve("world/xpack.json"), "singleplayer", "2026-10-01T10:00:00Z", false, UUID, "Steve",
                 new ModpackDetector.ModpackInfo("modrinth", null, null, "Engrenages", "1.4.0"), new JsonObject(), true));
         assertEquals(XPackCore.Status.COUNTED, core.status());
-        core.onPlayerState(new XPackCore.PlayerState("creative", false, true), 30);
+        core.onPlayerState(new XPackCore.PlayerState("creative", false), 30);
         assertTrue(core.integrity().isFlagged());
     }
 
@@ -522,20 +533,46 @@ class XPackCoreTest {
     }
 
     @Test
+    void previentAvantLeModeTricheDUnModEtNeSignaleQueSiLeJoueurLeGarde() {
+        linkedAndJoined();
+        List<String> disabled = new ArrayList<>();
+        core.onCheatModes(java.util.Set.of("jei"), disabled::add);
+        assertEquals(List.of(), ui.cheatModes, "sans droits de triche, JEI ne peut rien donner");
+
+        core.onCheatsAllowed(true);
+        core.onCheatModes(java.util.Set.of("jei", "ftbquests"), disabled::add);
+        core.onCheatModes(java.util.Set.of("jei", "ftbquests"), disabled::add);
+        assertEquals(List.of("ftbquests"), ui.cheatModes, "une question à la fois, pas de répétition écran ouvert");
+        ui.onDisableMode.run();
+        assertEquals(List.of("ftbquests"), disabled);
+        core.onCheatModes(java.util.Set.of("jei"), disabled::add);
+        assertEquals(List.of("ftbquests", "jei"), ui.cheatModes);
+        assertFalse(core.integrity().isFlagged());
+
+        // Resté allumé malgré « Désactiver » : on redemande après quelques secondes.
+        clock.millis += XPackCore.CHEAT_MODE_RECHECK_MS;
+        core.onCheatModes(java.util.Set.of("ftbquests"), disabled::add);
+        assertEquals(List.of("ftbquests", "jei", "ftbquests"), ui.cheatModes);
+        ui.onKeepMode.run();
+        assertTrue(core.integrity().isFlagged());
+        assertEquals(XPackCore.Status.NOT_COUNTED, core.status());
+    }
+
+    @Test
     void signaleLeModeCreatifEtLeGodmode() {
         linkedAndJoined();
-        core.onPlayerState(new XPackCore.PlayerState("survival", false, false), 10);
+        core.onPlayerState(new XPackCore.PlayerState("survival", false), 10);
         assertFalse(core.integrity().isFlagged());
-        core.onPlayerState(new XPackCore.PlayerState("creative", true, true), 20);
+        core.onPlayerState(new XPackCore.PlayerState("creative", true), 20);
         assertTrue(core.integrity().isFlagged());
         assertEquals(List.of("xpack.flagged.creative"), ui.notices);
 
-        // Autre monde : vol en survie interdit par le modpack.
+        // Autre monde : le vol en survie (jetpack…) n'est pas signalé (#48), l'invulnérabilité oui.
         api.reply(201, SESSION);
         core.onJoinWorld(new XPackCore.WorldContext(dir.resolve("world2/xpack.json"), "singleplayer", "2026-10-02T10:00:00Z", false, UUID, "Steve",
                 new ModpackDetector.ModpackInfo("modrinth", null, null, "Engrenages", "1.4.0"), new JsonObject(), false));
         assertFalse(core.integrity().isFlagged());
-        core.onPlayerState(new XPackCore.PlayerState("survival", false, true), 30);
+        core.onPlayerState(new XPackCore.PlayerState("survival", true), 30);
         assertTrue(core.integrity().isFlagged());
     }
 
@@ -720,17 +757,17 @@ class XPackCoreTest {
     void uneDetectionAutomatiqueAvertitSansBloquerEtLeSupportRecoitLeContexte() {
         core.setLoadedMods(List.of("minecraft", "mekanism"));
         linkedAndJoined();
-        core.onPlayerState(new XPackCore.PlayerState("survival", false, true), 30);
-        assertEquals(List.of("xpack.flagged.flight"), ui.alerts, "notification avec accès au support");
+        core.onPlayerState(new XPackCore.PlayerState("survival", true), 30);
+        assertEquals(List.of("xpack.flagged.godmode"), ui.alerts, "notification avec accès au support");
 
         assertTrue(core.canContactSupport());
         JsonObject report = core.supportReport();
         assertEquals("NOT_COUNTED", report.get("status").getAsString());
         JsonObject detection = report.getAsJsonArray("detections").get(0).getAsJsonObject();
         assertEquals("abilities", detection.get("reason").getAsString());
-        assertEquals("mayfly", detection.get("detail").getAsString());
+        assertEquals("invulnerable", detection.get("detail").getAsString());
         assertEquals("Engrenages", report.getAsJsonObject("modpack").get("name").getAsString());
-        assertTrue(report.getAsJsonArray("mods").toString().contains("mekanism"), "utile pour repérer un jetpack légitime");
+        assertTrue(report.getAsJsonArray("mods").toString().contains("mekanism"), "utile pour comprendre la détection");
 
         api.reply(201, "{\"id\":\"sup_1\",\"mailed\":true}");
         List<Boolean> sent = new ArrayList<>();

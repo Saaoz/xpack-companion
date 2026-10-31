@@ -62,7 +62,7 @@ public final class XPackCore {
     }
 
     /** État du joueur à chaque tick (#47, #48). */
-    public record PlayerState(String gameMode, boolean invulnerable, boolean mayfly) {}
+    public record PlayerState(String gameMode, boolean invulnerable) {}
 
     /**
      * Un progrès du modpack tel que le jeu l'affiche (#80) : titre et description dans la langue
@@ -98,7 +98,6 @@ public final class XPackCore {
     private boolean sessionPending;
     private int nextSeq;
     private List<String> allowedCommands = List.of();
-    private boolean allowsFlight;
     private Set<String> trackedStats = Set.of();
     private boolean uuidMismatch;
     /** Jeton du compte Minecraft qui joue ce monde (lu dans {@link Credentials}). */
@@ -335,6 +334,7 @@ public final class XPackCore {
         lastStats.clear();
         itemLog.reset();
         mining.reset();
+        cheatModeAsked.clear();
         lastMining = null;
         lastHand = null;
         lastPacks = null;
@@ -354,7 +354,6 @@ public final class XPackCore {
         nextPresenceAt = 0;
         afterPresence.clear();
         allowedCommands = List.of();
-        allowsFlight = false;
         trackedStats = Set.of();
         catalog = null;
         catalogSentHash = null;
@@ -419,7 +418,6 @@ public final class XPackCore {
         if (r == null) return;
         JsonObject integ = r.has("integrity") && r.get("integrity").isJsonObject() ? r.getAsJsonObject("integrity") : new JsonObject();
         allowedCommands = IntegrityRules.strings(integ.getAsJsonArray("allowedCommands"));
-        allowsFlight = integ.has("allowsFlight") && integ.get("allowsFlight").getAsBoolean();
         trackedStats = new HashSet<>(IntegrityRules.strings(r.getAsJsonArray("trackedStats")));
         rules = rules.withServerLists(IntegrityRules.strings(r.getAsJsonArray("cheatCommands")), IntegrityRules.strings(r.getAsJsonArray("alwaysAllowedCommands")));
     }
@@ -561,14 +559,41 @@ public final class XPackCore {
         return false;
     }
 
+    /** Après « Désactiver », délai avant de reposer la question si le mode est resté allumé. */
+    static final long CHEAT_MODE_RECHECK_MS = 5_000;
+    /** Mode triche → moment où l'on peut reposer la question (Long.MAX_VALUE : écran ouvert). */
+    private final Map<String, Long> cheatModeAsked = new HashMap<>();
+
+    /**
+     * Modes triche actifs (#49) : JEI/REI/EMI donnent des objets, le mode édition de FTB Quests
+     * valide quêtes et récompenses. Sans droits de triche ils ne donnent rien : contrôlés seulement
+     * quand le monde les autorise. Comme pour une commande (#44), on prévient avant : désactiver,
+     * ou garder et le monde est signalé. Une question à la fois.
+     */
+    public void onCheatModes(Set<String> active, Consumer<String> disable) {
+        cheatModeAsked.keySet().retainAll(active); // éteint : la prochaine activation repose la question
+        if (!tracking() || integrity.isFlagged() || !world.cheatsAllowed() || cheatModeAsked.containsValue(Long.MAX_VALUE)) return;
+        long t = clock.millis();
+        for (String mode : new java.util.TreeSet<>(active)) {
+            Long until = cheatModeAsked.get(mode);
+            if (until != null && t < until) continue;
+            cheatModeAsked.put(mode, Long.MAX_VALUE);
+            ui.showCheatModeWarning(mode, () -> {
+                cheatModeAsked.put(mode, clock.millis() + CHEAT_MODE_RECHECK_MS);
+                disable.accept(mode);
+            }, () -> flag(WorldIntegrity.Reason.CHEAT_MODE, mode));
+            return;
+        }
+    }
+
     public void onPlayerState(PlayerState s, long playtimeTicks) {
         if (!tracking() || integrity.isFlagged()) return;
         switch (s.gameMode()) {
             case "creative" -> flagWithNotice(WorldIntegrity.Reason.CREATIVE, null, "xpack.flagged.creative");
             case "spectator" -> flagWithNotice(WorldIntegrity.Reason.SPECTATOR, null, "xpack.flagged.spectator");
             default -> {
+                // Le vol en survie n'est pas signalé (#48) : jetpacks, anneaux, sorts, /home et /back… trop de façons légitimes.
                 if (s.invulnerable()) flagWithNotice(WorldIntegrity.Reason.ABILITIES, "invulnerable", "xpack.flagged.godmode");
-                else if (s.mayfly() && !allowsFlight) flagWithNotice(WorldIntegrity.Reason.ABILITIES, "mayfly", "xpack.flagged.flight");
             }
         }
     }

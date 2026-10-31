@@ -193,7 +193,7 @@ public final class XPackClient {
             ticks++;
             if (ticks % STATE_INTERVAL_TICKS == 0 && mc.gameMode != null) {
                 var abilities = mc.player.getAbilities();
-                core.onPlayerState(new XPackCore.PlayerState(mc.gameMode.getPlayerMode().getName(), abilities.invulnerable, abilities.mayfly), playtime);
+                core.onPlayerState(new XPackCore.PlayerState(mc.gameMode.getPlayerMode().getName(), abilities.invulnerable), playtime);
                 core.onCheatsAllowed(cheatsAllowed(mc));
                 // Jouer à plusieurs (#119, #126) : les autres joueurs de la liste du client (Tab).
                 java.util.Map<String, String> others = new java.util.HashMap<>();
@@ -207,6 +207,8 @@ public final class XPackClient {
                 String difficulty = data.isHardcore() ? "hardcore" : mc.level.getDifficulty().getKey();
                 core.onDifficulty(difficulty, mc.getSingleplayerServer() != null && !data.isDifficultyLocked() && !data.isHardcore(), playtime);
                 core.onResourcePacks(resourcePacks(mc), playtime);
+                // Mode triche de JEI/REI/EMI, mode édition de FTB Quests (#49).
+                core.onCheatModes(CheatModes.active(modIds), CheatModes::disable);
             }
             if (mc.player != lastPlayer) {
                 // Réapparition ou changement de dimension : nouveau joueur, inventaire renvoyé par le serveur.

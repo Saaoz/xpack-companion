@@ -20,6 +20,13 @@ final class MinecraftUi implements Ui {
     }
 
     @Override
+    public void showCheatModeWarning(String mode, Runnable onDisable, Runnable onContinue) {
+        SmokeTest.log("cheat mode warning " + mode);
+        Minecraft mc = Minecraft.getInstance();
+        mc.tell(() -> mc.setScreen(new CheatModeWarningScreen(mode, onDisable, onContinue)));
+    }
+
+    @Override
     public void difficultyWarning(String from, String to, boolean canRevert) {
         SmokeTest.log("difficulty warning " + from + " > " + to);
         Minecraft mc = Minecraft.getInstance();
