@@ -20,7 +20,8 @@ Le plus simple : ouvre la fiche de ton modpack sur [xpack.saaoz.fr](https://xpac
 
 1. Télécharge le jar adapté.
 2. Copie-le dans le dossier `mods` de l'instance de ton modpack.
-3. Lance le jeu : le mod affiche un code de liaison. Saisis-le sur [xpack.saaoz.fr/mod](https://xpack.saaoz.fr/mod) (« Lier le mod »), tes succès arrivent ensuite sur ton profil.
+3. Lance le jeu, puis ouvre le menu pause → ⚙ → « Lier mon compte XPack » (ou tape `/xpack settings`) : le mod affiche un code de liaison.
+4. Saisis ce code sur [xpack.saaoz.fr/link](https://xpack.saaoz.fr/link). Tes succès arrivent ensuite sur ton profil.
 
 ## Créateurs de modpacks
 
@@ -32,6 +33,6 @@ Tu peux inclure le mod dans ton pack : la page [/mod](https://xpack.saaoz.fr/mod
 
 ---
 
-**English** — Companion mod for [XPack](https://xpack.saaoz.fr): syncs your modpack achievements to your XPack profile. Download the jar matching your loader and Minecraft version from [Releases](https://github.com/Saaoz/xpack-companion/releases) and drop it into your instance's `mods` folder.
+**English** — Companion mod for [XPack](https://xpack.saaoz.fr): syncs your modpack achievements to your XPack profile. Download the jar matching your loader and Minecraft version from [Releases](https://github.com/Saaoz/xpack-companion/releases) and drop it into your instance's `mods` folder. Then, in game, open the pause menu → ⚙ → “Link my XPack account” and enter the code on [xpack.saaoz.fr/link](https://xpack.saaoz.fr/link).
 
 Licence : MIT
