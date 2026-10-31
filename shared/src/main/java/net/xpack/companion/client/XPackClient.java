@@ -182,6 +182,10 @@ public final class XPackClient {
                 var abilities = mc.player.getAbilities();
                 core.onPlayerState(new XPackCore.PlayerState(mc.gameMode.getPlayerMode().getName(), abilities.invulnerable, abilities.mayfly), playtime);
                 core.onCheatsAllowed(cheatsAllowed(mc));
+                // Badge de difficulté (#116) : en solo comme en multijoueur, le client connaît la difficulté.
+                var data = mc.level.getLevelData();
+                String difficulty = data.isHardcore() ? "hardcore" : mc.level.getDifficulty().getKey();
+                core.onDifficulty(difficulty, mc.getSingleplayerServer() != null && !data.isDifficultyLocked() && !data.isHardcore(), playtime);
             }
             // Première demande 5 s après l'entrée dans le monde, puis toutes les 60 s.
             if ((ticks == 100 || ticks % STATS_INTERVAL_TICKS == 0) && !core.trackedStats().isEmpty()) {

@@ -38,7 +38,7 @@ public final class XPackCore {
      * {@code PRACTICE} : monde de test (créatif dès le départ, ou choisi par le joueur). Rien n'y est
      * envoyé et rien n'y est signalé : pour XPack, ce monde n'existe pas.
      */
-    public enum Status { DISABLED, UNLINKED, OFFLINE, COUNTED, NOT_COUNTED, PRACTICE }
+    public enum Status { DISABLED, UNLINKED, OFFLINE, COUNTED, NOT_COUNTED, PRACTICE, STARTED_LATE }
 
     /** Liaison en cours (#34). {@code userCode} reste null tant que le serveur n'a pas répondu. */
     public record LinkState(String minecraftName, String userCode, String url, boolean failed) {}
@@ -240,6 +240,9 @@ public final class XPackCore {
         // Chaque compte Minecraft a son propre jeton : changer de compte ne mélange rien.
         token = credentials.token(config.apiUrl, ctx.playerUuid());
         cheatsNoticeShown = store.cheatsNoticeShown;
+        startedLate = store.startedLate;
+        lateNoticeShown = store.lateNoticeShown;
+        difficultyWarned = store.difficultyWarned;
         playtimeFloor = store.playtime;
         // Monde de test : déjà déclaré, ou monde que le mod découvre alors qu'il est en créatif.
         // Un monde déjà suivi qui passe ensuite en créatif reste suivi, puis signalé.
@@ -279,6 +282,13 @@ public final class XPackCore {
     private boolean linkHintShown;
 
     private boolean cheatsNoticeShown;
+    /** Monde commencé sans le mod (#116), d'après le serveur : il ne compte pas. */
+    private boolean startedLate;
+    private boolean lateNoticeShown;
+    /** Avertissement « badge de difficulté » déjà montré dans ce monde : une seule fois. */
+    private boolean difficultyWarned;
+    /** Dernière difficulté envoyée pendant cette partie. */
+    private String lastDifficulty;
 
     /**
      * Triches activées en cours de partie (#74) : « Ouvrir au LAN » avec les commandes, ou le
@@ -325,6 +335,10 @@ public final class XPackCore {
         token = null;
         practice = false;
         cheatsNoticeShown = false;
+        startedLate = false;
+        lateNoticeShown = false;
+        difficultyWarned = false;
+        lastDifficulty = null;
         allowedCommands = List.of();
         allowsFlight = false;
         trackedStats = Set.of();
@@ -543,6 +557,41 @@ public final class XPackCore {
         }
     }
 
+    /** Du plus facile au plus dur, comme le serveur (#116). */
+    static final List<String> DIFFICULTIES = List.of("peaceful", "easy", "normal", "hard", "hardcore");
+
+    /**
+     * Difficulté du monde (#116), relevée avec l'état du joueur : envoyée à l'entrée puis à chaque
+     * changement. Elle donne au serveur le badge de difficulté des succès. Quand elle baisse, on
+     * prévient une seule fois par monde, sans rien bloquer : quelques minutes plus bas ne changent
+     * rien, mais le badge baisse si le monde y reste. {@code canChange} : le joueur peut la remettre
+     * (solo, difficulté non verrouillée).
+     */
+    public void onDifficulty(String difficulty, boolean canChange, long playtimeTicks) {
+        if (!tracking() || !DIFFICULTIES.contains(difficulty) || difficulty.equals(lastDifficulty)) return;
+        String previous = lastDifficulty;
+        lastDifficulty = difficulty;
+        JsonObject e = event("difficulty", playtimeTicks);
+        e.addProperty("key", difficulty);
+        enqueue(e);
+        if (previous != null && DIFFICULTIES.indexOf(difficulty) < DIFFICULTIES.indexOf(previous) && !difficultyWarned && !startedLate) {
+            difficultyWarned = true;
+            saveWorld();
+            ui.difficultyWarning(previous, difficulty, canChange);
+        }
+    }
+
+    /** Verdict du serveur sur le monde (#116) : commencé sans le mod, il ne compte pas, et on le dit une fois. */
+    private void syncWorld(JsonObject w) {
+        if (!w.has("startedWithoutMod") || !w.get("startedWithoutMod").getAsBoolean() || startedLate) return;
+        startedLate = true;
+        if (!lateNoticeShown) {
+            lateNoticeShown = true;
+            ui.notify("xpack.started_late");
+        }
+        saveWorld();
+    }
+
     /** Détection automatique : on ne bloque rien, on prévient pourquoi le monde ne compte plus. */
     private void flagWithNotice(WorldIntegrity.Reason reason, String detail, String messageKey, Object... args) {
         if (flag(reason, detail)) ui.integrityAlert(messageKey, args);
@@ -706,6 +755,7 @@ public final class XPackCore {
 
     private void handleBatchResult(JsonObject b) {
         if (b.has("integrity") && b.get("integrity").isJsonObject()) syncIntegrity(b.getAsJsonObject("integrity"));
+        if (b.has("world") && b.get("world").isJsonObject()) syncWorld(b.getAsJsonObject("world"));
         if (!config.toasts || !b.has("unlocked")) return;
         for (JsonElement el : b.getAsJsonArray("unlocked")) {
             JsonObject u = el.getAsJsonObject();
@@ -811,6 +861,7 @@ public final class XPackCore {
     public Status status() {
         if (world != null && practice) return Status.PRACTICE;
         if (!active()) return Status.DISABLED;
+        if (startedLate) return Status.STARTED_LATE;
         if (integrity.isFlagged()) return Status.NOT_COUNTED;
         if (token == null) return Status.UNLINKED;
         if (sessionId == null || lastSendFailed) return Status.OFFLINE;
@@ -828,6 +879,9 @@ public final class XPackCore {
         s.flaggedAt = integrity.flaggedAt();
         s.pending = new ArrayList<>(pending);
         s.cheatsNoticeShown = cheatsNoticeShown;
+        s.startedLate = startedLate;
+        s.lateNoticeShown = lateNoticeShown;
+        s.difficultyWarned = difficultyWarned;
         s.practice = practice;
         s.playtime = playtimeFloor();
         worldWriter.write(world.storeFile(), GSON.toJson(s));
@@ -855,6 +909,11 @@ public final class XPackCore {
         String status;
         String flaggedAt;
         boolean cheatsNoticeShown;
+        /** Monde commencé sans le mod (#116) et message déjà montré. */
+        boolean startedLate;
+        boolean lateNoticeShown;
+        /** Avertissement de baisse de difficulté déjà montré (#116). */
+        boolean difficultyWarned;
         /** Monde de test : rien n'est envoyé (voir {@link XPackCore#markWorldPractice()}). */
         boolean practice;
         /** Dernier temps de jeu connu (ticks), plancher du temps de jeu en multijoueur (#74). */

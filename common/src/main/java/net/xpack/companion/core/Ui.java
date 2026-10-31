@@ -25,4 +25,11 @@ public interface Ui {
      * comptabilisé. Notification qui reste ~20 s avec un accès au support (contestation).
      */
     void integrityAlert(String translationKey, Object... args);
+
+    /**
+     * La difficulté vient de baisser (#116) : le badge de difficulté du monde baissera s'il reste
+     * trop longtemps plus bas. Prévenir, pas punir : le joueur peut la remettre ({@code canRevert},
+     * en solo) ou accepter. Montré une seule fois par monde.
+     */
+    void difficultyWarning(String from, String to, boolean canRevert);
 }

@@ -21,6 +21,7 @@ public final class StatusBadge {
             case OFFLINE, UNLINKED -> 0xFFD24A;
             case NOT_COUNTED -> 0xFF5555;
             case DISABLED, PRACTICE -> 0x888888;
+            case STARTED_LATE -> 0xFF5555;
         };
         Minecraft mc = Minecraft.getInstance();
         Component label = Component.literal("● ").withStyle(s -> s.withColor(color))

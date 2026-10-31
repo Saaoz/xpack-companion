@@ -100,6 +100,13 @@ class XPackCoreTest {
             notices.add(key);
             alerts.add(key);
         }
+
+        final List<String> difficultyWarnings = new ArrayList<>();
+
+        @Override
+        public void difficultyWarning(String from, String to, boolean canRevert) {
+            difficultyWarnings.add(from + ">" + to + ":" + canRevert);
+        }
     }
 
     /** Horloge réglable pour piloter les délais d'envoi. */
@@ -321,6 +328,42 @@ class XPackCoreTest {
         assertEquals(XPackCore.Status.PRACTICE, core.status());
         assertTrue(ui.notices.contains("xpack.practice.manual"));
         assertTrue(readFile("world/xpack.json").contains("\"practice\": true"), "mémorisé dans le monde");
+    }
+
+    @Test
+    void envoieLaDifficulteEtPrevientUneSeuleFoisQuandElleBaisse() {
+        linkedAndJoined();
+        core.onDifficulty("hard", true, 100);
+        core.onDifficulty("hard", true, 200); // inchangée : rien
+        core.onDifficulty("easy", true, 3_000);
+        core.onDifficulty("hard", true, 4_000);
+        core.onDifficulty("peaceful", true, 5_000); // nouvelle baisse : déjà prévenu dans ce monde
+        core.onDifficulty("inconnue", true, 6_000);
+        core.tick();
+
+        List<String> sent = new ArrayList<>();
+        for (var e : sentEvents()) {
+            JsonObject o = e.getAsJsonObject();
+            if (o.get("type").getAsString().equals("difficulty")) sent.add(o.get("key").getAsString());
+        }
+        assertEquals(List.of("hard", "easy", "hard", "peaceful"), sent);
+        assertEquals(List.of("hard>easy:true"), ui.difficultyWarnings);
+        assertTrue(readFile("world/xpack.json").contains("\"difficultyWarned\": true"), "mémorisé dans le monde");
+    }
+
+    @Test
+    void unMondeCommenceSansLeModNeComptePasEtLeDitUneFois() {
+        linkedAndJoined();
+        core.onAdvancements(List.of("minecraft:story/root"), false, 200_000);
+        api.reply(200, "{\"accepted\":1,\"unlocked\":[],\"world\":{\"startedWithoutMod\":true,\"difficulty\":null}}");
+        core.tick();
+        assertEquals(XPackCore.Status.STARTED_LATE, core.status());
+        assertEquals(1, ui.notices.stream().filter("xpack.started_late"::equals).count());
+        // Revenir dans le monde : toujours non compté, sans répéter le message.
+        api.reply(201, SESSION);
+        core.onJoinWorld(world());
+        assertEquals(XPackCore.Status.STARTED_LATE, core.status());
+        assertEquals(1, ui.notices.stream().filter("xpack.started_late"::equals).count());
     }
 
     @Test

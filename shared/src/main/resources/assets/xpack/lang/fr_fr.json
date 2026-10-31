@@ -89,5 +89,18 @@
   "xpack.command.help": "cette aide",
   "xpack.diagnostic.done": "Diagnostic prêt. Modpack détecté : %s. Fichiers trouvés : %s.",
   "xpack.diagnostic.open": "[Ouvrir le dossier]",
-  "xpack.diagnostic.failed": "Diagnostic impossible : %s"
+  "xpack.diagnostic.failed": "Diagnostic impossible : %s",
+  "xpack.started_late": "Ce monde a été commencé sans XPack : il ne compte pas, même à partir de maintenant. Crée un nouveau monde pour collectionner tes succès.",
+  "xpack.badge.started_late": "non compté (commencé sans XPack)",
+  "xpack.difficulty.peaceful": "Paisible",
+  "xpack.difficulty.easy": "Facile",
+  "xpack.difficulty.normal": "Normal",
+  "xpack.difficulty.hard": "Difficile",
+  "xpack.difficulty.hardcore": "Hardcore",
+  "xpack.difficulty_warning.title": "Difficulté baissée",
+  "xpack.difficulty_warning.body": "La difficulté est passée de %s à %s. Quelques minutes ne changent rien, mais si ce monde reste plus de 10 minutes plus bas, son badge de difficulté baisse et ses succès rapportent moins de points. La remonter ensuite ne fera pas remonter le badge.",
+  "xpack.difficulty_warning.server": "Le serveur est passé de %s à %s. Si le monde reste plus de 10 minutes plus bas, le badge de difficulté de ce monde baisse et ses succès rapportent moins de points.",
+  "xpack.difficulty_warning.revert": "Remettre %s",
+  "xpack.difficulty_warning.accept": "J'accepte un badge plus bas",
+  "xpack.difficulty_warning.ok": "Compris"
 }

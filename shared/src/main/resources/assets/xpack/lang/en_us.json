@@ -89,5 +89,18 @@
   "xpack.command.help": "this help",
   "xpack.diagnostic.done": "Diagnostic ready. Detected modpack: %s. Files found: %s.",
   "xpack.diagnostic.open": "[Open folder]",
-  "xpack.diagnostic.failed": "Diagnostic failed: %s"
+  "xpack.diagnostic.failed": "Diagnostic failed: %s",
+  "xpack.started_late": "This world was started without XPack: it doesn't count, even from now on. Create a new world to collect your achievements.",
+  "xpack.badge.started_late": "not counted (started without XPack)",
+  "xpack.difficulty.peaceful": "Peaceful",
+  "xpack.difficulty.easy": "Easy",
+  "xpack.difficulty.normal": "Normal",
+  "xpack.difficulty.hard": "Hard",
+  "xpack.difficulty.hardcore": "Hardcore",
+  "xpack.difficulty_warning.title": "Difficulty lowered",
+  "xpack.difficulty_warning.body": "The difficulty went from %s to %s. A few minutes change nothing, but if this world stays lower for more than 10 minutes, its difficulty badge drops and its achievements give fewer points. Raising it again later won't bring the badge back up.",
+  "xpack.difficulty_warning.server": "The server went from %s to %s. If it stays lower for more than 10 minutes, this world's difficulty badge drops and its achievements give fewer points.",
+  "xpack.difficulty_warning.revert": "Back to %s",
+  "xpack.difficulty_warning.accept": "I accept a lower badge",
+  "xpack.difficulty_warning.ok": "Got it"
 }

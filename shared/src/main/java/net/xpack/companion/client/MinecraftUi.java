@@ -20,6 +20,13 @@ final class MinecraftUi implements Ui {
     }
 
     @Override
+    public void difficultyWarning(String from, String to, boolean canRevert) {
+        SmokeTest.log("difficulty warning " + from + " > " + to);
+        Minecraft mc = Minecraft.getInstance();
+        mc.tell(() -> mc.setScreen(new DifficultyWarningScreen(from, to, canRevert)));
+    }
+
+    @Override
     public void askConsent(java.util.function.Consumer<Boolean> answer) {
         Minecraft mc = Minecraft.getInstance();
         // Différé : l'écran de chargement du monde se ferme au premier tick en jeu.
