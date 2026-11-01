@@ -119,6 +119,11 @@ class XPackCoreTest {
             presenceReports.add(selfLinked + ":" + players);
         }
 
+        @Override
+        public void teamNotice(String key, Object... args) {
+            notices.add(key + (args.length > 0 ? ":" + args[0] : ""));
+        }
+
         final List<String> difficultyWarnings = new ArrayList<>();
 
         @Override
@@ -926,23 +931,93 @@ class XPackCoreTest {
         assertTrue(ui.presenceReports.isEmpty());
     }
 
+    // ------------------------------------------------------------------ équipe XPack (#145)
+
+    static final String NO_TEAM = "\"team\":{\"team\":null,\"invites\":[],\"invited\":[]}";
+
+    private long count(String notice) {
+        return ui.notices.stream().filter(notice::equals).count();
+    }
+
     @Test
-    void rappelleUneFoisParJourQueToutLeGroupeDoitAvoirLeMod() {
+    void proposeLEquipeUneFoisParJourQuandDAutresJoueursXPackSontLa() {
+        linkedAndJoined();
+        // Un joueur sans le mod : rien à proposer.
+        core.setOtherPlayers(Map.of(SAM, "Sam"));
+        api.reply(200, "{\"players\":{\"" + Presence.hash(SAM) + "\":\"unknown\"}," + NO_TEAM + "}");
+        core.tick();
+        assertEquals(0, count("xpack.team.suggest"));
+        var call = api.last("/v1/presence");
+        assertEquals("s_1", call.body().get("sessionId").getAsString(), "la session sert à retrouver le modpack de l'équipe");
+        // Alex a le mod lié : proposé une fois.
+        core.setOtherPlayers(Map.of(ALEX, "Alex", SAM, "Sam"));
+        String both = "{\"players\":{\"" + Presence.hash(ALEX) + "\":\"linked\",\"" + Presence.hash(SAM) + "\":\"unknown\"}," + NO_TEAM + "}";
+        api.reply(200, both).reply(200, both);
+        clock.millis += 61_000;
+        core.tick();
+        clock.millis += 61_000;
+        core.tick();
+        assertEquals(1, count("xpack.team.suggest"), "une fois par jour");
+        // Rejoindre une équipe FTB : rappel à chaque fois que ça ne compte pas pour XPack, sans bloquer la commande.
+        assertTrue(core.onCommand("/ftbteams party join Mineurs", c -> {}));
+        assertEquals(1, count("xpack.team.reminder"));
+        // Déjà en équipe : plus de proposition, même le lendemain.
+        clock.millis += 24 * 3_600_000L + 61_000;
+        api.reply(200, "{\"players\":{\"" + Presence.hash(ALEX) + "\":\"linked\"},\"team\":{\"team\":{\"id\":\"team_1\",\"name\":null,\"founder\":\"Steve\","
+                + "\"members\":[{\"pseudo\":\"Steve\",\"uuidHash\":\"" + Presence.hash(UUID) + "\"},{\"pseudo\":\"Alex\",\"uuidHash\":\"" + Presence.hash(ALEX) + "\"}]},"
+                + "\"invites\":[],\"invited\":[]}}");
+        core.tick();
+        assertEquals(1, count("xpack.team.suggest"));
+        assertTrue(core.team().inTeam());
+        var alex = core.teamCandidates().stream().filter(c -> c.name().equals("Alex")).findFirst().orElseThrow();
+        assertTrue(alex.teammate());
+        assertEquals(Presence.Status.LINKED, alex.status());
+    }
+
+    @Test
+    void annonceUneInvitationUneSeuleFoisEtLAccepte() {
         linkedAndJoined();
         core.setOtherPlayers(Map.of(ALEX, "Alex"));
-        assertEquals(1, ui.notices.stream().filter("xpack.team.reminder"::equals).count());
-        core.setOtherPlayers(Map.of());
-        core.setOtherPlayers(Map.of(SAM, "Sam"));
-        assertEquals(1, ui.notices.stream().filter("xpack.team.reminder"::equals).count(), "une fois par jour");
-        // Rejoindre une équipe : rappel à chaque fois, sans bloquer la commande.
-        assertTrue(core.onCommand("/ftbteams party join Mineurs", c -> {}));
-        assertEquals(2, ui.notices.stream().filter("xpack.team.reminder"::equals).count());
-        // Le lendemain, dans le même monde (mémorisé dans le monde).
-        core.onLeaveWorld();
-        clock.millis += 24 * 3_600_000L;
-        api.reply(201, SESSION);
+        String invited = "{\"players\":{\"" + Presence.hash(ALEX) + "\":\"linked\"},\"team\":{\"team\":null,"
+                + "\"invites\":[{\"id\":\"inv_1\",\"from\":\"Alex\",\"team\":null,\"founder\":\"Alex\"}],\"invited\":[]}}";
+        api.reply(200, invited).reply(200, invited);
+        core.tick();
+        clock.millis += 61_000;
+        core.tick();
+        assertEquals(1, count("xpack.team.invited:Alex"), "annoncée une fois");
+        assertEquals("Alex", core.team().invites().get(0).from());
+        api.reply(200, "{\"team\":{\"id\":\"team_1\",\"name\":null,\"founder\":\"Alex\",\"members\":[]},\"invites\":[],\"invited\":[]}");
+        core.answerTeamInvite("inv_1", true);
+        var call = api.last("/v1/teams/invites/inv_1/accept");
+        assertNotNull(call);
+        assertEquals("s_1", call.body().get("sessionId").getAsString());
+        assertTrue(core.team().inTeam());
+        // Quitter l'équipe depuis le jeu.
+        api.reply(200, "{\"team\":null,\"invites\":[],\"invited\":[]}");
+        core.leaveTeam();
+        assertNotNull(api.last("/v1/teams/team_1/leave"));
+        assertFalse(core.team().inTeam());
+    }
+
+    @Test
+    void inviterUnJoueurQuiNEstPlusLaAfficheLErreur() {
+        linkedAndJoined();
+        core.setOtherPlayers(Map.of(ALEX, "Alex"));
+        api.reply(404, "{\"error\":\"not_on_server\"}");
+        core.inviteToTeam(Presence.hash(ALEX));
+        assertEquals(Presence.hash(ALEX), api.last("/v1/teams/invite").body().get("uuidHash").getAsString());
+        assertEquals("xpack.team.error.not_on_server", core.teamError());
+        api.reply(0, "{}");
+        core.inviteToTeam(Presence.hash(ALEX));
+        assertEquals("xpack.team.error.offline", core.teamError());
+    }
+
+    @Test
+    void sansCompteLiePasDEquipe() {
         core.onJoinWorld(world());
         core.setOtherPlayers(Map.of(ALEX, "Alex"));
-        assertEquals(3, ui.notices.stream().filter("xpack.team.reminder"::equals).count());
+        assertFalse(core.teamsAvailable());
+        core.inviteToTeam(Presence.hash(ALEX));
+        assertNull(api.last("/v1/teams/invite"));
     }
 }

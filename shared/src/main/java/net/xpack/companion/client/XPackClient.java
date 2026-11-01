@@ -145,6 +145,7 @@ public final class XPackClient {
         switch (sub) {
             case "diagnostic", "diag" -> runDiagnostic(mc);
             case "check", "verifier", "vérifier" -> core.checkPresence();
+            case "team", "equipe", "équipe" -> mc.tell(() -> mc.setScreen(new TeamScreen(null)));
             // Différé : le chat se ferme juste après l'envoi de la commande.
             case "support" -> mc.tell(() -> mc.setScreen(new SupportScreen(null)));
             case "settings", "reglages", "réglages" -> mc.tell(() -> mc.setScreen(new SettingsScreen(null)));

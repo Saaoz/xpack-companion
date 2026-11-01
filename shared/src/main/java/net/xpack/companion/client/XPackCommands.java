@@ -15,7 +15,7 @@ import net.minecraft.network.chat.HoverEvent;
  */
 public final class XPackCommands {
     /** Sous-commandes, dans l'ordre de l'aide. Leur description est la clé {@code xpack.command.<nom>}. */
-    static final List<String> SUBCOMMANDS = List.of("settings", "check", "diagnostic", "support", "help");
+    static final List<String> SUBCOMMANDS = List.of("settings", "team", "check", "diagnostic", "support", "help");
 
     private XPackCommands() {}
 

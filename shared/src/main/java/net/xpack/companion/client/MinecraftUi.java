@@ -93,6 +93,16 @@ final class MinecraftUi implements Ui {
         if (players.stream().anyMatch(p -> p.status() != net.xpack.companion.core.Presence.Status.LINKED)) say(Texts.tr("xpack.check.hint"));
     }
 
+    /** Équipe XPack (#145) : message suivi d'un lien qui ouvre l'écran Équipe. */
+    @Override
+    public void teamNotice(String translationKey, Object... args) {
+        SmokeTest.log("team " + translationKey);
+        MutableComponent link = Texts.tr("xpack.team.open").withStyle(s -> s.withColor(ChatFormatting.AQUA).withUnderlined(true)
+                .withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/xpack team"))
+                .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Texts.tr("xpack.team.openHover"))));
+        say(Texts.tr(translationKey, args).append(" ").append(link));
+    }
+
     static void say(Component message) {
         line(Component.empty().append(PREFIX).append(message));
     }

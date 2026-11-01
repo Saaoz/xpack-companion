@@ -99,6 +99,20 @@ public final class ApiClient {
         return transport.send("POST", "/v1/presence", body, token);
     }
 
+    /** Équipe XPack (#145) : inviter un joueur détecté sur le serveur ({@code sessionId}, {@code uuidHash}). */
+    public CompletableFuture<Response> teamInvite(JsonObject body, String token) {
+        return transport.send("POST", "/v1/teams/invite", body, token);
+    }
+
+    /** Accepter ou refuser une invitation reçue. */
+    public CompletableFuture<Response> teamAnswer(String inviteId, boolean accept, JsonObject body, String token) {
+        return transport.send("POST", "/v1/teams/invites/" + inviteId + "/" + (accept ? "accept" : "decline"), body, token);
+    }
+
+    public CompletableFuture<Response> teamLeave(String teamId, JsonObject body, String token) {
+        return transport.send("POST", "/v1/teams/" + teamId + "/leave", body, token);
+    }
+
     public CompletableFuture<Response> unlink(String token) {
         return transport.send("DELETE", "/v1/link", null, token);
     }

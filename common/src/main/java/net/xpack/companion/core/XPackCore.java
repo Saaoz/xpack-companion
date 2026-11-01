@@ -356,6 +356,8 @@ public final class XPackCore {
         presenceAt = -1;
         nextPresenceAt = 0;
         afterPresence.clear();
+        teamState = null;
+        teamError = null;
         allowedCommands = List.of();
         trackedStats = Set.of();
         catalog = null;
@@ -551,7 +553,7 @@ public final class XPackCore {
             bypassCommand = null;
             return true;
         }
-        if (joinsTeam(command)) remindTeam(true);
+        if (joinsTeam(command)) remindTeam();
         if (!tracking() || token == null || integrity.isFlagged()) return true;
         if (rules.classify(command, allowedCommands) != IntegrityRules.Verdict.CHEAT) return true;
         ui.showCheatWarning(command, () -> {
@@ -723,11 +725,12 @@ public final class XPackCore {
         }
     }
 
-    /** Au moins un autre joueur connecté (serveur, ou monde ouvert au LAN) : badge « Équipe » (#119). */
+    /**
+     * Au moins un autre joueur connecté (serveur, ou monde ouvert au LAN) : les événements le disent
+     * (#119). Le serveur ne compte « en équipe » que si un coéquipier XPack était là (#145).
+     */
     public void setOthersOnline(boolean others) {
-        boolean before = othersOnline;
         othersOnline = others;
-        if (others && !before) remindTeam(false);
     }
 
     // ------------------------------------------------------------------ jeu en groupe (#126)
@@ -751,8 +754,14 @@ public final class XPackCore {
     /** Dernière réponse du serveur (empreinte → statut) et son heure, pour {@code /xpack check}. */
     private Map<String, Presence.Status> presenceStatuses = Map.of();
     private long presenceAt = -1;
-    /** Jour (UTC) du dernier rappel « tout le groupe doit avoir le mod » dans ce monde. */
+    /** Jour (UTC) de la dernière proposition « crée ton équipe XPack » dans ce monde (#145). */
     private String teamReminderDay;
+    /** Équipe XPack pour le modpack de ce monde, telle que le serveur l'a renvoyée ; null tant qu'inconnue. */
+    private Team.State teamState;
+    /** Dernière erreur d'une action de l'écran Équipe (clé de traduction), ou null. */
+    private String teamError;
+    /** Invitations déjà annoncées dans le chat, pour ne pas les répéter à chaque minute. */
+    private final Set<String> invitesShown = new HashSet<>();
     private final List<Runnable> afterPresence = new ArrayList<>();
 
     /** Autres joueurs connectés, lus régulièrement dans la liste du client. */
@@ -761,14 +770,31 @@ public final class XPackCore {
         setOthersOnline(!players.isEmpty());
     }
 
-    /** Rappel : vérifié seulement si tout le groupe a le mod. Une fois par jour et par monde, ou à chaque équipe rejointe. */
-    private void remindTeam(boolean joiningTeam) {
+    /** Rejoindre une équipe d'un autre mod (FTB Teams…) : elle ne compte pas pour XPack, on le rappelle à chaque fois. */
+    private void remindTeam() {
         if (world == null || practice || !active()) return;
+        ui.teamNotice("xpack.team.reminder");
+    }
+
+    /**
+     * Proposer l'équipe XPack (#145) : d'autres joueurs avec le mod lié sont là et on n'a pas d'équipe.
+     * Une fois par jour et par monde. Sans équipe, tout est compté en solo.
+     */
+    private void suggestTeam() {
+        if (token == null || teamState == null || teamState.inTeam() || !presenceStatuses.containsValue(Presence.Status.LINKED)) return;
         String today = java.time.LocalDate.now(clock).toString();
-        if (!joiningTeam && today.equals(teamReminderDay)) return;
+        if (today.equals(teamReminderDay)) return;
         teamReminderDay = today;
         saveWorld();
-        ui.notify("xpack.team.reminder");
+        ui.teamNotice("xpack.team.suggest");
+    }
+
+    /** Nouvel état de l'équipe : on annonce une fois chaque invitation reçue. */
+    private void applyTeam(JsonObject body) {
+        teamState = Team.parse(body);
+        for (Team.Invite i : teamState.invites()) {
+            if (invitesShown.add(i.id())) ui.teamNotice("xpack.team.invited", i.from());
+        }
     }
 
     private static boolean joinsTeam(String command) {
@@ -788,8 +814,10 @@ public final class XPackCore {
         JsonArray others = new JsonArray();
         otherPlayers.keySet().stream().limit(MAX_OTHERS).map(Presence::hash).forEach(others::add);
         body.add("others", others);
-        // Compte lié : le serveur connaît déjà l'UUID du joueur, il ne le demande pas.
+        // Compte lié : le serveur connaît déjà l'UUID du joueur, il ne le demande pas. Avec la session,
+        // il renvoie aussi l'équipe XPack du modpack (#145).
         if (token == null) body.addProperty("uuidHash", Presence.hash(world.playerUuid()));
+        else if (sessionId != null) body.addProperty("sessionId", sessionId);
         String wid = worldId;
         api.presence(body, token).thenAcceptAsync(res -> {
             presenceInFlight = false;
@@ -800,6 +828,8 @@ public final class XPackCore {
                 }
                 presenceStatuses = statuses;
                 presenceAt = t;
+                if (res.body().has("team") && res.body().get("team").isJsonObject()) applyTeam(res.body().getAsJsonObject("team"));
+                suggestTeam();
             }
             List<Runnable> waiting = new ArrayList<>(afterPresence);
             afterPresence.clear();
@@ -840,6 +870,86 @@ public final class XPackCore {
         otherPlayers.forEach((uuid, name) -> players.add(new Presence.Player(name, presenceStatuses.getOrDefault(Presence.hash(uuid), Presence.Status.UNKNOWN))));
         players.sort(java.util.Comparator.comparing(Presence.Player::name, String.CASE_INSENSITIVE_ORDER));
         ui.presenceReport(token != null, players);
+    }
+
+    // ------------------------------------------------------------------ équipe XPack (#145)
+
+    /** L'écran Équipe peut agir : monde suivi, compte lié et session ouverte. */
+    public boolean teamsAvailable() {
+        return world != null && !practice && active() && token != null && sessionId != null;
+    }
+
+    public boolean isLinkedHere() {
+        return token != null;
+    }
+
+    /** Équipe connue (null tant que le serveur n'a pas répondu). */
+    public Team.State team() {
+        return teamState;
+    }
+
+    public String teamError() {
+        return teamError;
+    }
+
+    /** Joueurs du serveur pour l'écran Équipe, triés par pseudo. */
+    public List<Team.Candidate> teamCandidates() {
+        List<Team.Candidate> out = new ArrayList<>();
+        otherPlayers.forEach((uuid, name) -> {
+            String hash = Presence.hash(uuid);
+            boolean mate = teamState != null && teamState.isMember(hash);
+            boolean invited = teamState != null && teamState.invited().contains(hash);
+            out.add(new Team.Candidate(name, hash, presenceStatuses.getOrDefault(hash, Presence.Status.UNKNOWN), mate, invited));
+        });
+        out.sort(java.util.Comparator.comparing(Team.Candidate::name, String.CASE_INSENSITIVE_ORDER));
+        return out;
+    }
+
+    /** Ouverture de l'écran Équipe : relevé de présence tout de suite (il rapporte l'équipe). */
+    public void refreshTeam() {
+        teamError = null;
+        if (!teamsAvailable() || presenceInFlight) return;
+        sendPresence(clock.millis());
+    }
+
+    public void inviteToTeam(String uuidHash) {
+        if (!teamsAvailable()) return;
+        JsonObject body = new JsonObject();
+        body.addProperty("sessionId", sessionId);
+        body.addProperty("uuidHash", uuidHash);
+        teamAction(api.teamInvite(body, token));
+    }
+
+    /** Répondre à une invitation, dans son propre jeu. */
+    public void answerTeamInvite(String inviteId, boolean accept) {
+        if (!teamsAvailable()) return;
+        JsonObject body = new JsonObject();
+        body.addProperty("sessionId", sessionId);
+        teamAction(api.teamAnswer(inviteId, accept, body, token));
+    }
+
+    public void leaveTeam() {
+        if (!teamsAvailable() || teamState == null || !teamState.inTeam()) return;
+        JsonObject body = new JsonObject();
+        body.addProperty("sessionId", sessionId);
+        teamAction(api.teamLeave(teamState.teamId(), body, token));
+    }
+
+    private void teamAction(java.util.concurrent.CompletableFuture<ApiClient.Response> call) {
+        teamError = null;
+        String wid = worldId;
+        call.thenAcceptAsync(res -> {
+            if (!wid.equals(worldId)) return;
+            if (res.ok() && res.body() != null) {
+                applyTeam(res.body());
+                return;
+            }
+            String code = res.body() != null && res.body().has("error") ? res.body().get("error").getAsString() : "";
+            teamError = switch (code) {
+                case "not_on_server", "already_teammate", "team_full", "too_many_invites", "invite_expired", "unknown_invite" -> "xpack.team.error." + code;
+                default -> "xpack.team.error.offline";
+            };
+        }, mainThread);
     }
 
     /** Verdict du serveur sur le monde (#116) : commencé sans le mod, il ne compte pas, et on le dit une fois. */

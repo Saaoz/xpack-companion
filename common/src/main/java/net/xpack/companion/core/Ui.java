@@ -45,4 +45,7 @@ public interface Ui {
      * installé sans compte, ou non détecté. {@code selfLinked} : le compte du joueur est lié.
      */
     void presenceReport(boolean selfLinked, java.util.List<Presence.Player> players);
+
+    /** Message de l'équipe XPack (#145) dans le chat, avec un lien qui ouvre l'écran Équipe. */
+    void teamNotice(String translationKey, Object... args);
 }
