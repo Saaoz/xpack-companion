@@ -349,6 +349,29 @@ class XPackCoreTest {
     }
 
     @Test
+    void leTempsDeJeuEnvoyeNeReculeJamaisPendantUneSession() {
+        // ATM10 au chargement : l'horloge du client prend de l'avance (34) puis le serveur la recale (19).
+        linkedAndJoined();
+        core.onAdvancements(List.of("tombstone:event/root"), false, 34);
+        core.onStats(Map.of("minecraft:custom/minecraft:play_time", 19), 19);
+        core.onStats(Map.of("minecraft:custom/minecraft:play_time", 1_134), 1_134);
+        core.tick();
+
+        List<Long> ticks = new ArrayList<>();
+        for (var e : sentEvents()) ticks.add(e.getAsJsonObject().get("playtimeTicks").getAsLong());
+        for (int i = 1; i < ticks.size(); i++) assertTrue(ticks.get(i) >= ticks.get(i - 1), "recul envoyé : " + ticks);
+
+        // Un autre monde repart de son propre temps, pas de celui du précédent.
+        core.onLeaveWorld();
+        api.reply(201, SESSION);
+        core.onJoinWorld(world());
+        core.onAdvancements(List.of("tombstone:event/root", "minecraft:story/mine_stone"), false, 10);
+        core.tick();
+        JsonArray next = sentEvents();
+        assertEquals(10L, next.get(next.size() - 1).getAsJsonObject().get("playtimeTicks").getAsLong());
+    }
+
+    @Test
     void envoieLaDifficulteEtPrevientUneSeuleFoisQuandElleBaisse() {
         linkedAndJoined();
         core.onDifficulty("hard", true, 100);
@@ -895,7 +918,7 @@ class XPackCoreTest {
         assertEquals(List.of("xpack.check.no_world"), ui.notices);
         linkedAndJoined();
         core.checkPresence();
-        assertTrue(ui.notices.contains("xpack.check.alone"));
+        assertTrue(ui.notices.contains("xpack.check.alone"), "seul et lié : on le dit");
         core.setOtherPlayers(Map.of(ALEX, "Alex"));
         api.reply(503, "{}");
         core.checkPresence();

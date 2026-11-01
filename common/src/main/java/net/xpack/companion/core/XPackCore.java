@@ -244,6 +244,9 @@ public final class XPackCore {
         difficultyWarned = store.difficultyWarned;
         teamReminderDay = store.teamReminderDay;
         playtimeFloor = store.playtime;
+        // Le temps de jeu du monde précédent ne doit pas servir de plancher à celui-ci.
+        currentPlaytime = 0;
+        sentPlaytime = 0;
         // Monde de test : déjà déclaré, ou monde que le mod découvre alors qu'il est en créatif.
         // Un monde déjà suivi qui passe ensuite en créatif reste suivi, puis signalé.
         practice = store.practice || (store.fresh && ctx.creativeAtJoin());
@@ -815,7 +818,8 @@ public final class XPackCore {
             return;
         }
         if (otherPlayers.isEmpty()) {
-            ui.notify("xpack.check.alone");
+            // Seul : on dit au moins si son propre compte est lié.
+            ui.notify(token != null ? "xpack.check.alone" : "xpack.check.alone_unlinked");
             return;
         }
         long t = clock.millis();
@@ -940,13 +944,22 @@ public final class XPackCore {
         return Math.max(playtimeFloor, currentPlaytime);
     }
 
+    /**
+     * Plus grand temps de jeu envoyé pour ce monde pendant cette session. En solo, l'horloge du client
+     * prend de l'avance pendant un chargement lourd puis le serveur la recale en arrière : sans ce
+     * plancher, le serveur y verrait un recul du temps de jeu.
+     */
+    private long sentPlaytime;
+
     private JsonObject event(String type, long playtimeTicks) {
-        currentPlaytime = Math.max(currentPlaytime, playtimeTicks);
+        long ticks = Math.max(sentPlaytime, playtimeTicks);
+        sentPlaytime = ticks;
+        currentPlaytime = Math.max(currentPlaytime, ticks);
         JsonObject e = new JsonObject();
         e.addProperty("id", "e-" + UUID.randomUUID());
         e.addProperty("type", type);
         e.addProperty("at", now());
-        e.addProperty("playtimeTicks", playtimeTicks);
+        e.addProperty("playtimeTicks", ticks);
         // Partie à plusieurs (#119) : seulement ce booléen, ni pseudos ni nombre de joueurs.
         if (othersOnline && (type.equals("advancement") || type.equals("stat"))) e.addProperty("team", true);
         return e;
