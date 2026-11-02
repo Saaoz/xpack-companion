@@ -52,27 +52,20 @@ final class Ui1122 implements Ui {
                         new PromptScreen1122.Section(null, TextFormatting.GRAY + Lang.tr("xpack.consent.footer"))),
                 Lang.tr("xpack.consent.accept"), Lang.tr("xpack.consent.refuse"), false, answer);
     }
-    private static void toast(String title, String subtitle, int color) {
-        if (!Client1122.core().config().toasts) return;
-        Minecraft mc = Minecraft.getMinecraft();
-        mc.addScheduledTask(() -> mc.getToastGui().add(new SimpleToast(title, subtitle, color)));
-    }
-
     @Override
     public void toastUnlocked(String name, int points, String rarity) {
-        toast(Lang.tr("xpack.toast.unlocked"), name + " · " + points + " pts", 0xFFFFAA00);
+        Toasts1122.unlocked(name, points, rarity); // affiché après les progrès du jeu
     }
 
     @Override
     public void toastCompleted(String modpackName, int achievements, long playtimeTicks) {
-        toast(Lang.tr("xpack.toast.completed"), modpackName == null ? "" : modpackName, 0xFFFFD257);
+        Toasts1122.completed(modpackName, achievements, playtimeTicks);
     }
 
     @Override
     public void toastMilestone(String modpackName, int tier, int achievements, int total) {
-        toast(tier + " %", (modpackName == null ? "" : modpackName + " · ") + achievements + "/" + total, 0xFF66C0F4);
+        Toasts1122.milestone(modpackName, tier, achievements, total);
     }
-
     @Override
     public void notify(String translationKey, Object... args) {
         say(Lang.tr(translationKey, args));
@@ -80,7 +73,10 @@ final class Ui1122 implements Ui {
 
     @Override
     public void integrityAlert(String translationKey, Object... args) {
-        say(TextFormatting.RED + Lang.tr(translationKey, args) + TextFormatting.RESET + " " + TextFormatting.AQUA + "/xpack support" + TextFormatting.RESET);
+        String reason = Lang.tr(translationKey, args);
+        Toasts1122.alert(reason);
+        // Même message dans le chat : il reste lisible après le toast.
+        say(TextFormatting.RED + reason + TextFormatting.RESET + " " + TextFormatting.AQUA + "/xpack support" + TextFormatting.RESET);
     }
 
     @Override

@@ -158,6 +158,8 @@ public final class Client1122 {
             core.onLeaveWorld();
         }
         inWorld = nowInWorld;
+        Toasts1122.tick(mc);
+        Sounds1122.tick(mc);
 
         if (inWorld) {
             ticksSinceStats++;
@@ -416,10 +418,12 @@ public final class Client1122 {
             case "réglages":
                 defer(() -> mc.displayGuiScreen(new SettingsScreen1122(null)));
                 break;
+            case "support":
+                defer(() -> mc.displayGuiScreen(new SupportScreen1122(null)));
+                break;
             case "team":
             case "equipe":
             case "équipe":
-            case "support":
                 Ui1122.say("Cet écran n'est pas encore disponible en 1.12.2 / This screen is not available yet on 1.12.2.");
                 break;
             default:
@@ -453,7 +457,35 @@ public final class Client1122 {
     @SubscribeEvent
     public void onPauseMenuInit(GuiScreenEvent.InitGuiEvent.Post event) {
         if (!(event.getGui() instanceof GuiIngameMenu)) return;
-        event.getButtonList().add(new GuiButton(PAUSE_BUTTON_ID, 6, event.getGui().height - 26, 60, 20, "XPack"));
+        // Bouton ⚙ en haut à gauche, le badge d'état s'affiche à sa droite (comme dans les autres versions).
+        event.getButtonList().add(new GuiButton(PAUSE_BUTTON_ID, 4, 4, 20, 20, "⚙"));
+    }
+
+    /** Pastille 🟢 comptabilisé / 🟡 hors-ligne ou non lié / 🔴 non comptabilisé (#39), à droite du bouton ⚙. */
+    @SubscribeEvent
+    public void onPauseMenuDraw(GuiScreenEvent.DrawScreenEvent.Post event) {
+        if (!(event.getGui() instanceof GuiIngameMenu) || core == null || !core.config().badge) return;
+        XPackCore.Status status = core.status();
+        int color;
+        switch (status) {
+            case COUNTED:
+                color = 0x55FF55;
+                break;
+            case OFFLINE:
+            case UNLINKED:
+                color = 0xFFD24A;
+                break;
+            case NOT_COUNTED:
+            case STARTED_LATE:
+                color = 0xFF5555;
+                break;
+            default:
+                color = 0x888888;
+        }
+        net.minecraft.client.gui.FontRenderer font = Minecraft.getMinecraft().fontRenderer;
+        String label = "● ";
+        font.drawString(label, 28, 10, 0xFF000000 | color);
+        font.drawString(net.minecraft.util.text.TextFormatting.WHITE + "XPack · " + net.minecraft.util.text.TextFormatting.GRAY + Lang.tr("xpack.badge." + status.name().toLowerCase(Locale.ROOT)), 28 + font.getStringWidth(label), 10, 0xFFFFFF);
     }
 
     @SubscribeEvent
