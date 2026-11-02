@@ -19,7 +19,7 @@ final class Ui1122 implements Ui {
     /** Question à deux boutons ; l'écran précédent est rouvert ensuite. */
     private static void ask(String title, String body, String yes, String no, Consumer<Boolean> answer) {
         Minecraft mc = Minecraft.getMinecraft();
-        mc.addScheduledTask(() -> {
+        Client1122.defer(() -> {
             GuiScreen previous = mc.currentScreen;
             GuiYesNoCallback callback = (result, id) -> {
                 mc.displayGuiScreen(previous);

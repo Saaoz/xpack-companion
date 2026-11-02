@@ -93,6 +93,13 @@ public final class Client1122 {
     private static Object lastPlayer;
     private static Set<String> questRewards;
 
+    /** Actions à jouer au prochain tick : le chat se ferme juste après l'envoi d'une commande et refermerait un écran ouvert tout de suite. */
+    private static final java.util.Queue<Runnable> DEFERRED = new java.util.concurrent.ConcurrentLinkedQueue<>();
+
+    static void defer(Runnable action) {
+        DEFERRED.add(action);
+    }
+
     private Client1122() {}
 
     public static XPackCore core() {
@@ -124,6 +131,7 @@ public final class Client1122 {
         core.writeWorldFilesWith(disk);
         Runtime.getRuntime().addShutdownHook(new Thread(core::flushWorldFile, "XPack flush"));
         MinecraftForge.EVENT_BUS.register(new Client1122());
+        net.minecraftforge.client.ClientCommandHandler.instance.registerCommand(new XPackCommand());
     }
 
     // ------------------------------------------------------------------ connexion : espion de paquets
@@ -140,6 +148,7 @@ public final class Client1122 {
     public void onClientTick(TickEvent.ClientTickEvent event) {
         if (event.phase != TickEvent.Phase.END || core == null) return;
         Minecraft mc = Minecraft.getMinecraft();
+        for (Runnable r; (r = DEFERRED.poll()) != null; ) r.run();
         boolean nowInWorld = mc.world != null && mc.player != null && mc.getConnection() != null;
         if (nowInWorld && !inWorld) join(mc);
         if (!nowInWorld && inWorld) {
@@ -403,7 +412,7 @@ public final class Client1122 {
             case "settings":
             case "reglages":
             case "réglages":
-                mc.addScheduledTask(() -> mc.displayGuiScreen(new SettingsScreen1122(null)));
+                defer(() -> mc.displayGuiScreen(new SettingsScreen1122(null)));
                 break;
             case "team":
             case "equipe":
@@ -412,9 +421,17 @@ public final class Client1122 {
                 Ui1122.say("Cet écran n'est pas encore disponible en 1.12.2 / This screen is not available yet on 1.12.2.");
                 break;
             default:
-                Ui1122.say("/xpack settings · check · diagnostic");
+                help();
         }
         return true;
+    }
+
+    /** Sous-commandes, dans l'ordre de l'aide. Leur description est la clé {@code xpack.command.<nom>}. */
+    static final List<String> SUBCOMMANDS = J8.listOf("settings", "team", "check", "diagnostic", "support", "help");
+
+    private static void help() {
+        Ui1122.say(Lang.tr("xpack.command.help.title"));
+        for (String sub : SUBCOMMANDS) Ui1122.line("  " + net.minecraft.util.text.TextFormatting.AQUA + "/xpack " + sub + net.minecraft.util.text.TextFormatting.DARK_GRAY + " — " + net.minecraft.util.text.TextFormatting.GRAY + Lang.tr("xpack.command." + sub));
     }
 
     /** /xpack diagnostic : fichiers du lanceur (anonymisés) + modpack détecté, dans un dossier à envoyer. */
