@@ -125,3 +125,22 @@ Forge 1.12.2-14.23.5.2847 : c'est la dernière version dont le paquet `userdev` 
 - **Alignés sur les autres versions** : toasts (succès, paliers, alerte d'intégrité : mêmes couleurs, durées et regroupement, affichés après ceux du jeu), son des succès, badge d'état du menu pause, écran de réglages (envoi, toasts, badge, son, volume, écoute, liaison, monde de test, support) et écran de contact du support.
 - **Pas encore fait** : écran Équipe, mode triche de JEI/FTB Quests, suivi des blocs minés pour la détection de x-ray.
 - **Pas encore testé dans un vrai client 1.12.2** : le jar compile et se construit, le cœur tourne sous Java 8, mais aucune partie n'a été jouée.
+
+## Portage 1.7.10 (Forge, GT: New Horizons)
+
+`forge1710/` est un projet Gradle **à part**, avec [RetroFuturaGradle](https://github.com/GTNewHorizons/RetroFuturaGradle) (l'outil de la communauté GTNH pour la 1.7.10). Il demande **Gradle 9.2 lancé avec Java 25** ; le code est compilé en Java 8 (toolchain).
+
+```bash
+cd forge1710
+# JAVA_HOME doit pointer sur un JDK 25 (pour Gradle) ; un JDK 8 doit être installé (compilation)
+./gradlew build    # la première fois : ~2 min (télécharge et décompile Minecraft 1.7.10)
+```
+
+Même cœur que les autres versions (`common/`, Java 8, Gson 2.2) et mêmes textes. La couche client est adaptée à la 1.7.10 :
+- **Pas de progrès** (advancements) : les succès XPack sont les *achievements* du jeu et des mods (GT: New Horizons en a des centaines), lus dans le paquet de statistiques ; le premier paquet d'une partie est l'état initial (non vérifié). Leur identifiant est `achievement:<nom du jeu>`.
+- **Statistiques** : les identifiants numériques de la 1.7.10 (`stat.mineBlock.1`) sont traduits en noms (`minecraft:mined/minecraft:stone`) par `LegacyStats`.
+- **Commandes de triche** : pas d'événement de chat en 1.7.10, la commande est retenue dans la connexion (`PacketSpy.Outbound`) avant l'envoi, puis renvoyée si le joueur confirme.
+- **Toasts** : la 1.7.10 n'a pas de système de toasts (il date de la 1.12) : la pile et le glissement sont dessinés par le mod (`Toasts1710`), au même dessin que les autres versions.
+- Textes, sons, badge du menu pause, réglages, support, `/xpack` avec complétion et suggestions : comme en 1.12.2.
+- **Pas encore fait** : écran Équipe, mode triche de JEI/FTB Quests, suivi des blocs minés (x-ray).
+- **Pas encore testé dans un vrai client 1.7.10** : le jar compile et se construit, mais aucune partie n'a été jouée.

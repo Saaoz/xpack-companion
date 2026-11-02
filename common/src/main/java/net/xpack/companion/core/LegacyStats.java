@@ -22,10 +22,19 @@ public final class LegacyStats {
 
     /** Clé commune, ou {@code null} si la statistique n'existe pas dans ce format (succès, kills par entité…). */
     public static String toKey(String legacyId) {
+        return toKey(legacyId, null);
+    }
+
+    /**
+     * Comme {@link #toKey(String)}, pour les versions où l'objet d'une statistique est un numéro (1.7.10 :
+     * {@code stat.mineBlock.1}) : {@code objectName} est son nom enregistré ({@code minecraft:stone}).
+     */
+    public static String toKey(String legacyId, String objectName) {
         if (legacyId == null || !legacyId.startsWith("stat.")) return null;
         for (String[] f : FAMILIES) {
             if (legacyId.startsWith(f[0])) {
                 String rest = legacyId.substring(f[0].length());
+                if (objectName != null) return objectName.indexOf(':') > 0 ? f[1] + "/" + objectName : null;
                 int dot = rest.indexOf('.');
                 if (dot <= 0 || dot == rest.length() - 1) return null;
                 return f[1] + "/" + rest.substring(0, dot) + ":" + rest.substring(dot + 1);

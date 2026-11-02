@@ -881,7 +881,7 @@ public final class XPackCore {
         lastPacks = sorted;
         JsonObject e = event("resource_packs", playtimeTicks);
         JsonArray list = new JsonArray();
-        sorted.forEach(list::add);
+        sorted.forEach(item -> list.add(new com.google.gson.JsonPrimitive(item)));
         e.add("packs", list);
         enqueue(e);
     }
@@ -903,7 +903,7 @@ public final class XPackCore {
         e.addProperty("stone", s.stone());
         if (!hand.isEmpty()) e.add("hand", counts(hand));
         JsonArray tools = new JsonArray();
-        mining.tools().stream().sorted().forEach(tools::add);
+        mining.tools().stream().sorted().forEach(item -> tools.add(new com.google.gson.JsonPrimitive(item)));
         if (tools.size() > 0) e.add("tools", tools);
         enqueue(e);
     }
@@ -1025,7 +1025,7 @@ public final class XPackCore {
         presenceInFlight = true;
         JsonObject body = new JsonObject();
         JsonArray others = new JsonArray();
-        otherPlayers.keySet().stream().limit(MAX_OTHERS).map(Presence::hash).forEach(others::add);
+        otherPlayers.keySet().stream().limit(MAX_OTHERS).map(Presence::hash).forEach(item -> others.add(new com.google.gson.JsonPrimitive(item)));
         body.add("others", others);
         // Compte lié : le serveur connaît déjà l'UUID du joueur, il ne le demande pas. Avec la session,
         // il renvoie aussi l'équipe XPack du modpack (#145).
@@ -1225,7 +1225,7 @@ public final class XPackCore {
         }
         r.add("detections", detections);
         JsonArray mods = new JsonArray();
-        loadedMods.stream().sorted().forEach(mods::add);
+        loadedMods.stream().sorted().forEach(item -> mods.add(new com.google.gson.JsonPrimitive(item)));
         r.add("mods", mods);
         return r;
     }

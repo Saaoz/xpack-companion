@@ -16,6 +16,13 @@ class LegacyStatsTest {
     }
 
     @Test
+    void usesTheRegisteredNameWhenTheObjectIsANumber() {
+        assertEquals("minecraft:mined/minecraft:stone", LegacyStats.toKey("stat.mineBlock.1", "minecraft:stone"));
+        assertEquals("minecraft:crafted/gregtech:gt.metaitem.01", LegacyStats.toKey("stat.craftItem.17000", "gregtech:gt.metaitem.01"));
+        assertNull(LegacyStats.toKey("stat.mineBlock.99", "sansespacedenoms"));
+    }
+
+    @Test
     void translatesCustomStatistics() {
         assertEquals("minecraft:custom/minecraft:play_time", LegacyStats.toKey("stat.playOneMinute"));
         assertEquals("minecraft:custom/minecraft:walk_one_cm", LegacyStats.toKey("stat.walkOneCm"));
