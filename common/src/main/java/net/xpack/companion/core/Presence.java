@@ -3,7 +3,6 @@ package net.xpack.companion.core;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.util.HexFormat;
 import java.util.Locale;
 
 /**
@@ -14,7 +13,41 @@ public final class Presence {
     /** Statut d'un autre joueur pour {@code /xpack check}. */
     public enum Status { LINKED, INSTALLED, UNKNOWN }
 
-    public record Player(String name, Status status) {}
+    public static final class Player {
+        private final String name;
+        private final Status status;
+
+        public Player(String name, Status status) {
+            this.name = name;
+            this.status = status;
+        }
+
+        public String name() {
+            return name;
+        }
+
+        public Status status() {
+            return status;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (!(o instanceof Player)) return false;
+            Player other = (Player) o;
+            return java.util.Objects.equals(name, other.name) && java.util.Objects.equals(status, other.status);
+        }
+
+        @Override
+        public int hashCode() {
+            return java.util.Objects.hash(name, status);
+        }
+
+        @Override
+        public String toString() {
+            return "Player[" + "name=" + name + ", status=" + status + "]";
+        }
+    }
 
     private Presence() {}
 
@@ -22,17 +55,20 @@ public final class Presence {
         String normalized = uuid.replace("-", "").toLowerCase(Locale.ROOT);
         try {
             byte[] d = MessageDigest.getInstance("SHA-256").digest(("xpack-presence:" + normalized).getBytes(StandardCharsets.UTF_8));
-            return HexFormat.of().formatHex(d);
+            return J8.hex(d);
         } catch (NoSuchAlgorithmException e) {
             throw new IllegalStateException(e);
         }
     }
 
     static Status parse(String wire) {
-        return switch (wire == null ? "" : wire) {
-            case "linked" -> Status.LINKED;
-            case "installed" -> Status.INSTALLED;
-            default -> Status.UNKNOWN;
-        };
+        switch (wire == null ? "" : wire) {
+            case "linked":
+                return Status.LINKED;
+            case "installed":
+                return Status.INSTALLED;
+            default:
+                return Status.UNKNOWN;
+        }
     }
 }

@@ -7,6 +7,11 @@ dependencies {
     testRuntimeOnly "org.junit.platform:junit-platform-launcher"
 }
 
+// Java 8 : le cœur sert aussi le portage Minecraft 1.12.2 (forge1122/). Les tests restent compilés en Java 21.
+compileJava {
+    options.release = 8
+}
+
 // Les règles anti-triche sont la source unique partagée avec le site (spec/integrity-rules.json).
 sourceSets.main.resources.srcDir("${rootDir}/../spec")
 processResources {

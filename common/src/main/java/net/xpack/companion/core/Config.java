@@ -46,7 +46,7 @@ public final class Config {
     public static Config load(Path file) {
         try {
             if (Files.isRegularFile(file)) {
-                Config c = GSON.fromJson(Files.readString(file, StandardCharsets.UTF_8), Config.class);
+                Config c = GSON.fromJson(J8.readString(file, StandardCharsets.UTF_8), Config.class);
                 if (c != null) return c;
             }
         } catch (IOException | RuntimeException ignored) {
@@ -58,7 +58,7 @@ public final class Config {
     public void save(Path file) {
         try {
             Files.createDirectories(file.getParent());
-            Files.writeString(file, GSON.toJson(this), StandardCharsets.UTF_8);
+            J8.writeString(file, GSON.toJson(this), StandardCharsets.UTF_8);
         } catch (IOException ignored) {
             // disque indisponible : la configuration reste valable pour la session
         }

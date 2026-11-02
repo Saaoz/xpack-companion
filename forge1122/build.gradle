@@ -34,3 +34,11 @@ processResources {
         exclude "mcmod.info"
     }
 }
+
+// Cœur commun du mod (Java 8, sans Minecraft) compilé tel quel dans ce jar.
+sourceSets.main {
+    java.srcDirs += ["${rootDir}/../common/src/main/java"]
+}
+processResources {
+    from("${rootDir}/../../spec/integrity-rules.json") { into("xpack") }
+}

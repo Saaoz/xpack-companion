@@ -17,7 +17,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -41,35 +40,246 @@ public final class XPackCore {
     public enum Status { DISABLED, UNLINKED, OFFLINE, COUNTED, NOT_COUNTED, PRACTICE, STARTED_LATE }
 
     /** Liaison en cours (#34). {@code userCode} reste null tant que le serveur n'a pas répondu. */
-    public record LinkState(String minecraftName, String userCode, String url, boolean failed) {}
+    public static final class LinkState {
+        private final String minecraftName;
+        private final String userCode;
+        private final String url;
+        private final boolean failed;
+
+        public LinkState(String minecraftName, String userCode, String url, boolean failed) {
+            this.minecraftName = minecraftName;
+            this.userCode = userCode;
+            this.url = url;
+            this.failed = failed;
+        }
+
+        public String minecraftName() {
+            return minecraftName;
+        }
+
+        public String userCode() {
+            return userCode;
+        }
+
+        public String url() {
+            return url;
+        }
+
+        public boolean failed() {
+            return failed;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (!(o instanceof LinkState)) return false;
+            LinkState other = (LinkState) o;
+            return java.util.Objects.equals(minecraftName, other.minecraftName) && java.util.Objects.equals(userCode, other.userCode) && java.util.Objects.equals(url, other.url) && java.util.Objects.equals(failed, other.failed);
+        }
+
+        @Override
+        public int hashCode() {
+            return java.util.Objects.hash(minecraftName, userCode, url, failed);
+        }
+
+        @Override
+        public String toString() {
+            return "LinkState[" + "minecraftName=" + minecraftName + ", userCode=" + userCode + ", url=" + url + ", failed=" + failed + "]";
+        }
+    }
 
     /** Contexte d'une partie, fourni par le code Minecraft à l'entrée dans un monde. */
-    public record WorldContext(
-            Path storeFile,
-            String kind,
-            String createdAt,
-            boolean cheatsAllowed,
-            String playerUuid,
-            String playerName,
-            ModpackDetector.ModpackInfo modpack,
-            JsonObject fingerprint,
-            /** Créatif ou spectateur à l'entrée, ou monde créé en créatif : candidat « monde de test ». */
-            boolean creativeAtJoin) {
+    public static final class WorldContext {
+        private final Path storeFile;
+        private final String kind;
+        private final String createdAt;
+        private final boolean cheatsAllowed;
+        private final String playerUuid;
+        private final String playerName;
+        private final ModpackDetector.ModpackInfo modpack;
+        private final JsonObject fingerprint;
+        private final boolean creativeAtJoin;
+
+        public WorldContext(Path storeFile, String kind, String createdAt, boolean cheatsAllowed, String playerUuid, String playerName, ModpackDetector.ModpackInfo modpack, JsonObject fingerprint, boolean creativeAtJoin) {
+            this.storeFile = storeFile;
+            this.kind = kind;
+            this.createdAt = createdAt;
+            this.cheatsAllowed = cheatsAllowed;
+            this.playerUuid = playerUuid;
+            this.playerName = playerName;
+            this.modpack = modpack;
+            this.fingerprint = fingerprint;
+            this.creativeAtJoin = creativeAtJoin;
+        }
+
+        public Path storeFile() {
+            return storeFile;
+        }
+
+        public String kind() {
+            return kind;
+        }
+
+        public String createdAt() {
+            return createdAt;
+        }
+
+        public boolean cheatsAllowed() {
+            return cheatsAllowed;
+        }
+
+        public String playerUuid() {
+            return playerUuid;
+        }
+
+        public String playerName() {
+            return playerName;
+        }
+
+        public ModpackDetector.ModpackInfo modpack() {
+            return modpack;
+        }
+
+        public JsonObject fingerprint() {
+            return fingerprint;
+        }
+
+        public boolean creativeAtJoin() {
+            return creativeAtJoin;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (!(o instanceof WorldContext)) return false;
+            WorldContext other = (WorldContext) o;
+            return java.util.Objects.equals(storeFile, other.storeFile) && java.util.Objects.equals(kind, other.kind) && java.util.Objects.equals(createdAt, other.createdAt) && java.util.Objects.equals(cheatsAllowed, other.cheatsAllowed) && java.util.Objects.equals(playerUuid, other.playerUuid) && java.util.Objects.equals(playerName, other.playerName) && java.util.Objects.equals(modpack, other.modpack) && java.util.Objects.equals(fingerprint, other.fingerprint) && java.util.Objects.equals(creativeAtJoin, other.creativeAtJoin);
+        }
+
+        @Override
+        public int hashCode() {
+            return java.util.Objects.hash(storeFile, kind, createdAt, cheatsAllowed, playerUuid, playerName, modpack, fingerprint, creativeAtJoin);
+        }
+
+        @Override
+        public String toString() {
+            return "WorldContext[" + "storeFile=" + storeFile + ", kind=" + kind + ", createdAt=" + createdAt + ", cheatsAllowed=" + cheatsAllowed + ", playerUuid=" + playerUuid + ", playerName=" + playerName + ", modpack=" + modpack + ", fingerprint=" + fingerprint + ", creativeAtJoin=" + creativeAtJoin + "]";
+        }
+
 
         WorldContext withCheatsAllowed() {
             return new WorldContext(storeFile, kind, createdAt, true, playerUuid, playerName, modpack, fingerprint, creativeAtJoin);
         }
+
     }
 
     /** État du joueur à chaque tick (#47, #48). */
-    public record PlayerState(String gameMode, boolean invulnerable) {}
+    public static final class PlayerState {
+        private final String gameMode;
+        private final boolean invulnerable;
+
+        public PlayerState(String gameMode, boolean invulnerable) {
+            this.gameMode = gameMode;
+            this.invulnerable = invulnerable;
+        }
+
+        public String gameMode() {
+            return gameMode;
+        }
+
+        public boolean invulnerable() {
+            return invulnerable;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (!(o instanceof PlayerState)) return false;
+            PlayerState other = (PlayerState) o;
+            return java.util.Objects.equals(gameMode, other.gameMode) && java.util.Objects.equals(invulnerable, other.invulnerable);
+        }
+
+        @Override
+        public int hashCode() {
+            return java.util.Objects.hash(gameMode, invulnerable);
+        }
+
+        @Override
+        public String toString() {
+            return "PlayerState[" + "gameMode=" + gameMode + ", invulnerable=" + invulnerable + "]";
+        }
+    }
 
     /**
      * Un progrès du modpack tel que le jeu l'affiche (#80) : titre et description dans la langue
      * du joueur, cadre ({@code task}, {@code goal}, {@code challenge}), objet de l'icône. Ce sont
      * ces progrès qui deviennent les succès XPack ; on ne rédige rien nous-mêmes.
      */
-    public record AdvancementInfo(String id, String parent, String title, String description, String frame, String icon, boolean hidden) {}
+    public static final class AdvancementInfo {
+        private final String id;
+        private final String parent;
+        private final String title;
+        private final String description;
+        private final String frame;
+        private final String icon;
+        private final boolean hidden;
+
+        public AdvancementInfo(String id, String parent, String title, String description, String frame, String icon, boolean hidden) {
+            this.id = id;
+            this.parent = parent;
+            this.title = title;
+            this.description = description;
+            this.frame = frame;
+            this.icon = icon;
+            this.hidden = hidden;
+        }
+
+        public String id() {
+            return id;
+        }
+
+        public String parent() {
+            return parent;
+        }
+
+        public String title() {
+            return title;
+        }
+
+        public String description() {
+            return description;
+        }
+
+        public String frame() {
+            return frame;
+        }
+
+        public String icon() {
+            return icon;
+        }
+
+        public boolean hidden() {
+            return hidden;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (!(o instanceof AdvancementInfo)) return false;
+            AdvancementInfo other = (AdvancementInfo) o;
+            return java.util.Objects.equals(id, other.id) && java.util.Objects.equals(parent, other.parent) && java.util.Objects.equals(title, other.title) && java.util.Objects.equals(description, other.description) && java.util.Objects.equals(frame, other.frame) && java.util.Objects.equals(icon, other.icon) && java.util.Objects.equals(hidden, other.hidden);
+        }
+
+        @Override
+        public int hashCode() {
+            return java.util.Objects.hash(id, parent, title, description, frame, icon, hidden);
+        }
+
+        @Override
+        public String toString() {
+            return "AdvancementInfo[" + "id=" + id + ", parent=" + parent + ", title=" + title + ", description=" + description + ", frame=" + frame + ", icon=" + icon + ", hidden=" + hidden + "]";
+        }
+    }
 
     static final long FLUSH_INTERVAL_MS = 5_000;
     static final long MAX_BACKOFF_MS = 300_000;
@@ -97,8 +307,8 @@ public final class XPackCore {
     private String sessionId;
     private boolean sessionPending;
     private int nextSeq;
-    private List<String> allowedCommands = List.of();
-    private Set<String> trackedStats = Set.of();
+    private List<String> allowedCommands = J8.listOf();
+    private Set<String> trackedStats = J8.setOf();
     private boolean uuidMismatch;
     /** Jeton du compte Minecraft qui joue ce monde (lu dans {@link Credentials}). */
     private String token;
@@ -121,7 +331,7 @@ public final class XPackCore {
     private long pollIntervalMs = 5_000;
 
     /** Identifiants des mods chargés, comparés à la liste noire (#50). */
-    private List<String> loadedMods = List.of();
+    private List<String> loadedMods = J8.listOf();
     private boolean consentShown;
 
     /** Commande confirmée par le joueur après l'alerte : laissée passer une fois. */
@@ -150,7 +360,7 @@ public final class XPackCore {
     }
 
     public void setLoadedMods(Collection<String> modIds) {
-        loadedMods = List.copyOf(modIds);
+        loadedMods = J8.copyOf(modIds);
     }
 
     /** Choix du joueur sur l'écran de consentement (aussi utilisable depuis un écran de réglages). */
@@ -351,15 +561,15 @@ public final class XPackCore {
         difficultyWarned = false;
         lastDifficulty = null;
         othersOnline = false;
-        otherPlayers = Map.of();
-        presenceStatuses = Map.of();
+        otherPlayers = J8.mapOf();
+        presenceStatuses = J8.mapOf();
         presenceAt = -1;
         nextPresenceAt = 0;
         afterPresence.clear();
         teamState = null;
         teamError = null;
-        allowedCommands = List.of();
-        trackedStats = Set.of();
+        allowedCommands = J8.listOf();
+        trackedStats = J8.setOf();
         catalog = null;
         catalogSentHash = null;
         catalogInFlight = false;
@@ -496,7 +706,7 @@ public final class XPackCore {
      */
     public void onAdvancementCatalog(List<AdvancementInfo> advancements, String lang) {
         if (world == null || practice) return;
-        List<AdvancementInfo> kept = advancements.stream().filter(a -> !a.id().contains(":recipes/")).limit(MAX_CATALOG).toList();
+        List<AdvancementInfo> kept = advancements.stream().filter(a -> !a.id().contains(":recipes/")).limit(MAX_CATALOG).collect(java.util.stream.Collectors.toList());
         if (kept.isEmpty()) return;
         catalog = kept;
         catalogLang = lang;
@@ -519,7 +729,7 @@ public final class XPackCore {
             o.addProperty("id", a.id());
             if (a.parent() != null) o.addProperty("parent", a.parent());
             o.addProperty("title", a.title());
-            if (a.description() != null && !a.description().isBlank()) o.addProperty("description", a.description());
+            if (a.description() != null && !J8.isBlank(a.description())) o.addProperty("description", a.description());
             o.addProperty("frame", a.frame());
             if (a.icon() != null) o.addProperty("icon", a.icon());
             if (a.hidden()) o.addProperty("hidden", true);
@@ -539,7 +749,7 @@ public final class XPackCore {
     }
 
     public Set<String> trackedStats() {
-        return Set.copyOf(trackedStats);
+        return J8.copyOfSet(trackedStats);
     }
 
     // ------------------------------------------------------------------ anti-triche (#44, #47, #48)
@@ -594,12 +804,15 @@ public final class XPackCore {
     public void onPlayerState(PlayerState s, long playtimeTicks) {
         if (!tracking() || integrity.isFlagged()) return;
         switch (s.gameMode()) {
-            case "creative" -> flagWithNotice(WorldIntegrity.Reason.CREATIVE, null, "xpack.flagged.creative");
-            case "spectator" -> flagWithNotice(WorldIntegrity.Reason.SPECTATOR, null, "xpack.flagged.spectator");
-            default -> {
+            case "creative":
+                flagWithNotice(WorldIntegrity.Reason.CREATIVE, null, "xpack.flagged.creative");
+                break;
+            case "spectator":
+                flagWithNotice(WorldIntegrity.Reason.SPECTATOR, null, "xpack.flagged.spectator");
+                break;
+            default:
                 // Le vol en survie n'est pas signalé (#48) : jetpacks, anneaux, sorts, /home et /back… trop de façons légitimes.
                 if (s.invulnerable()) flagWithNotice(WorldIntegrity.Reason.ABILITIES, "invulnerable", "xpack.flagged.godmode");
-            }
         }
     }
 
@@ -663,7 +876,7 @@ public final class XPackCore {
     /** Packs de textures choisis par le joueur : envoyés à l'entrée puis à chaque changement. */
     public void onResourcePacks(List<String> packs, long playtimeTicks) {
         if (!tracking()) return;
-        List<String> sorted = packs.stream().sorted().toList();
+        List<String> sorted = packs.stream().sorted().collect(java.util.stream.Collectors.toList());
         if (sorted.equals(lastPacks)) return;
         lastPacks = sorted;
         JsonObject e = event("resource_packs", playtimeTicks);
@@ -691,7 +904,7 @@ public final class XPackCore {
         if (!hand.isEmpty()) e.add("hand", counts(hand));
         JsonArray tools = new JsonArray();
         mining.tools().stream().sorted().forEach(tools::add);
-        if (!tools.isEmpty()) e.add("tools", tools);
+        if (tools.size() > 0) e.add("tools", tools);
         enqueue(e);
     }
 
@@ -702,7 +915,7 @@ public final class XPackCore {
     }
 
     /** Du plus facile au plus dur, comme le serveur (#116). */
-    static final List<String> DIFFICULTIES = List.of("peaceful", "easy", "normal", "hard", "hardcore");
+    static final List<String> DIFFICULTIES = J8.listOf("peaceful", "easy", "normal", "hard", "hardcore");
 
     /**
      * Difficulté du monde (#116), relevée avec l'état du joueur : envoyée à l'entrée puis à chaque
@@ -744,15 +957,15 @@ public final class XPackCore {
      * Commandes qui font rejoindre une équipe (FTB Teams, équipes de plugins, vanilla) : les progrès
      * deviennent souvent partagés, d'où le rappel. Rien n'est bloqué.
      */
-    private static final List<String> TEAM_JOIN = List.of("ftbteams party join", "ftbteams party accept", "team join", "teams join", "party join",
+    private static final List<String> TEAM_JOIN = J8.listOf("ftbteams party join", "ftbteams party accept", "team join", "teams join", "party join",
             "party accept");
 
     /** Autres joueurs de la liste (Tab) : UUID → pseudo. */
-    private Map<String, String> otherPlayers = Map.of();
+    private Map<String, String> otherPlayers = J8.mapOf();
     private long nextPresenceAt;
     private boolean presenceInFlight;
     /** Dernière réponse du serveur (empreinte → statut) et son heure, pour {@code /xpack check}. */
-    private Map<String, Presence.Status> presenceStatuses = Map.of();
+    private Map<String, Presence.Status> presenceStatuses = J8.mapOf();
     private long presenceAt = -1;
     /** Jour (UTC) de la dernière proposition « crée ton équipe XPack » dans ce monde (#145). */
     private String teamReminderDay;
@@ -766,7 +979,7 @@ public final class XPackCore {
 
     /** Autres joueurs connectés, lus régulièrement dans la liste du client. */
     public void setOtherPlayers(Map<String, String> players) {
-        otherPlayers = Map.copyOf(players);
+        otherPlayers = J8.copyOf(players);
         setOthersOnline(!players.isEmpty());
     }
 
@@ -798,7 +1011,7 @@ public final class XPackCore {
     }
 
     private static boolean joinsTeam(String command) {
-        String c = stripSlash(command.strip()).toLowerCase(java.util.Locale.ROOT).replaceAll("\\s+", " ");
+        String c = stripSlash(command.trim()).toLowerCase(java.util.Locale.ROOT).replaceAll("\\s+", " ");
         return TEAM_JOIN.stream().anyMatch(c::startsWith);
     }
 
@@ -945,10 +1158,18 @@ public final class XPackCore {
                 return;
             }
             String code = res.body() != null && res.body().has("error") ? res.body().get("error").getAsString() : "";
-            teamError = switch (code) {
-                case "not_on_server", "already_teammate", "team_full", "too_many_invites", "invite_expired", "unknown_invite" -> "xpack.team.error." + code;
-                default -> "xpack.team.error.offline";
-            };
+            switch (code) {
+                case "not_on_server":
+                case "already_teammate":
+                case "team_full":
+                case "too_many_invites":
+                case "invite_expired":
+                case "unknown_invite":
+                    teamError = "xpack.team.error." + code;
+                    break;
+                default:
+                    teamError = "xpack.team.error.offline";
+            }
         }, mainThread);
     }
 
@@ -992,7 +1213,7 @@ public final class XPackCore {
             if (info.name() != null) m.addProperty("name", info.name());
             if (info.version() != null) m.addProperty("version", info.version());
             r.add("modpack", m);
-            r.add("fingerprint", world.fingerprint() == null ? new JsonObject() : world.fingerprint().deepCopy());
+            r.add("fingerprint", world.fingerprint() == null ? new JsonObject() : J8.copy(world.fingerprint()));
         }
         JsonArray detections = new JsonArray();
         for (WorldIntegrity.Flag f : integrity.reasons()) {
@@ -1016,7 +1237,7 @@ public final class XPackCore {
             return;
         }
         JsonObject body = new JsonObject();
-        body.addProperty("message", message == null ? "" : message.strip());
+        body.addProperty("message", message == null ? "" : message.trim());
         body.add("report", supportReport());
         api.supportReport(body, token).thenAcceptAsync(res -> done.accept(res.ok()), mainThread);
     }
@@ -1099,7 +1320,7 @@ public final class XPackCore {
         List<JsonObject> batch = new ArrayList<>(pending.subList(0, Math.min(MAX_BATCH, pending.size())));
         JsonArray events = new JsonArray();
         for (JsonObject e : batch) {
-            JsonObject copy = e.deepCopy();
+            JsonObject copy = J8.copy(e);
             copy.addProperty("seq", nextSeq++);
             events.add(copy);
         }
@@ -1311,7 +1532,7 @@ public final class XPackCore {
         static WorldStore load(Path file) {
             WorldStore s = null;
             try {
-                if (Files.isRegularFile(file)) s = GSON.fromJson(Files.readString(file, StandardCharsets.UTF_8), WorldStore.class);
+                if (Files.isRegularFile(file)) s = GSON.fromJson(J8.readString(file, StandardCharsets.UTF_8), WorldStore.class);
             } catch (IOException | RuntimeException ignored) {
                 // fichier abîmé : on repart d'un état neuf (le serveur garde le statut d'intégrité)
             }
@@ -1334,7 +1555,7 @@ public final class XPackCore {
         }
 
         void write(Path file, String json) {
-            if (latest.getAndSet(Map.entry(file, json)) == null) executor.execute(this::flush);
+            if (latest.getAndSet(J8.entry(file, json)) == null) executor.execute(this::flush);
         }
 
         /** Synchronisé : une écriture plus ancienne ne peut pas passer après une plus récente. */
@@ -1343,7 +1564,7 @@ public final class XPackCore {
             if (w == null) return;
             try {
                 Files.createDirectories(w.getKey().getParent());
-                Files.writeString(w.getKey(), w.getValue(), StandardCharsets.UTF_8);
+                J8.writeString(w.getKey(), w.getValue(), StandardCharsets.UTF_8);
             } catch (IOException ignored) {
                 // disque indisponible : les événements restent en mémoire
             }
@@ -1363,7 +1584,7 @@ public final class XPackCore {
     static String shortHash(String s) {
         try {
             byte[] d = MessageDigest.getInstance("SHA-256").digest(s.getBytes(StandardCharsets.UTF_8));
-            return HexFormat.of().formatHex(d, 0, 12);
+            return J8.hex(d, 0, 12);
         } catch (NoSuchAlgorithmException e) {
             throw new IllegalStateException(e);
         }

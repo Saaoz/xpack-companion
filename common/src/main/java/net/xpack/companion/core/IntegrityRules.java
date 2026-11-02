@@ -26,22 +26,22 @@ public final class IntegrityRules {
     private final Set<String> blacklistedMods;
 
     public IntegrityRules(Collection<String> cheatCommands, Collection<String> alwaysAllowed, Collection<String> dangerousIfAllowed) {
-        this(cheatCommands, alwaysAllowed, dangerousIfAllowed, List.of());
+        this(cheatCommands, alwaysAllowed, dangerousIfAllowed, J8.listOf());
     }
 
     public IntegrityRules(Collection<String> cheatCommands, Collection<String> alwaysAllowed, Collection<String> dangerousIfAllowed,
             Collection<String> blacklistedMods) {
-        this.cheatCommands = Set.copyOf(cheatCommands);
-        this.alwaysAllowed = Set.copyOf(alwaysAllowed);
-        this.dangerousIfAllowed = Set.copyOf(dangerousIfAllowed);
-        this.blacklistedMods = Set.copyOf(blacklistedMods);
+        this.cheatCommands = J8.copyOfSet(cheatCommands);
+        this.alwaysAllowed = J8.copyOfSet(alwaysAllowed);
+        this.dangerousIfAllowed = J8.copyOfSet(dangerousIfAllowed);
+        this.blacklistedMods = J8.copyOfSet(blacklistedMods);
     }
 
     /** Règles embarquées dans le jar (copie de spec/integrity-rules.json). */
     public static IntegrityRules bundled() {
         try (InputStream in = IntegrityRules.class.getResourceAsStream("/xpack/integrity-rules.json")) {
             if (in == null) throw new IllegalStateException("integrity-rules.json introuvable dans le jar");
-            JsonObject json = JsonParser.parseReader(new InputStreamReader(in, StandardCharsets.UTF_8)).getAsJsonObject();
+            JsonObject json = J8.parseJson(new InputStreamReader(in, StandardCharsets.UTF_8)).getAsJsonObject();
             return new IntegrityRules(strings(json.getAsJsonArray("cheatCommands")), strings(json.getAsJsonArray("alwaysAllowedCommands")),
                     strings(json.getAsJsonArray("dangerousIfAllowed")), strings(json.getAsJsonArray("blacklistedMods")));
         } catch (IOException e) {
@@ -64,7 +64,7 @@ public final class IntegrityRules {
 
     /** Mods chargés qui figurent sur la liste noire, triés. */
     public List<String> blacklisted(Collection<String> loadedModIds) {
-        return loadedModIds.stream().map(id -> id.toLowerCase(Locale.ROOT)).filter(blacklistedMods::contains).distinct().sorted().toList();
+        return loadedModIds.stream().map(id -> id.toLowerCase(Locale.ROOT)).filter(blacklistedMods::contains).distinct().sorted().collect(java.util.stream.Collectors.toList());
     }
 
     static List<String> strings(JsonArray array) {
@@ -75,7 +75,7 @@ public final class IntegrityRules {
 
     /** Nom de la commande, sans « / », sans namespace ({@code minecraft:give} → {@code give}), en minuscules. */
     public static String commandName(String input) {
-        String trimmed = input.strip();
+        String trimmed = input.trim();
         while (trimmed.startsWith("/")) trimmed = trimmed.substring(1);
         String first = trimmed.split("\\s+", 2)[0];
         int colon = first.indexOf(':');
@@ -98,6 +98,6 @@ public final class IntegrityRules {
     }
 
     public List<String> dangerousAllowed(Collection<String> modpackAllowed) {
-        return modpackAllowed.stream().map(IntegrityRules::commandName).filter(dangerousIfAllowed::contains).toList();
+        return modpackAllowed.stream().map(IntegrityRules::commandName).filter(dangerousIfAllowed::contains).collect(java.util.stream.Collectors.toList());
     }
 }

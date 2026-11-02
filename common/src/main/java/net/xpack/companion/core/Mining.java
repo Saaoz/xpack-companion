@@ -23,7 +23,41 @@ import java.util.TreeSet;
  */
 public final class Mining {
     /** Minerais par bloc et roche minée, d'après les statistiques {@code minecraft:mined/…}. */
-    public record Summary(Map<String, Integer> ores, int stone) {}
+    public static final class Summary {
+        private final Map<String, Integer> ores;
+        private final int stone;
+
+        public Summary(Map<String, Integer> ores, int stone) {
+            this.ores = ores;
+            this.stone = stone;
+        }
+
+        public Map<String, Integer> ores() {
+            return ores;
+        }
+
+        public int stone() {
+            return stone;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (!(o instanceof Summary)) return false;
+            Summary other = (Summary) o;
+            return java.util.Objects.equals(ores, other.ores) && java.util.Objects.equals(stone, other.stone);
+        }
+
+        @Override
+        public int hashCode() {
+            return java.util.Objects.hash(ores, stone);
+        }
+
+        @Override
+        public String toString() {
+            return "Summary[" + "ores=" + ores + ", stone=" + stone + "]";
+        }
+    }
 
     static final String MINED = "minecraft:mined/";
     /** Outils retenus par session : au-delà, le joueur change d'outil sans arrêt (rien de plus à apprendre). */
@@ -37,17 +71,17 @@ public final class Mining {
     private final Set<String> tools = new TreeSet<>();
 
     public Mining(Collection<String> oreSuffixes, Collection<String> oreIds, Collection<String> stone, Collection<String> helperMods) {
-        this.oreSuffixes = List.copyOf(oreSuffixes);
-        this.oreIds = Set.copyOf(oreIds);
-        this.stone = Set.copyOf(stone);
-        this.helperMods = List.copyOf(helperMods);
+        this.oreSuffixes = J8.copyOf(oreSuffixes);
+        this.oreIds = J8.copyOfSet(oreIds);
+        this.stone = J8.copyOfSet(stone);
+        this.helperMods = J8.copyOf(helperMods);
     }
 
     /** Listes embarquées dans le jar (copie de spec/integrity-rules.json). */
     public static Mining bundled() {
         try (InputStream in = Mining.class.getResourceAsStream("/xpack/integrity-rules.json")) {
             if (in == null) throw new IllegalStateException("integrity-rules.json introuvable dans le jar");
-            JsonObject json = JsonParser.parseReader(new InputStreamReader(in, StandardCharsets.UTF_8)).getAsJsonObject();
+            JsonObject json = J8.parseJson(new InputStreamReader(in, StandardCharsets.UTF_8)).getAsJsonObject();
             return new Mining(strings(json, "miningOreSuffixes"), strings(json, "miningOreIds"), strings(json, "miningStone"), strings(json, "miningHelperMods"));
         } catch (java.io.IOException e) {
             throw new IllegalStateException(e);
@@ -67,7 +101,7 @@ public final class Mining {
 
     /** Mods chargés qui minent plusieurs blocs d'un coup ou à la place du joueur. */
     public List<String> helpers(Collection<String> loadedModIds) {
-        return helperMods.stream().filter(loadedModIds::contains).sorted().toList();
+        return helperMods.stream().filter(loadedModIds::contains).sorted().collect(java.util.stream.Collectors.toList());
     }
 
     /** Toutes les statistiques reçues (le serveur les envoie toutes à la demande) → minerais et roche. */
@@ -92,11 +126,11 @@ public final class Mining {
 
     /** Minerais cassés à la main pendant cette session, par bloc. */
     public Map<String, Integer> hand() {
-        return Map.copyOf(hand);
+        return J8.copyOf(hand);
     }
 
     public Set<String> tools() {
-        return Set.copyOf(tools);
+        return J8.copyOfSet(tools);
     }
 
     public void reset() {

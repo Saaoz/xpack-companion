@@ -53,14 +53,14 @@ public final class Credentials {
      */
     public static Path defaultLocation() {
         String override = System.getProperty("xpack.credentials");
-        if (override != null && !override.isBlank()) return Path.of(override);
+        if (override != null && !J8.isBlank(override)) return java.nio.file.Paths.get(override);
         String os = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
         String home = System.getProperty("user.home");
         Path dir;
-        if (os.contains("win") && System.getenv("APPDATA") != null) dir = Path.of(System.getenv("APPDATA"), "XPack");
-        else if (os.contains("mac")) dir = Path.of(home, "Library", "Application Support", "XPack");
-        else if (System.getenv("XDG_CONFIG_HOME") != null) dir = Path.of(System.getenv("XDG_CONFIG_HOME"), "xpack");
-        else dir = Path.of(home, ".config", "xpack");
+        if (os.contains("win") && System.getenv("APPDATA") != null) dir = java.nio.file.Paths.get(System.getenv("APPDATA"), "XPack");
+        else if (os.contains("mac")) dir = java.nio.file.Paths.get(home, "Library", "Application Support", "XPack");
+        else if (System.getenv("XDG_CONFIG_HOME") != null) dir = java.nio.file.Paths.get(System.getenv("XDG_CONFIG_HOME"), "xpack");
+        else dir = java.nio.file.Paths.get(home, ".config", "xpack");
         return dir.resolve("credentials.json");
     }
 
@@ -86,11 +86,11 @@ public final class Credentials {
 
     /** Pseudos Minecraft liés sur ce serveur XPack (affichés dans les réglages). */
     public synchronized List<String> linkedNames(String apiUrl) {
-        return entries(apiUrl).values().stream().map(e -> e.minecraftName == null ? "?" : e.minecraftName).toList();
+        return entries(apiUrl).values().stream().map(e -> e.minecraftName == null ? "?" : e.minecraftName).collect(java.util.stream.Collectors.toList());
     }
 
     private Map<String, Entry> entries(String apiUrl) {
-        return data.servers.getOrDefault(key(apiUrl), Map.of());
+        return data.servers.getOrDefault(key(apiUrl), J8.mapOf());
     }
 
     private static String key(String apiUrl) {
@@ -101,7 +101,7 @@ public final class Credentials {
     private static FileData load(Path file) {
         try {
             if (Files.isRegularFile(file)) {
-                FileData d = GSON.fromJson(Files.readString(file, StandardCharsets.UTF_8), FileData.class);
+                FileData d = GSON.fromJson(J8.readString(file, StandardCharsets.UTF_8), FileData.class);
                 if (d != null && d.servers != null) return d;
             }
         } catch (IOException | RuntimeException ignored) {
@@ -115,7 +115,7 @@ public final class Credentials {
             Files.createDirectories(file.getParent());
             // Écriture atomique : un plantage ne laisse jamais un fichier à moitié écrit.
             Path tmp = file.resolveSibling(file.getFileName() + ".tmp");
-            Files.writeString(tmp, GSON.toJson(data), StandardCharsets.UTF_8);
+            J8.writeString(tmp, GSON.toJson(data), StandardCharsets.UTF_8);
             restrictToOwner(tmp);
             Files.move(tmp, file, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
         } catch (IOException ignored) {

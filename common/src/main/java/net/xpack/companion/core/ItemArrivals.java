@@ -29,10 +29,102 @@ public final class ItemArrivals {
     public enum Via { PICKUP, SCREEN, DIRECT }
 
     /** {@code screen} : type de menu ({@code minecraft:generic_9x3}), {@code inventory}, {@code chat} ou nom de l'écran d'un mod. */
-    public record Arrival(String item, int count, Via via, String screen, boolean nearPlayer, boolean quest) {}
+    public static final class Arrival {
+        private final String item;
+        private final int count;
+        private final Via via;
+        private final String screen;
+        private final boolean nearPlayer;
+        private final boolean quest;
+
+        public Arrival(String item, int count, Via via, String screen, boolean nearPlayer, boolean quest) {
+            this.item = item;
+            this.count = count;
+            this.via = via;
+            this.screen = screen;
+            this.nearPlayer = nearPlayer;
+            this.quest = quest;
+        }
+
+        public String item() {
+            return item;
+        }
+
+        public int count() {
+            return count;
+        }
+
+        public Via via() {
+            return via;
+        }
+
+        public String screen() {
+            return screen;
+        }
+
+        public boolean nearPlayer() {
+            return nearPlayer;
+        }
+
+        public boolean quest() {
+            return quest;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (!(o instanceof Arrival)) return false;
+            Arrival other = (Arrival) o;
+            return java.util.Objects.equals(item, other.item) && java.util.Objects.equals(count, other.count) && java.util.Objects.equals(via, other.via) && java.util.Objects.equals(screen, other.screen) && java.util.Objects.equals(nearPlayer, other.nearPlayer) && java.util.Objects.equals(quest, other.quest);
+        }
+
+        @Override
+        public int hashCode() {
+            return java.util.Objects.hash(item, count, via, screen, nearPlayer, quest);
+        }
+
+        @Override
+        public String toString() {
+            return "Arrival[" + "item=" + item + ", count=" + count + ", via=" + via + ", screen=" + screen + ", nearPlayer=" + nearPlayer + ", quest=" + quest + "]";
+        }
+    }
 
     /** Contexte du relevé : écran ouvert ({@code null} : aucun), autre joueur à moins de 8 blocs. */
-    public record Context(String screen, boolean nearPlayer) {}
+    public static final class Context {
+        private final String screen;
+        private final boolean nearPlayer;
+
+        public Context(String screen, boolean nearPlayer) {
+            this.screen = screen;
+            this.nearPlayer = nearPlayer;
+        }
+
+        public String screen() {
+            return screen;
+        }
+
+        public boolean nearPlayer() {
+            return nearPlayer;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (!(o instanceof Context)) return false;
+            Context other = (Context) o;
+            return java.util.Objects.equals(screen, other.screen) && java.util.Objects.equals(nearPlayer, other.nearPlayer);
+        }
+
+        @Override
+        public int hashCode() {
+            return java.util.Objects.hash(screen, nearPlayer);
+        }
+
+        @Override
+        public String toString() {
+            return "Context[" + "screen=" + screen + ", nearPlayer=" + nearPlayer + "]";
+        }
+    }
 
     /** Arrivée directe d'un objet ordinaire : notée à partir de ce nombre (un /give donne souvent une pile). */
     static final int BULK = 16;
@@ -43,7 +135,7 @@ public final class ItemArrivals {
 
     private final Set<String> valuable;
     private final List<String> patterns;
-    private Set<String> questRewards = Set.of();
+    private Set<String> questRewards = J8.setOf();
     /** Dernier relevé ; {@code null} : prochain relevé = point de départ, rien n'est noté. */
     private Map<String, Integer> last;
     private final List<Pickup> pickups = new ArrayList<>();
@@ -62,15 +154,15 @@ public final class ItemArrivals {
     }
 
     public ItemArrivals(Collection<String> valuable, Collection<String> patterns) {
-        this.valuable = Set.copyOf(valuable);
-        this.patterns = List.copyOf(patterns);
+        this.valuable = J8.copyOfSet(valuable);
+        this.patterns = J8.copyOf(patterns);
     }
 
     /** Liste embarquée dans le jar (copie de spec/integrity-rules.json). */
     public static ItemArrivals bundled() {
         try (InputStream in = ItemArrivals.class.getResourceAsStream("/xpack/integrity-rules.json")) {
             if (in == null) throw new IllegalStateException("integrity-rules.json introuvable dans le jar");
-            JsonObject json = JsonParser.parseReader(new InputStreamReader(in, StandardCharsets.UTF_8)).getAsJsonObject();
+            JsonObject json = J8.parseJson(new InputStreamReader(in, StandardCharsets.UTF_8)).getAsJsonObject();
             return new ItemArrivals(strings(json.getAsJsonArray("valuableItems")), strings(json.getAsJsonArray("valuableItemPatterns")));
         } catch (java.io.IOException e) {
             throw new IllegalStateException(e);
@@ -89,7 +181,7 @@ public final class ItemArrivals {
 
     /** Objets des récompenses de quêtes du modpack ({@link QuestRewards}). */
     public void setQuestRewards(Set<String> items) {
-        questRewards = Set.copyOf(items);
+        questRewards = J8.copyOfSet(items);
     }
 
     /** Nouveau joueur (entrée dans un monde, réapparition, changement de dimension) : on repart de zéro. */

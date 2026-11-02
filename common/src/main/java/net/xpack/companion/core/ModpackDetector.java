@@ -10,7 +10,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.util.HexFormat;
 import java.util.List;
 import java.util.Optional;
 import java.util.regex.Matcher;
@@ -23,10 +22,63 @@ import java.util.stream.Collectors;
  * dans {@code <instance>/minecraft} ou {@code <instance>/.minecraft}).
  */
 public final class ModpackDetector {
-    public record ModpackInfo(String source, String projectId, String versionId, String name, String version) {
+    public static final class ModpackInfo {
+        private final String source;
+        private final String projectId;
+        private final String versionId;
+        private final String name;
+        private final String version;
+
+        public ModpackInfo(String source, String projectId, String versionId, String name, String version) {
+            this.source = source;
+            this.projectId = projectId;
+            this.versionId = versionId;
+            this.name = name;
+            this.version = version;
+        }
+
+        public String source() {
+            return source;
+        }
+
+        public String projectId() {
+            return projectId;
+        }
+
+        public String versionId() {
+            return versionId;
+        }
+
+        public String name() {
+            return name;
+        }
+
+        public String version() {
+            return version;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (!(o instanceof ModpackInfo)) return false;
+            ModpackInfo other = (ModpackInfo) o;
+            return java.util.Objects.equals(source, other.source) && java.util.Objects.equals(projectId, other.projectId) && java.util.Objects.equals(versionId, other.versionId) && java.util.Objects.equals(name, other.name) && java.util.Objects.equals(version, other.version);
+        }
+
+        @Override
+        public int hashCode() {
+            return java.util.Objects.hash(source, projectId, versionId, name, version);
+        }
+
+        @Override
+        public String toString() {
+            return "ModpackInfo[" + "source=" + source + ", projectId=" + projectId + ", versionId=" + versionId + ", name=" + name + ", version=" + version + "]";
+        }
+
         public static ModpackInfo unknown(String modsHash) {
             return new ModpackInfo("unknown", modsHash, null, null, null);
         }
+
     }
 
     private ModpackDetector() {}
@@ -34,7 +86,7 @@ public final class ModpackDetector {
     public static ModpackInfo detect(Path gameDir, List<String> loadedModIds) {
         for (Path dir : new Path[] {gameDir, gameDir.getParent()}) {
             if (dir == null) continue;
-            Optional<ModpackInfo> found = modrinth(dir).or(() -> modrinthApp(dir)).or(() -> curseforgeApp(dir)).or(() -> curseforgeManifest(dir));
+            Optional<ModpackInfo> found = J8.or(J8.or(J8.or(modrinth(dir), () -> modrinthApp(dir)), () -> curseforgeApp(dir)), () -> curseforgeManifest(dir));
             if (found.isPresent()) return found.get();
         }
         return ModpackInfo.unknown(modsHash(loadedModIds));
@@ -133,7 +185,7 @@ public final class ModpackDetector {
     public static String modsHash(List<String> modIds) {
         String joined = modIds.stream().sorted().collect(Collectors.joining("\n"));
         try {
-            return "sha256:" + HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(joined.getBytes(StandardCharsets.UTF_8)));
+            return "sha256:" + J8.hex(MessageDigest.getInstance("SHA-256").digest(joined.getBytes(StandardCharsets.UTF_8)));
         } catch (NoSuchAlgorithmException e) {
             throw new IllegalStateException(e);
         }
@@ -142,7 +194,7 @@ public final class ModpackDetector {
     private static Optional<JsonObject> read(Path file) {
         if (!Files.isRegularFile(file)) return Optional.empty();
         try (Reader r = Files.newBufferedReader(file, StandardCharsets.UTF_8)) {
-            JsonElement el = JsonParser.parseReader(r);
+            JsonElement el = J8.parseJson(r);
             return el.isJsonObject() ? Optional.of(el.getAsJsonObject()) : Optional.empty();
         } catch (IOException | RuntimeException e) {
             return Optional.empty(); // fichier illisible : on tente la source suivante

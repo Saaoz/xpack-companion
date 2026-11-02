@@ -19,7 +19,7 @@ import java.util.stream.Stream;
  * fournir (tâches) ne sont pas des récompenses.
  */
 public final class QuestRewards {
-    static final List<String> FOLDERS = List.of("config/ftbquests/quests", "config/heracles");
+    static final List<String> FOLDERS = J8.listOf("config/ftbquests/quests", "config/heracles");
     static final int MAX_FILES = 3_000;
     static final long MAX_FILE_BYTES = 2_000_000;
 
@@ -45,7 +45,7 @@ public final class QuestRewards {
     private static void read(Path file, Set<String> items) {
         try {
             if (Files.size(file) > MAX_FILE_BYTES) return;
-            items.addAll(rewardItems(Files.readString(file, StandardCharsets.UTF_8)));
+            items.addAll(rewardItems(J8.readString(file, StandardCharsets.UTF_8)));
         } catch (IOException | RuntimeException e) {
             // Fichier illisible : ignoré.
         }

@@ -22,7 +22,47 @@ public final class WorldIntegrity {
         }
     }
 
-    public record Flag(Reason reason, String at, String detail) {}
+    public static final class Flag {
+        private final Reason reason;
+        private final String at;
+        private final String detail;
+
+        public Flag(Reason reason, String at, String detail) {
+            this.reason = reason;
+            this.at = at;
+            this.detail = detail;
+        }
+
+        public Reason reason() {
+            return reason;
+        }
+
+        public String at() {
+            return at;
+        }
+
+        public String detail() {
+            return detail;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (!(o instanceof Flag)) return false;
+            Flag other = (Flag) o;
+            return java.util.Objects.equals(reason, other.reason) && java.util.Objects.equals(at, other.at) && java.util.Objects.equals(detail, other.detail);
+        }
+
+        @Override
+        public int hashCode() {
+            return java.util.Objects.hash(reason, at, detail);
+        }
+
+        @Override
+        public String toString() {
+            return "Flag[" + "reason=" + reason + ", at=" + at + ", detail=" + detail + "]";
+        }
+    }
 
     private Status status = Status.PROPRE;
     private String flaggedAt;
@@ -37,7 +77,7 @@ public final class WorldIntegrity {
     }
 
     public List<Flag> reasons() {
-        return List.copyOf(reasons);
+        return J8.copyOf(reasons);
     }
 
     public boolean isFlagged() {

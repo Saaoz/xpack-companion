@@ -21,7 +21,7 @@ import java.util.stream.Collectors;
  */
 public final class Diagnostics {
     /** Fichiers regardés dans le dossier du jeu et dans son parent (Prism range le jeu dans un sous-dossier). */
-    static final List<String> LAUNCHER_FILES = List.of(
+    static final List<String> LAUNCHER_FILES = J8.listOf(
             "instance.cfg", // Prism / MultiMC
             "mmc-pack.json", // Prism / MultiMC : versions du jeu et du loader
             "minecraftinstance.json", // app CurseForge
@@ -33,7 +33,41 @@ public final class Diagnostics {
     /** instance.cfg contient des chemins (JavaPath…) : on ne garde que ces clés. */
     private static final Pattern INSTANCE_CFG_KEYS = Pattern.compile("^(name|InstanceType|ManagedPack\\w*)=");
 
-    public record Result(Path folder, List<String> found) {}
+    public static final class Result {
+        private final Path folder;
+        private final List<String> found;
+
+        public Result(Path folder, List<String> found) {
+            this.folder = folder;
+            this.found = found;
+        }
+
+        public Path folder() {
+            return folder;
+        }
+
+        public List<String> found() {
+            return found;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (!(o instanceof Result)) return false;
+            Result other = (Result) o;
+            return java.util.Objects.equals(folder, other.folder) && java.util.Objects.equals(found, other.found);
+        }
+
+        @Override
+        public int hashCode() {
+            return java.util.Objects.hash(folder, found);
+        }
+
+        @Override
+        public String toString() {
+            return "Result[" + "folder=" + folder + ", found=" + found + "]";
+        }
+    }
 
     private Diagnostics() {}
 
@@ -51,24 +85,24 @@ public final class Diagnostics {
                 if (!Files.isRegularFile(f) || Files.size(f) > MAX_BYTES) continue;
                 String text;
                 try {
-                    text = Files.readString(f, StandardCharsets.UTF_8);
+                    text = J8.readString(f, StandardCharsets.UTF_8);
                 } catch (IOException e) {
                     continue; // encodage inattendu : ignoré
                 }
-                Files.writeString(out.resolve(labels[i] + "-" + name), sanitize(name, text), StandardCharsets.UTF_8);
+                J8.writeString(out.resolve(labels[i] + "-" + name), sanitize(name, text), StandardCharsets.UTF_8);
                 found.add(labels[i] + "/" + name);
             }
         }
-        Files.writeString(out.resolve("mods.txt"), modIds.stream().sorted().collect(Collectors.joining("\n")) + "\n", StandardCharsets.UTF_8);
+        J8.writeString(out.resolve("mods.txt"), modIds.stream().sorted().collect(Collectors.joining("\n")) + "\n", StandardCharsets.UTF_8);
         String readme = summary + "\n\nFichiers trouvés :\n" + (found.isEmpty() ? "  (aucun)" : found.stream().map(s -> "  - " + s).collect(Collectors.joining("\n")))
                 + "\n\nChemins et nom d'utilisateur remplacés par <HOME> / <USER>. instance.cfg réduit aux clés name, InstanceType et ManagedPack*.\n";
-        Files.writeString(out.resolve("LISEZMOI.txt"), readme, StandardCharsets.UTF_8);
+        J8.writeString(out.resolve("LISEZMOI.txt"), readme, StandardCharsets.UTF_8);
         return new Result(out, found);
     }
 
     static String sanitize(String fileName, String text) {
         if (fileName.equals("instance.cfg")) {
-            text = text.lines().filter(l -> INSTANCE_CFG_KEYS.matcher(l).find()).collect(Collectors.joining("\n")) + "\n";
+            text = J8.lines(text).stream().filter(l -> INSTANCE_CFG_KEYS.matcher(l).find()).collect(Collectors.joining("\n")) + "\n";
         }
         return anonymize(text);
     }
@@ -77,7 +111,7 @@ public final class Diagnostics {
     static String anonymize(String text) {
         String home = System.getProperty("user.home", "");
         if (home.length() > 3) {
-            for (String variant : List.of(home.replace("\\", "\\\\"), home, home.replace("\\", "/"))) {
+            for (String variant : J8.listOf(home.replace("\\", "\\\\"), home, home.replace("\\", "/"))) {
                 text = Pattern.compile(Pattern.quote(variant), Pattern.CASE_INSENSITIVE).matcher(text).replaceAll("<HOME>");
             }
         }

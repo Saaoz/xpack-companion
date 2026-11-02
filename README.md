@@ -115,4 +115,9 @@ cd forge1122
 
 Forge 1.12.2-14.23.5.2847 : c'est la dernière version dont le paquet `userdev` existe encore sur le Maven de Forge (les versions 2855 et 2860 n'en ont plus). Le mod tourne avec n'importe quel Forge 1.12.2 récent.
 
-État : le squelette compile et produit un jar (`@Mod` client uniquement). Reste à faire : cœur `common/` compatible Java 8 (records, `HttpClient`, `List.of`…), puis une couche client 1.12.2 (progrès, statistiques, toasts, écrans) sans Mixin.
+État : le squelette compile et produit un jar (`@Mod` client uniquement), avec le cœur `common/` à l'intérieur.
+
+- **Cœur en Java 8** : `common/` est compilé en `--release 8` (les tests restent en Java 21). Pas de `record`, de `switch` moderne, de `java.net.http` ni de `List.of` : les équivalents sont dans `J8.java`, et le transport HTTP passe par `HttpURLConnection`.
+- **Gson 2.2.4** : c'est la version qu'embarque Minecraft 1.12.2. Pas de `JsonParser.parseString`, ni de `deepCopy` publique : utiliser `J8.parseJson` et `J8.copy`. Le projet 1.12.2 compile le cœur face à ce Gson, donc une API trop récente fait échouer son build.
+
+Reste à faire : une couche client 1.12.2 (progrès, statistiques, toasts, écrans) sans Mixin.
