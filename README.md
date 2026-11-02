@@ -102,3 +102,17 @@ Le jeton de liaison **n'est pas** dans `config/xpack.json`. Le dossier `config/`
 | Autre emplacement | `-Dxpack.credentials=<fichier>` (tests, installations portables) |
 
 Un jeton laissé dans `config/xpack.json` par une ancienne version est déplacé automatiquement au démarrage.
+
+## Portage 1.12.2 (Forge) — en cours (#173)
+
+`forge1122/` est un projet Gradle **à part** : ForgeGradle 2.3 impose Gradle 4.10 et Java 8, incompatibles avec le build principal (Gradle 8, Java 21).
+
+```bash
+cd forge1122
+# JAVA_HOME doit pointer sur un JDK 8
+./gradlew setupDecompWorkspace build    # la première fois : ~3 min (télécharge et décompile Minecraft)
+```
+
+Forge 1.12.2-14.23.5.2847 : c'est la dernière version dont le paquet `userdev` existe encore sur le Maven de Forge (les versions 2855 et 2860 n'en ont plus). Le mod tourne avec n'importe quel Forge 1.12.2 récent.
+
+État : le squelette compile et produit un jar (`@Mod` client uniquement). Reste à faire : cœur `common/` compatible Java 8 (records, `HttpClient`, `List.of`…), puis une couche client 1.12.2 (progrès, statistiques, toasts, écrans) sans Mixin.

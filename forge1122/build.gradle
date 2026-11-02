@@ -1,0 +1,36 @@
+// Mod compagnon XPack pour Minecraft 1.12.2 (Forge). Projet Gradle à part : ForgeGradle 2.3 impose
+// Gradle 4.x et Java 8, incompatibles avec le build principal (Gradle 8, Java 21).
+buildscript {
+    repositories {
+        mavenCentral()
+        maven { url = "https://maven.minecraftforge.net" }
+    }
+    dependencies {
+        classpath "net.minecraftforge.gradle:ForgeGradle:2.3-SNAPSHOT"
+    }
+}
+apply plugin: "net.minecraftforge.gradle.forge"
+
+version = mod_version
+group = mod_group
+archivesBaseName = "xpack-companion-forge-1.12.2"
+
+sourceCompatibility = targetCompatibility = "1.8"
+compileJava.options.encoding = "UTF-8"
+
+minecraft {
+    version = "1.12.2-14.23.5.2847"
+    runDir = "run"
+    mappings = "stable_39"
+}
+
+processResources {
+    inputs.property "version", project.version
+    from(sourceSets.main.resources.srcDirs) {
+        include "mcmod.info"
+        expand "version": project.version
+    }
+    from(sourceSets.main.resources.srcDirs) {
+        exclude "mcmod.info"
+    }
+}
