@@ -131,6 +131,7 @@ public final class Client1122 {
         core.writeWorldFilesWith(disk);
         Runtime.getRuntime().addShutdownHook(new Thread(core::flushWorldFile, "XPack flush"));
         MinecraftForge.EVENT_BUS.register(new Client1122());
+        MinecraftForge.EVENT_BUS.register(new ChatSuggestions());
         net.minecraftforge.client.ClientCommandHandler.instance.registerCommand(new XPackCommand());
     }
 
@@ -148,7 +149,8 @@ public final class Client1122 {
     public void onClientTick(TickEvent.ClientTickEvent event) {
         if (event.phase != TickEvent.Phase.END || core == null) return;
         Minecraft mc = Minecraft.getMinecraft();
-        for (Runnable r; (r = DEFERRED.poll()) != null; ) r.run();
+        // Seulement en jeu, sans écran : pas pendant le chargement du monde (qui fermerait l'écran) ni avec le chat ouvert.
+        if (mc.currentScreen == null && mc.world != null) for (Runnable r; (r = DEFERRED.poll()) != null; ) r.run();
         boolean nowInWorld = mc.world != null && mc.player != null && mc.getConnection() != null;
         if (nowInWorld && !inWorld) join(mc);
         if (!nowInWorld && inWorld) {

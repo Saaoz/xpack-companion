@@ -152,6 +152,7 @@ public final class SettingsScreen1122 extends GuiScreen {
         if (core != null) {
             String linked = Lang.tr(core.isLinked(uuid()) ? "xpack.settings.linked" : "xpack.settings.unlinked", name());
             drawCenteredString(fontRenderer, TextFormatting.GRAY + linked, width / 2, 34, 0xAAAAAA);
+            drawCenteredString(fontRenderer, TextFormatting.GRAY + Lang.tr("xpack.badge." + core.status().name().toLowerCase(java.util.Locale.ROOT)), width / 2, height - 58, 0xAAAAAA);
             XPackCore.LinkState link = core.linkState();
             if (codeY >= 0 && link != null && link.userCode() != null) {
                 drawCenteredString(fontRenderer, TextFormatting.GREEN + "" + TextFormatting.BOLD + Lang.tr("xpack.settings.code", link.userCode()), width / 2, codeY, 0xFFFFFF);

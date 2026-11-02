@@ -3,12 +3,10 @@ package net.xpack.companion.forge1122;
 import java.util.List;
 import java.util.function.Consumer;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiScreen;
-import net.minecraft.client.gui.GuiYesNo;
-import net.minecraft.client.gui.GuiYesNoCallback;
 import net.minecraft.util.text.ITextComponent;
 import net.minecraft.util.text.TextComponentString;
 import net.minecraft.util.text.TextFormatting;
+import net.xpack.companion.core.J8;
 import net.xpack.companion.core.Presence;
 import net.xpack.companion.core.Ui;
 
@@ -16,43 +14,44 @@ import net.xpack.companion.core.Ui;
 final class Ui1122 implements Ui {
     private static final String PREFIX = TextFormatting.GREEN + "[XPack] " + TextFormatting.RESET;
 
-    /** Question à deux boutons ; l'écran précédent est rouvert ensuite. */
-    private static void ask(String title, String body, String yes, String no, Consumer<Boolean> answer) {
+    /** Question à deux boutons, montrée dès qu'aucun autre écran n'est ouvert (le chat, le chargement du monde). */
+    private static void ask(String title, List<PromptScreen1122.Section> sections, String yes, String no, boolean escapeAnswersNo, Consumer<Boolean> answer) {
         Minecraft mc = Minecraft.getMinecraft();
-        Client1122.defer(() -> {
-            GuiScreen previous = mc.currentScreen;
-            GuiYesNoCallback callback = (result, id) -> {
-                mc.displayGuiScreen(previous);
-                answer.accept(result);
-            };
-            mc.displayGuiScreen(new GuiYesNo(callback, title, body, yes, no, 0));
-        });
+        Client1122.defer(() -> mc.displayGuiScreen(new PromptScreen1122(title, sections, yes, no, escapeAnswersNo, answer)));
+    }
+
+    private static List<PromptScreen1122.Section> text(String body) {
+        return J8.listOf(new PromptScreen1122.Section(null, body));
     }
 
     @Override
     public void showCheatWarning(String command, Runnable onContinue) {
-        ask(Lang.tr("xpack.warning.title"), Lang.tr("xpack.warning.body") + "  " + command, Lang.tr("xpack.warning.continue"), Lang.tr("xpack.warning.cancel"), ok -> {
-            if (ok) onContinue.run();
-        });
+        ask(Lang.tr("xpack.warning.title"), J8.listOf(new PromptScreen1122.Section(null, Lang.tr("xpack.warning.body")), new PromptScreen1122.Section(null, TextFormatting.AQUA + command)),
+                Lang.tr("xpack.warning.continue"), Lang.tr("xpack.warning.cancel"), true, ok -> {
+                    if (ok) onContinue.run();
+                });
     }
 
     @Override
     public void showCheatModeWarning(String mode, Runnable onDisable, Runnable onContinue) {
-        ask(Lang.tr("xpack.cheatmode.title", Lang.tr("xpack.cheatmode.name." + mode)), Lang.tr("xpack.cheatmode.body"), Lang.tr("xpack.cheatmode.keep"),
-                Lang.tr("xpack.cheatmode.disable"), ok -> (ok ? onContinue : onDisable).run());
+        String body = Lang.tr(mode.equals("ftbquests") ? "xpack.cheatmode.body.quests" : "xpack.cheatmode.body.items");
+        ask(Lang.tr("xpack.cheatmode.title", Lang.tr("xpack.cheatmode.name." + mode)), text(body), Lang.tr("xpack.cheatmode.keep"), Lang.tr("xpack.cheatmode.disable"), false,
+                ok -> (ok ? onContinue : onDisable).run());
     }
 
     @Override
     public void difficultyWarning(String from, String to, boolean canRevert) {
-        say(Lang.tr("xpack.difficulty.warning", from, to));
+        say(TextFormatting.YELLOW + Lang.tr("xpack.difficulty_warning.title") + ": " + Lang.tr("xpack.difficulty_warning.body", Lang.tr("xpack.difficulty." + from), Lang.tr("xpack.difficulty." + to)));
     }
 
     @Override
     public void askConsent(Consumer<Boolean> answer) {
-        ask(Lang.tr("xpack.consent.title"), Lang.tr("xpack.consent.sent") + "  " + Lang.tr("xpack.consent.never"), Lang.tr("xpack.consent.accept"),
-                Lang.tr("xpack.consent.refuse"), answer);
+        ask(Lang.tr("xpack.consent.title"),
+                J8.listOf(new PromptScreen1122.Section(Lang.tr("xpack.consent.sentTitle"), Lang.tr("xpack.consent.sent")),
+                        new PromptScreen1122.Section(Lang.tr("xpack.consent.neverTitle"), Lang.tr("xpack.consent.never")),
+                        new PromptScreen1122.Section(null, TextFormatting.GRAY + Lang.tr("xpack.consent.footer"))),
+                Lang.tr("xpack.consent.accept"), Lang.tr("xpack.consent.refuse"), false, answer);
     }
-
     private static void toast(String title, String subtitle, int color) {
         if (!Client1122.core().config().toasts) return;
         Minecraft mc = Minecraft.getMinecraft();
