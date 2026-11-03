@@ -19,7 +19,7 @@ import net.xpack.companion.core.XPackCore;
 public final class SettingsScreen1710 extends GuiScreen {
     private static final int ROW = 22;
     private static final List<Integer> VOLUMES = J8.listOf(0, 20, 40, 60, 80, 100);
-    private static final int SENDING = 1, TOASTS = 2, BADGE = 3, SOUND = 4, VOLUME = 5, LISTEN = 6, LINK = 7, OPEN_SITE = 8, COPY = 9, CANCEL = 10, PRACTICE = 11, SUPPORT = 12, DONE = 13;
+    private static final int SENDING = 1, TOASTS = 2, BADGE = 3, SOUND = 4, VOLUME = 5, LISTEN = 6, LINK = 7, OPEN_SITE = 8, COPY = 9, CANCEL = 10, PRACTICE = 11, SUPPORT = 12, DONE = 13, PREVIEW = 14, POSITION = 15, DELAY = 16;
     /** Prochaine rareté jouée par « Écouter » : on passe de commun à légendaire, clic après clic. */
     private static int listened;
     private final GuiScreen parent;
@@ -62,8 +62,10 @@ public final class SettingsScreen1710 extends GuiScreen {
         int y = 50;
         buttonList.add(new GuiButton(SENDING, x, y, 310, 20, Lang.tr("xpack.settings.sending") + ": " + onOff(Boolean.TRUE.equals(c.consented) && c.enabled)));
         y += ROW;
-        buttonList.add(new GuiButton(TOASTS, x, y, 150, 20, Lang.tr("xpack.settings.toasts") + ": " + onOff(c.toasts)));
-        buttonList.add(new GuiButton(BADGE, x + 160, y, 150, 20, Lang.tr("xpack.settings.badge") + ": " + onOff(c.badge)));
+        buttonList.add(new GuiButton(TOASTS, x, y, 100, 20, Lang.tr("xpack.settings.toasts") + ": " + onOff(c.toasts)));
+        // Toast d'essai : voir le dessin, les textes et le son d'un succès.
+        buttonList.add(new GuiButton(PREVIEW, x + 105, y, 100, 20, Lang.tr("xpack.settings.preview")));
+        buttonList.add(new GuiButton(BADGE, x + 210, y, 100, 20, Lang.tr("xpack.settings.badge") + ": " + onOff(c.badge)));
 
         // Son des succès (#59) : choix du son, volume, et écoute d'une rareté à chaque clic.
         y += ROW;
@@ -72,6 +74,11 @@ public final class SettingsScreen1710 extends GuiScreen {
         buttonList.add(new GuiButton(SOUND, x, y, 120, 20, Lang.tr("xpack.settings.sound") + ": " + Lang.tr("xpack.settings.sound." + sound)));
         buttonList.add(new GuiButton(VOLUME, x + 130, y, 85, 20, Lang.tr("xpack.settings.volume") + ": " + volume + " %"));
         buttonList.add(new GuiButton(LISTEN, x + 225, y, 85, 20, listenLabel()));
+
+        // Toasts de succès : coin de l'écran et délai avant l'apparition (le bouton « Essai » les montre).
+        y += ROW;
+        buttonList.add(new GuiButton(POSITION, x, y, 150, 20, Lang.tr("xpack.settings.position") + ": " + Lang.tr("xpack.settings.position." + c.toastPosition(Toasts1710.DEFAULT_POSITION))));
+        buttonList.add(new GuiButton(DELAY, x + 160, y, 150, 20, Lang.tr("xpack.settings.delay") + ": " + Lang.tr("xpack.settings.delay.value", c.toastDelay)));
 
         // Compte : lier / délier le compte Minecraft actuellement connecté.
         y += ROW;
@@ -133,6 +140,9 @@ public final class SettingsScreen1710 extends GuiScreen {
                 c.enabled = on;
                 core.saveConfig();
                 break;
+            case PREVIEW:
+                core.previewToast(Lang.tr("xpack.toast.preview"));
+                break;
             case TOASTS:
                 c.toasts = !c.toasts;
                 core.saveConfig();
@@ -147,6 +157,14 @@ public final class SettingsScreen1710 extends GuiScreen {
                 break;
             case VOLUME:
                 c.soundVolume = VOLUMES.get((Math.max(0, VOLUMES.indexOf(c.soundVolume)) + 1) % VOLUMES.size());
+                core.saveConfig();
+                break;
+            case POSITION:
+                c.toastPosition = Config.TOAST_POSITIONS.get((Config.TOAST_POSITIONS.indexOf(c.toastPosition(Toasts1710.DEFAULT_POSITION)) + 1) % Config.TOAST_POSITIONS.size());
+                core.saveConfig();
+                break;
+            case DELAY:
+                c.toastDelay = Config.TOAST_DELAYS.get((Math.max(0, Config.TOAST_DELAYS.indexOf(c.toastDelay)) + 1) % Config.TOAST_DELAYS.size());
                 core.saveConfig();
                 break;
             case LISTEN:

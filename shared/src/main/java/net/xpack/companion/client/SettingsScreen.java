@@ -51,11 +51,13 @@ public final class SettingsScreen extends Screen {
                     core.saveConfig();
                 }));
         y += ROW;
-        addRenderableWidget(CycleButton.onOffBuilder(c.toasts).create(x, y, 150, 20, Texts.tr("xpack.settings.toasts"), (b, v) -> {
+        addRenderableWidget(CycleButton.onOffBuilder(c.toasts).create(x, y, 100, 20, Texts.tr("xpack.settings.toasts"), (b, v) -> {
             c.toasts = v;
             core.saveConfig();
         }));
-        addRenderableWidget(CycleButton.onOffBuilder(c.badge).create(x + 160, y, 150, 20, Texts.tr("xpack.settings.badge"), (b, v) -> {
+        // Toast d'essai : voir le dessin, les textes et le son d'un succès.
+        addRenderableWidget(Button.builder(Texts.tr("xpack.settings.preview"), b -> core.previewToast(Texts.tr("xpack.toast.preview").getString())).bounds(x + 105, y, 100, 20).build());
+        addRenderableWidget(CycleButton.onOffBuilder(c.badge).create(x + 210, y, 100, 20, Texts.tr("xpack.settings.badge"), (b, v) -> {
             c.badge = v;
             core.saveConfig();
         }));
@@ -79,6 +81,21 @@ public final class SettingsScreen extends Screen {
             listened = (listened + 1) % XPackSounds.RARITIES.size();
             b.setMessage(listenLabel());
         }).bounds(x + 225, y, 85, 20).build());
+
+        // Toasts de succès : coin de l'écran et délai avant l'apparition (le bouton « Essai » les montre).
+        y += ROW;
+        addRenderableWidget(CycleButton.<String>builder(p -> Texts.tr("xpack.settings.position." + p)).withValues(Config.TOAST_POSITIONS)
+                .withInitialValue(c.toastPosition("top_right"))
+                .create(x, y, 150, 20, Texts.tr("xpack.settings.position"), (b, v) -> {
+                    c.toastPosition = v;
+                    core.saveConfig();
+                }));
+        addRenderableWidget(CycleButton.<Integer>builder(s -> Texts.tr("xpack.settings.delay.value", s)).withValues(Config.TOAST_DELAYS)
+                .withInitialValue(Config.TOAST_DELAYS.contains(c.toastDelay) ? c.toastDelay : 0)
+                .create(x + 160, y, 150, 20, Texts.tr("xpack.settings.delay"), (b, v) -> {
+                    c.toastDelay = v;
+                    core.saveConfig();
+                }));
 
         // Compte : lier / délier le compte Minecraft actuellement connecté.
         y += ROW;

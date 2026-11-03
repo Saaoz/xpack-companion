@@ -9,6 +9,7 @@ import java.util.List;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.FontRenderer;
 import net.minecraft.client.gui.Gui;
+import net.minecraft.client.gui.ScaledResolution;
 import net.minecraft.client.gui.toasts.AdvancementToast;
 import net.minecraft.client.gui.toasts.GuiToast;
 import net.minecraft.client.gui.toasts.IToast;
@@ -17,6 +18,9 @@ import net.minecraft.client.renderer.RenderHelper;
 import net.minecraft.init.Items;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
+import net.minecraftforge.client.event.GuiScreenEvent;
+import net.minecraftforge.client.event.RenderGameOverlayEvent;
+import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.relauncher.ReflectionHelper;
 import net.xpack.companion.core.Ui;
 
@@ -25,7 +29,7 @@ import net.xpack.companion.core.Ui;
  * passent <b>après</b> ceux du jeu (aucun progrès vanilla à l'écran ni en attente) et
  * les succès obtenus ensemble sont regroupés en un seul toast.
  */
-final class Toasts1122 {
+public final class Toasts1122 {
     /** Largeur de l'emplacement d'un toast dans le jeu : un toast plus large déborde vers la gauche. */
     private static final int SLOT = 160;
     /** Petit délai après le dernier toast du jeu, pour ne pas s'intercaler dans une rafale de progrès. */
@@ -40,7 +44,8 @@ final class Toasts1122 {
     private static Field queueField;
     private static boolean lookedUp;
 
-    private Toasts1122() {}
+    /** Instance abonnée aux événements de dessin (coin choisi hors haut à droite). */
+    Toasts1122() {}
 
     static void unlocked(Ui.Unlock unlock) {
         unlocks.add(unlock);
@@ -64,32 +69,113 @@ final class Toasts1122 {
         return modpackName == null ? stats : modpackName + " · " + stats;
     }
 
+    /** Coin choisi dans les réglages ; en haut à droite, nos toasts passent par la file du jeu. */
+    private static String corner() {
+        return Client1122.core() == null ? "top_right" : Client1122.core().config().toastPosition("top_right");
+    }
+
     /** Appelé à chaque tick client. */
     static void tick(Minecraft mc) {
+        long now = System.currentTimeMillis();
+        placed.removeIf(p -> p.hiddenAt > 0 && now - p.hiddenAt >= SLIDE_MS);
         if (unlocks.isEmpty() && alerts.isEmpty() && completions.isEmpty()) return;
         GuiToast toasts = mc.getToastGui();
-        long now = System.currentTimeMillis();
+        boolean ownCorner = !"top_right".equals(corner());
+        // L'alerte d'intégrité, en haut à droite avec le jeu, n'attend que lui.
         boolean gameBusy = toasts.getToast(AdvancementToast.class, IToast.NO_TOKEN) != null || queued(toasts) > 0;
-        if (gameBusy) {
-            gameToastSeenAt = now;
-            return;
-        }
-        if (now - gameToastSeenAt < QUIET_MS) return;
-        // L'alerte d'intégrité d'abord.
-        if (!alerts.isEmpty()) toasts.add(alerts.poll());
+        if (gameBusy) gameToastSeenAt = now;
+        boolean gameQuiet = !gameBusy && now - gameToastSeenAt >= QUIET_MS;
+        if (gameQuiet && !alerts.isEmpty()) toasts.add(alerts.poll());
+        // Ailleurs qu'en haut à droite, rien ne se chevauche : pas besoin d'attendre le jeu.
+        if (!ownCorner && !gameQuiet) return;
         if (!unlocks.isEmpty()) {
-            toasts.add(new UnlockToast(new ArrayList<>(unlocks)));
+            show(toasts, new UnlockToast(new ArrayList<>(unlocks)), UnlockToast.HEIGHT, ownCorner, now);
             // Un seul son pour le toast : celui du plus rare des succès qu'il regroupe.
             Sounds1122.play(Client1122.core().config(), Ui.Unlock.rarest(unlocks).rarity);
             unlocks.clear();
         }
         // Palier (#60) : une fois le toast du dernier succès parti, avec son propre son.
-        if (unlocks.isEmpty() && !completions.isEmpty() && toasts.getToast(UnlockToast.class, IToast.NO_TOKEN) == null) {
+        boolean unlockShown = toasts.getToast(UnlockToast.class, IToast.NO_TOKEN) != null || placed.stream().anyMatch(p -> p.toast instanceof UnlockToast);
+        if (unlocks.isEmpty() && !completions.isEmpty() && !unlockShown) {
             CompletionToast toast = completions.poll();
-            toasts.add(toast);
+            show(toasts, toast, 32, ownCorner, now);
             if (toast.tier == 100) Sounds1122.playCompletion(Client1122.core().config());
             else Sounds1122.play(Client1122.core().config(), toast.tier == 75 ? "legendaire" : toast.tier == 50 ? "epique" : "rare");
         }
+    }
+
+    // ------------------------------------------------------------------ coin choisi (hors haut à droite)
+
+    private static final long SLIDE_MS = 300;
+    private static final int MARGIN = 4;
+    private static final int GAP = 2;
+
+    /** Un de nos toasts dessiné par nous, hors de la file du jeu. */
+    private static final class Placed {
+        final IToast toast;
+        final int height;
+        final long shownAt;
+        /** Quand le toast a répondu « caché » : début du glissement de sortie (0 : encore affiché). */
+        long hiddenAt;
+
+        Placed(IToast toast, int height, long shownAt) {
+            this.toast = toast;
+            this.height = height;
+            this.shownAt = shownAt;
+        }
+    }
+
+    private static final List<Placed> placed = new ArrayList<>();
+
+    private static void show(GuiToast toasts, IToast toast, int height, boolean ownCorner, long now) {
+        if (ownCorner) placed.add(new Placed(toast, height, now));
+        else toasts.add(toast);
+    }
+
+    /** En jeu, sans écran ouvert. */
+    @SubscribeEvent
+    public void onOverlay(RenderGameOverlayEvent.Post event) {
+        if (event.getType() != RenderGameOverlayEvent.ElementType.ALL || placed.isEmpty() || Minecraft.getMinecraft().currentScreen != null) return;
+        draw(event.getResolution().getScaledWidth(), event.getResolution().getScaledHeight());
+    }
+
+    /** Par-dessus un écran, comme les toasts du jeu. */
+    @SubscribeEvent
+    public void onScreen(GuiScreenEvent.DrawScreenEvent.Post event) {
+        if (placed.isEmpty()) return;
+        ScaledResolution res = new ScaledResolution(Minecraft.getMinecraft());
+        GlStateManager.pushMatrix();
+        GlStateManager.translate(0, 0, 300);
+        draw(res.getScaledWidth(), res.getScaledHeight());
+        GlStateManager.popMatrix();
+    }
+
+    /** Pile dans le coin choisi : depuis le bord haut ou bas, entrée et sortie par le côté. */
+    private static void draw(int screenWidth, int screenHeight) {
+        Minecraft mc = Minecraft.getMinecraft();
+        String corner = corner();
+        boolean left = corner.endsWith("_left");
+        boolean bottom = corner.startsWith("bottom");
+        long now = System.currentTimeMillis();
+        int width = UnlockToast.WIDTH;
+        int y = bottom ? screenHeight - MARGIN : MARGIN;
+        GlStateManager.enableBlend();
+        for (Placed p : new ArrayList<>(placed)) {
+            long age = now - p.shownAt;
+            double slide = p.hiddenAt > 0 ? Math.max(0, 1 - (now - p.hiddenAt) / (double) SLIDE_MS) : Math.min(1, age / (double) SLIDE_MS);
+            slide = 1 - (1 - slide) * (1 - slide);
+            int hidden = (int) ((1 - slide) * (width + MARGIN));
+            int x = left ? MARGIN - hidden : screenWidth - MARGIN - width + hidden;
+            if (bottom) y -= p.height;
+            GlStateManager.pushMatrix();
+            // Nos toasts se décalent eux-mêmes vers la gauche (alignRight) pour la file du jeu : on compense.
+            GlStateManager.translate(x + Math.max(0, width - SLOT), y, 0);
+            GlStateManager.color(1f, 1f, 1f, 1f);
+            if (p.toast.draw(mc.getToastGui(), age) == IToast.Visibility.HIDE && p.hiddenAt == 0) p.hiddenAt = now;
+            GlStateManager.popMatrix();
+            y = bottom ? y - GAP : y + p.height + GAP;
+        }
+        GlStateManager.color(1f, 1f, 1f, 1f);
     }
 
     /** Toasts du jeu en attente : la file est privée, lue par réflexion. */

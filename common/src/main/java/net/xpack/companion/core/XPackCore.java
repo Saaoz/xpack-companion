@@ -1076,6 +1076,29 @@ public final class XPackCore {
         }, mainThread);
     }
 
+    /** Premiers succès du jeu, dans l'ordre de préférence pour le toast d'essai. */
+    private static final List<String> FIRST_ADVANCEMENTS = J8.listOf("minecraft:story/root", "achievement:openInventory");
+
+    /**
+     * Toast d'essai ({@code /xpack toast}, bouton « Essai » des réglages) : le premier succès du
+     * modpack s'il est connu, sinon {@code fallbackName}. Affiché même si les toasts sont coupés ;
+     * rien n'est envoyé au serveur.
+     */
+    public void previewToast(String fallbackName) {
+        AdvancementInfo first = null;
+        if (catalog != null) {
+            for (String id : FIRST_ADVANCEMENTS) {
+                for (AdvancementInfo a : catalog) if (first == null && a.id().equals(id)) first = a;
+            }
+            for (AdvancementInfo a : catalog) if (first == null && a.parent() == null) first = a;
+        }
+        String name = first != null ? first.title() : fallbackName;
+        String item = first != null && !"minecraft:air".equals(first.icon()) ? first.icon() : null;
+        Ui.Unlock unlock = new Ui.Unlock(name, 5, "commun", item, 87.5, "normal");
+        // Avec le délai des réglages : l'essai montre ce que verra le joueur.
+        later(() -> ui.toastUnlocked(unlock));
+    }
+
     /** {@code /xpack check} : qui, parmi les joueurs connectés, a le mod XPack (lié ou non). */
     public void checkPresence() {
         if (world == null) {
@@ -1330,6 +1353,7 @@ public final class XPackCore {
     /** À appeler à chaque tick client : liaison du compte et envoi périodique. */
     public void tick() {
         long t = clock.millis();
+        tickDelayedToasts(t);
         tickLinking(t);
         tickPresence(t);
         if (!tracking() || token == null) return;
@@ -1391,19 +1415,34 @@ public final class XPackCore {
             JsonObject u = el.getAsJsonObject();
             // Objet, part des joueurs et difficulté : absents d'un ancien serveur.
             String rarity = text(u.get("rarity"));
-            ui.toastUnlocked(new Ui.Unlock(u.get("name").getAsString(), u.get("points").getAsInt(), rarity != null ? rarity : "commun", text(u.get("item")),
-                    u.has("percent") && u.get("percent").isJsonPrimitive() ? u.get("percent").getAsDouble() : -1, text(u.get("difficulty"))));
+            Ui.Unlock unlock = new Ui.Unlock(u.get("name").getAsString(), u.get("points").getAsInt(), rarity != null ? rarity : "commun", text(u.get("item")),
+                    u.has("percent") && u.get("percent").isJsonPrimitive() ? u.get("percent").getAsDouble() : -1, text(u.get("difficulty")));
+            later(() -> ui.toastUnlocked(unlock));
         }
         // Paliers du modpack (#60) : toast spécial, après ceux des succès du lot. 100 % dans « completed »,
         // 25/50/75 % dans « milestone ».
         String name = world != null ? world.modpack().name() : null;
         if (b.has("completed") && b.get("completed").isJsonObject()) {
             JsonObject c = b.getAsJsonObject("completed");
-            ui.toastCompleted(name, c.has("achievements") ? c.get("achievements").getAsInt() : 0, c.has("playtimeTicks") ? c.get("playtimeTicks").getAsLong() : 0);
+            later(() -> ui.toastCompleted(name, c.has("achievements") ? c.get("achievements").getAsInt() : 0, c.has("playtimeTicks") ? c.get("playtimeTicks").getAsLong() : 0));
         } else if (b.has("milestone") && b.get("milestone").isJsonObject()) {
             JsonObject m = b.getAsJsonObject("milestone");
-            if (m.has("tier")) ui.toastMilestone(name, m.get("tier").getAsInt(), m.has("achievements") ? m.get("achievements").getAsInt() : 0, m.has("total") ? m.get("total").getAsInt() : 0);
+            if (m.has("tier")) later(() -> ui.toastMilestone(name, m.get("tier").getAsInt(), m.has("achievements") ? m.get("achievements").getAsInt() : 0, m.has("total") ? m.get("total").getAsInt() : 0));
         }
+    }
+
+    /** Toasts de succès en attente du délai choisi par le joueur : heure d'affichage, puis l'affichage. */
+    private final java.util.ArrayDeque<Map.Entry<Long, Runnable>> delayedToasts = new java.util.ArrayDeque<>();
+
+    /** Affiche après le délai des réglages (tout de suite sans délai), dans l'ordre d'arrivée. */
+    private void later(Runnable toast) {
+        long delay = config.toastDelayMs();
+        if (delay == 0 && delayedToasts.isEmpty()) toast.run();
+        else delayedToasts.add(new java.util.AbstractMap.SimpleImmutableEntry<>(clock.millis() + delay, toast));
+    }
+
+    private void tickDelayedToasts(long t) {
+        while (!delayedToasts.isEmpty() && delayedToasts.peek().getKey() <= t) delayedToasts.poll().getValue().run();
     }
 
     // ------------------------------------------------------------------ liaison du compte (#34)

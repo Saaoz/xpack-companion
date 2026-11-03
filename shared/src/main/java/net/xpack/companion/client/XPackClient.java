@@ -105,6 +105,11 @@ public final class XPackClient {
     /** Fin de la fenêtre pendant laquelle la touche du support est active (durée du toast). */
     private static long alertUntil;
 
+    /** Appelé après le dessin des toasts du jeu (mixin) : les nôtres, s'ils sont dans un autre coin. */
+    public static void renderPlacedToasts(net.minecraft.client.gui.GuiGraphics graphics, net.minecraft.client.gui.components.toasts.ToastComponent toasts) {
+        XPackToasts.render(graphics, toasts);
+    }
+
     static void alertShown() {
         alertUntil = System.currentTimeMillis() + IntegrityToast.DISPLAY_MS;
     }
@@ -149,6 +154,7 @@ public final class XPackClient {
             // Différé : le chat se ferme juste après l'envoi de la commande.
             case "support" -> mc.tell(() -> mc.setScreen(new SupportScreen(null)));
             case "settings", "reglages", "réglages" -> mc.tell(() -> mc.setScreen(new SettingsScreen(null)));
+            case "toast", "essai", "test" -> core.previewToast(Texts.tr("xpack.toast.preview").getString());
             default -> XPackCommands.help(); // /xpack, /xpack help, ou commande inconnue
         }
         return true;

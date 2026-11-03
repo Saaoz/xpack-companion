@@ -132,6 +132,7 @@ public final class Client1122 {
         Runtime.getRuntime().addShutdownHook(new Thread(core::flushWorldFile, "XPack flush"));
         MinecraftForge.EVENT_BUS.register(new Client1122());
         MinecraftForge.EVENT_BUS.register(new ChatSuggestions());
+        MinecraftForge.EVENT_BUS.register(new Toasts1122());
         net.minecraftforge.client.ClientCommandHandler.instance.registerCommand(new XPackCommand());
     }
 
@@ -418,6 +419,11 @@ public final class Client1122 {
             case "réglages":
                 defer(() -> mc.displayGuiScreen(new SettingsScreen1122(null)));
                 break;
+            case "toast":
+            case "essai":
+            case "test":
+                core.previewToast(Lang.tr("xpack.toast.preview"));
+                break;
             case "support":
                 defer(() -> mc.displayGuiScreen(new SupportScreen1122(null)));
                 break;
@@ -433,7 +439,7 @@ public final class Client1122 {
     }
 
     /** Sous-commandes, dans l'ordre de l'aide. Leur description est la clé {@code xpack.command.<nom>}. */
-    static final List<String> SUBCOMMANDS = J8.listOf("settings", "team", "check", "diagnostic", "support", "help");
+    static final List<String> SUBCOMMANDS = J8.listOf("settings", "toast", "team", "check", "diagnostic", "support", "help");
 
     private static void help() {
         Ui1122.say(Lang.tr("xpack.command.help.title"));

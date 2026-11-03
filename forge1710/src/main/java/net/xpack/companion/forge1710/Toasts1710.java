@@ -8,19 +8,22 @@ import java.util.List;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.FontRenderer;
 import net.minecraft.client.gui.Gui;
+import net.minecraft.client.gui.ScaledResolution;
 import net.minecraft.client.renderer.RenderHelper;
 import net.minecraft.client.renderer.entity.RenderItem;
 import net.minecraft.init.Items;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
+import net.minecraftforge.client.event.GuiScreenEvent;
 import net.minecraftforge.client.event.RenderGameOverlayEvent;
 import net.xpack.companion.core.Ui;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL12;
 
 /**
- * Toasts XPack, au même dessin que les autres versions (icône du progrès, rareté, points), en
- * haut à droite. La 1.7.10 n'a pas de système de toasts (il date de la 1.12) : la pile, le
+ * Toasts XPack, au même dessin que les autres versions (icône du progrès, rareté, points), dans le
+ * coin choisi dans les réglages ; en bas à droite par défaut : en haut à droite, ils passaient
+ * derrière la fenêtre d'achievement du jeu. L'alerte anti-triche reste en haut à droite. La 1.7.10 n'a pas de système de toasts (il date de la 1.12) : la pile, le
  * glissement d'entrée et de sortie sont dessinés ici. Les succès obtenus ensemble sont regroupés en
  * un seul toast ; un palier attend que le toast des succès soit parti.
  */
@@ -190,21 +193,56 @@ public final class Toasts1710 {
         return font.getStringWidth(text) > width ? font.trimStringToWidth(text, width) + "…" : text;
     }
 
+    /** En jeu, sans écran ouvert. */
     @SubscribeEvent
     public void onOverlay(RenderGameOverlayEvent.Post event) {
-        if (event.type != RenderGameOverlayEvent.ElementType.ALL || active.isEmpty()) return;
+        if (event.type != RenderGameOverlayEvent.ElementType.ALL || active.isEmpty() || Minecraft.getMinecraft().currentScreen != null) return;
+        draw(event.resolution.getScaledWidth(), event.resolution.getScaledHeight());
+    }
+
+    /** Par-dessus un écran (réglages, inventaire, machine) : comme les toasts des versions récentes. */
+    @SubscribeEvent
+    public void onScreen(GuiScreenEvent.DrawScreenEvent.Post event) {
+        if (active.isEmpty()) return;
+        Minecraft mc = Minecraft.getMinecraft();
+        ScaledResolution res = new ScaledResolution(mc, mc.displayWidth, mc.displayHeight);
+        GL11.glPushMatrix();
+        GL11.glTranslatef(0, 0, 300); // devant les objets dessinés par l'écran
+        draw(res.getScaledWidth(), res.getScaledHeight());
+        GL11.glPopMatrix();
+    }
+
+    /** Coin par défaut en 1.7.10 : le haut à droite est la place de la fenêtre d'achievement du jeu. */
+    static final String DEFAULT_POSITION = "bottom_right";
+
+    private static void draw(int screenWidth, int screenHeight) {
+        String corner = Client1710.core() == null ? DEFAULT_POSITION : Client1710.core().config().toastPosition(DEFAULT_POSITION);
+        List<Toast> alertList = new ArrayList<>();
+        List<Toast> successes = new ArrayList<>();
+        for (Toast t : active) (t.kind == Toast.ALERT ? alertList : successes).add(t);
+        GL11.glEnable(GL11.GL_BLEND);
+        // L'alerte anti-triche reste en haut à droite ; les succès vont dans le coin choisi.
+        drawStack(alertList, "top_right", screenWidth, screenHeight);
+        drawStack(successes, corner, screenWidth, screenHeight);
+        GL11.glColor4f(1f, 1f, 1f, 1f);
+    }
+
+    /** Pile de toasts dans un coin : depuis le bord haut ou bas, entrée et sortie par le côté. */
+    private static void drawStack(List<Toast> toasts, String corner, int screenWidth, int screenHeight) {
         Minecraft mc = Minecraft.getMinecraft();
         FontRenderer font = mc.fontRenderer;
         long now = System.currentTimeMillis();
-        int screenWidth = event.resolution.getScaledWidth();
-        int y = MARGIN;
-        GL11.glEnable(GL11.GL_BLEND);
-        for (Toast t : new ArrayList<>(active)) {
+        boolean left = corner.endsWith("_left");
+        boolean bottom = corner.startsWith("bottom");
+        int y = bottom ? screenHeight - MARGIN : MARGIN;
+        for (Toast t : toasts) {
             long age = now - t.shownAt;
             // Glissement d'entrée au début, de sortie à la fin.
             double slide = age < SLIDE_MS ? age / (double) SLIDE_MS : age > t.displayMs ? Math.max(0, 1 - (age - t.displayMs) / (double) SLIDE_MS) : 1;
             slide = 1 - (1 - slide) * (1 - slide);
-            int x = screenWidth - MARGIN - t.width + (int) ((1 - slide) * (t.width + MARGIN));
+            int hidden = (int) ((1 - slide) * (t.width + MARGIN));
+            int x = left ? MARGIN - hidden : screenWidth - MARGIN - t.width + hidden;
+            if (bottom) y -= t.height;
             GL11.glPushMatrix();
             GL11.glTranslatef(x, y, 0);
             if (t.kind == Toast.UNLOCK) {
@@ -225,8 +263,7 @@ public final class Toasts1710 {
                 font.drawString(fit(font, t.detail, t.width - 36), 30, 18, 0xFFFFFF);
             }
             GL11.glPopMatrix();
-            y += t.height + GAP;
+            y = bottom ? y - GAP : y + t.height + GAP;
         }
-        GL11.glColor4f(1f, 1f, 1f, 1f);
     }
 }

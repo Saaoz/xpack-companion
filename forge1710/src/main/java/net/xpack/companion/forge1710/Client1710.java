@@ -94,7 +94,7 @@ public final class Client1710 {
     private static final int ITEMS_INTERVAL_TICKS = 20;
     private static final int PAUSE_BUTTON_ID = 7_300;
     private static final String PLAY_TIME = "minecraft:custom/minecraft:play_time";
-    static final List<String> SUBCOMMANDS = J8.listOf("settings", "team", "check", "diagnostic", "support", "help");
+    static final List<String> SUBCOMMANDS = J8.listOf("settings", "toast", "team", "check", "diagnostic", "support", "help");
 
     private static XPackCore core;
     private static Path configDir;
@@ -493,6 +493,11 @@ public final class Client1710 {
             case "reglages":
             case "réglages":
                 defer(() -> Minecraft.getMinecraft().displayGuiScreen(new SettingsScreen1710(null)));
+                break;
+            case "toast":
+            case "essai":
+            case "test":
+                core.previewToast(Lang.tr("xpack.toast.preview"));
                 break;
             case "support":
                 defer(() -> Minecraft.getMinecraft().displayGuiScreen(new SupportScreen1710(null)));

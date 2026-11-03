@@ -857,6 +857,40 @@ class XPackCoreTest {
     }
 
     @Test
+    void toastDEssaiAvecLePremierSuccesDuModpackMemeToastsCoupes() {
+        config.toasts = false;
+        core.previewToast("Succès d'essai");
+        assertEquals(List.of("Succès d'essai:5:commun"), ui.toasts, "hors partie : l'exemple");
+        creds.put(config.apiUrl, UUID, "Steve", "jeton");
+        api.reply(201, SESSION);
+        core.onJoinWorld(world());
+        core.onAdvancementCatalog(List.of(adv("farmersdelight:main/root", null, "task"), adv("minecraft:story/root", null, "task")), "fr_fr");
+        int calls = api.calls.size();
+        core.previewToast("Succès d'essai");
+        assertEquals("Titre minecraft:story/root:5:commun:minecraft:stone:88:normal", ui.toasts.get(1), "le premier succès du jeu en priorité");
+        assertEquals(calls, api.calls.size(), "rien n'est envoyé");
+    }
+
+    @Test
+    void leToastAttendLeDelaiChoisiDansLesReglages() {
+        config.toastDelay = 3;
+        core.previewToast("A");
+        core.previewToast("B");
+        assertEquals(List.of(), ui.toasts);
+        clock.millis += 2_999;
+        core.tick();
+        assertEquals(List.of(), ui.toasts);
+        clock.millis += 1;
+        core.tick();
+        assertEquals(List.of("A:5:commun", "B:5:commun"), ui.toasts, "dans l'ordre d'arrivée");
+        config.toastDelay = 99;
+        assertEquals(10_000, config.toastDelayMs(), "borné à 10 s");
+        assertEquals("bottom_right", config.toastPosition("bottom_right"), "rien de choisi : celui de la version");
+        config.toastPosition = "top_left";
+        assertEquals("top_left", config.toastPosition("bottom_right"));
+    }
+
+    @Test
     void envoieLeCatalogueDesProgresUneFoisParPartieEtSeulementSIlChange() {
         creds.put(config.apiUrl, UUID, "Steve", "jeton");
         api.reply(201, SESSION);

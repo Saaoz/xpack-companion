@@ -31,6 +31,18 @@ public final class Config {
     public boolean enabled = true;
     /** Notifications « Succès débloqué » en jeu (#39). */
     public boolean toasts = true;
+    /** Coins où l'on peut placer les toasts de succès. */
+    public static final java.util.List<String> TOAST_POSITIONS = J8.listOf("top_right", "top_left", "bottom_right", "bottom_left");
+    /** Délais proposés avant l'apparition d'un toast de succès, en secondes. */
+    public static final java.util.List<Integer> TOAST_DELAYS = J8.listOf(0, 1, 2, 3, 5, 10);
+    /**
+     * Coin des toasts de succès et de paliers : {@code top_right}, {@code top_left},
+     * {@code bottom_right} ou {@code bottom_left}. {@code null} : celui de la version (voir
+     * {@link #toastPosition(String)}). L'alerte anti-triche reste en haut à droite.
+     */
+    public String toastPosition;
+    /** Délai avant l'apparition d'un toast de succès, en secondes (0 à 10). */
+    public int toastDelay = 0;
     /** Son joué avec le toast d'un succès (#59) : {@code carillon}, {@code cloche}, {@code fanfare} ou {@code off}. */
     public String sound = "carillon";
     /** Volume de ce son, de 0 à 100 (en plus du volume général du jeu). */
@@ -42,6 +54,20 @@ public final class Config {
      * ({@code key.keyboard.k}) ; K par défaut, car J sert déjà à JourneyMap.
      */
     public String supportKey = "key.keyboard.k";
+
+    /**
+     * Coin effectif des toasts de succès. {@code versionDefault} : celui de la version quand le
+     * joueur n'a rien choisi (en haut à droite avec les toasts du jeu ; en bas à droite en 1.7.10,
+     * où le haut à droite est la place de la fenêtre d'achievement du jeu).
+     */
+    public String toastPosition(String versionDefault) {
+        return TOAST_POSITIONS.contains(toastPosition) ? toastPosition : versionDefault;
+    }
+
+    /** Délai effectif avant un toast de succès, en millisecondes (borné à 0–10 s). */
+    public long toastDelayMs() {
+        return Math.max(0, Math.min(10, toastDelay)) * 1000L;
+    }
 
     public static Config load(Path file) {
         try {
