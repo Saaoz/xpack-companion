@@ -13,11 +13,16 @@ import net.minecraft.client.gui.toasts.AdvancementToast;
 import net.minecraft.client.gui.toasts.GuiToast;
 import net.minecraft.client.gui.toasts.IToast;
 import net.minecraft.client.renderer.GlStateManager;
+import net.minecraft.client.renderer.RenderHelper;
+import net.minecraft.init.Items;
+import net.minecraft.item.Item;
+import net.minecraft.item.ItemStack;
 import net.minecraftforge.fml.relauncher.ReflectionHelper;
+import net.xpack.companion.core.Ui;
 
 /**
- * Toasts XPack, au même dessin que les autres versions : pastille de rareté, titre coloré, détail
- * en blanc. Ils passent <b>après</b> ceux du jeu (aucun progrès vanilla à l'écran ni en attente) et
+ * Toasts XPack, au même dessin que les autres versions (icône du progrès, rareté, points). Ils
+ * passent <b>après</b> ceux du jeu (aucun progrès vanilla à l'écran ni en attente) et
  * les succès obtenus ensemble sont regroupés en un seul toast.
  */
 final class Toasts1122 {
@@ -26,19 +31,9 @@ final class Toasts1122 {
     /** Petit délai après le dernier toast du jeu, pour ne pas s'intercaler dans une rafale de progrès. */
     private static final long QUIET_MS = 1_500;
 
-    private static final class Unlock {
-        final String name;
-        final int points;
-        final String rarity;
+    private static final Ui.Unlock.Tr TR = Lang::tr;
 
-        Unlock(String name, int points, String rarity) {
-            this.name = name;
-            this.points = points;
-            this.rarity = rarity;
-        }
-    }
-
-    private static final List<Unlock> unlocks = new ArrayList<>();
+    private static final List<Ui.Unlock> unlocks = new ArrayList<>();
     private static final Deque<IToast> alerts = new ArrayDeque<>();
     private static final Deque<CompletionToast> completions = new ArrayDeque<>();
     private static long gameToastSeenAt;
@@ -47,8 +42,8 @@ final class Toasts1122 {
 
     private Toasts1122() {}
 
-    static void unlocked(String name, int points, String rarity) {
-        unlocks.add(new Unlock(name, points, rarity));
+    static void unlocked(Ui.Unlock unlock) {
+        unlocks.add(unlock);
     }
 
     static void alert(String reason) {
@@ -83,11 +78,9 @@ final class Toasts1122 {
         // L'alerte d'intégrité d'abord.
         if (!alerts.isEmpty()) toasts.add(alerts.poll());
         if (!unlocks.isEmpty()) {
-            toasts.add(unlockToast(new ArrayList<>(unlocks)));
+            toasts.add(new UnlockToast(new ArrayList<>(unlocks)));
             // Un seul son pour le toast : celui du plus rare des succès qu'il regroupe.
-            String rarest = "commun";
-            for (Unlock u : unlocks) if (rank(u.rarity) > rank(rarest)) rarest = u.rarity;
-            Sounds1122.play(Client1122.core().config(), rarest);
+            Sounds1122.play(Client1122.core().config(), Ui.Unlock.rarest(unlocks).rarity);
             unlocks.clear();
         }
         // Palier (#60) : une fois le toast du dernier succès parti, avec son propre son.
@@ -118,48 +111,10 @@ final class Toasts1122 {
 
     // ------------------------------------------------------------------ succès
 
-    static int rank(String rarity) {
-        switch (rarity) {
-            case "peu_commun":
-                return 1;
-            case "rare":
-                return 2;
-            case "epique":
-                return 3;
-            case "legendaire":
-                return 4;
-            default:
-                return 0;
-        }
-    }
-
-    private static int color(String rarity) {
-        switch (rarity) {
-            case "peu_commun":
-                return 0x4CC38A;
-            case "rare":
-                return 0x4FA3FF;
-            case "epique":
-                return 0xB47CFF;
-            case "legendaire":
-                return 0xFFB347;
-            default:
-                return 0xA9B6C4;
-        }
-    }
-
-    private static UnlockToast unlockToast(List<Unlock> list) {
-        // La couleur du plus rare des succès obtenus.
-        Unlock rarest = list.get(0);
-        for (Unlock u : list) if (rank(u.rarity) > rank(rarest.rarity)) rarest = u;
-        if (list.size() == 1) return new UnlockToast(Lang.tr("xpack.toast.title", rarest.points), rarest.name, color(rarest.rarity));
-        int points = 0;
-        List<String> names = new ArrayList<>();
-        for (Unlock u : list) {
-            points += u.points;
-            names.add(u.name);
-        }
-        return new UnlockToast(Lang.tr("xpack.toast.summary", list.size(), points), String.join(", ", names), color(rarest.rarity));
+    /** Objet icône du progrès ; une fiole d'expérience pour un succès sans progrès du jeu. */
+    private static ItemStack icon(String id) {
+        Item item = id == null ? null : Item.getByNameOrId(id);
+        return new ItemStack(item == null || item == Items.AIR ? Items.EXPERIENCE_BOTTLE : item);
     }
 
     /** Fond des toasts, aux couleurs des autres versions. */
@@ -177,28 +132,70 @@ final class Toasts1122 {
         if (width > SLOT) GlStateManager.translate(SLOT - width, 0, 0);
     }
 
-    /** Toast « Succès XPack » (#39) : 5 s, 160 de large. */
+    /**
+     * Toast « Succès XPack » (#39) : 5 s, 200 × 40, même dessin que les autres versions (icône du
+     * progrès, rareté, part des joueurs, points, barre du temps restant). Le jeu range ses toasts
+     * tous les 32 pixels : un toast du jeu arrivé juste dessous en recouvre le bas.
+     */
     private static final class UnlockToast implements IToast {
         private static final long DISPLAY_MS = 5_000;
-        private final String title;
-        private final String detail;
-        private final int color;
+        private static final int WIDTH = 200;
+        private static final int HEIGHT = 40;
+        private static final int MAX_ICONS = 3;
+        private final List<Ui.Unlock> unlocks;
+        private final Ui.Unlock rarest;
 
-        UnlockToast(String title, String detail, int color) {
-            this.title = title;
-            this.detail = detail;
-            this.color = color;
+        UnlockToast(List<Ui.Unlock> unlocks) {
+            this.unlocks = unlocks;
+            this.rarest = Ui.Unlock.rarest(unlocks);
         }
 
         @Override
         public Visibility draw(GuiToast gui, long delta) {
-            FontRenderer font = gui.getMinecraft().fontRenderer;
-            background(SLOT, 32, false);
-            // Pastille de rareté à la place de l'icône d'objet.
-            Gui.drawRect(8, 8, 24, 24, 0xFF000000 | color);
-            Gui.drawRect(10, 10, 22, 22, 0xFF141A23);
-            font.drawString(title, 30, 7, 0xFF000000 | color);
-            font.drawString(fit(font, detail, SLOT - 36), 30, 18, 0xFFFFFF);
+            Minecraft mc = gui.getMinecraft();
+            FontRenderer font = mc.fontRenderer;
+            int rgb = 0xFF000000 | Ui.Unlock.color(rarest.rarity);
+            alignRight(WIDTH);
+            Gui.drawRect(0, 0, WIDTH, HEIGHT, "legendaire".equals(rarest.rarity) ? rgb : 0xFF3D4B60);
+            Gui.drawRect(1, 1, WIDTH - 1, HEIGHT - 1, 0xF0141A23);
+            Gui.drawRect(1, 1, WIDTH - 1, 3, rgb);
+
+            // Icônes : une par succès (3 au plus, puis « +N »), dans un cadre de leur rareté.
+            int x = 6;
+            int shown = Math.min(unlocks.size(), unlocks.size() > MAX_ICONS ? MAX_ICONS - 1 : MAX_ICONS);
+            for (int i = 0; i < shown; i++) {
+                Ui.Unlock u = unlocks.get(i);
+                Gui.drawRect(x, 11, x + 20, 31, 0xFF000000 | Ui.Unlock.color(u.rarity));
+                Gui.drawRect(x + 2, 13, x + 18, 29, 0xFF0B0F15);
+                RenderHelper.enableGUIStandardItemLighting();
+                mc.getRenderItem().renderItemAndEffectIntoGUI(null, icon(u.item), x + 2, 13);
+                RenderHelper.disableStandardItemLighting();
+                x += 22;
+            }
+            if (unlocks.size() > shown) {
+                Gui.drawRect(x, 11, x + 20, 31, 0xFFA9B6C4);
+                Gui.drawRect(x + 2, 13, x + 18, 29, 0xFF0B0F15);
+                String more = "+" + (unlocks.size() - shown);
+                font.drawString(more, x + 10 - font.getStringWidth(more) / 2, 17, 0xD6DEE8);
+                x += 22;
+            }
+
+            // Points à droite, puis les trois lignes de texte.
+            String pts = "+" + Ui.Unlock.totalPoints(unlocks);
+            String unit = Lang.tr("xpack.toast.points");
+            font.drawString(pts, WIDTH - 6 - font.getStringWidth(pts), 10, 0xFFD166);
+            font.drawString(unit, WIDTH - 6 - font.getStringWidth(unit), 21, 0xA3B1C2);
+            int textX = x + 4;
+            int textWidth = WIDTH - textX - 10 - Math.max(font.getStringWidth(pts), font.getStringWidth(unit));
+            font.drawString(fit(font, Ui.Unlock.header(unlocks, TR), textWidth), textX, 6, rgb);
+            font.drawString(fit(font, Ui.Unlock.names(unlocks), textWidth), textX, 17, 0xFFFFFF);
+            font.drawString(fit(font, Ui.Unlock.detail(unlocks, TR), textWidth), textX, 28, 0xA3B1C2);
+
+            // Temps d'affichage restant.
+            int bar = (int) Math.round((WIDTH - 2) * Math.max(0, 1 - delta / (double) DISPLAY_MS));
+            Gui.drawRect(1, HEIGHT - 3, WIDTH - 1, HEIGHT - 1, 0xFF0B0F15);
+            if (bar > 0) Gui.drawRect(1, HEIGHT - 3, 1 + bar, HEIGHT - 1, rgb);
+            GlStateManager.color(1f, 1f, 1f, 1f);
             return delta >= DISPLAY_MS ? Visibility.HIDE : Visibility.SHOW;
         }
     }

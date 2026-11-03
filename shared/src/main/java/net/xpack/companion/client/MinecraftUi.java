@@ -41,8 +41,8 @@ final class MinecraftUi implements Ui {
     }
 
     @Override
-    public void toastUnlocked(String name, int points, String rarity) {
-        XPackToasts.unlocked(name, points, rarity); // affiché après les progrès du jeu
+    public void toastUnlocked(Ui.Unlock unlock) {
+        XPackToasts.unlocked(unlock); // affiché après les progrès du jeu
     }
 
     @Override

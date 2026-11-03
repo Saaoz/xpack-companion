@@ -9,6 +9,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.toasts.AdvancementToast;
 import net.minecraft.client.gui.components.toasts.Toast;
 import net.minecraft.client.gui.components.toasts.ToastComponent;
+import net.xpack.companion.core.Ui;
 import net.xpack.companion.mixin.ToastComponentAccessor;
 
 /**
@@ -17,20 +18,19 @@ import net.xpack.companion.mixin.ToastComponentAccessor;
  * ensemble sont regroupés en une seule notification (« 3 succès XPack · +45 points »).
  */
 final class XPackToasts {
-    record Unlock(String name, int points, String rarity) {}
 
     /** Petit délai après le dernier toast du jeu, pour ne pas s'intercaler dans une rafale de progrès. */
     private static final long QUIET_MS = 1_500;
 
-    private static final List<Unlock> unlocks = new ArrayList<>();
+    private static final List<Ui.Unlock> unlocks = new ArrayList<>();
     private static final Deque<IntegrityToast> alerts = new ArrayDeque<>();
     private static final Deque<CompletionToast> completions = new ArrayDeque<>();
     private static long gameToastSeenAt;
 
     private XPackToasts() {}
 
-    static void unlocked(String name, int points, String rarity) {
-        unlocks.add(new Unlock(name, points, rarity));
+    static void unlocked(Ui.Unlock unlock) {
+        unlocks.add(unlock);
     }
 
     static void alert(IntegrityToast toast) {
@@ -61,7 +61,7 @@ final class XPackToasts {
         if (!unlocks.isEmpty()) {
             toasts.addToast(XPackToast.of(List.copyOf(unlocks)));
             // Un seul son pour le toast : celui du plus rare des succès qu'il regroupe.
-            unlocks.stream().map(Unlock::rarity).max(Comparator.comparingInt(XPackToast::rank))
+            unlocks.stream().map(u -> u.rarity).max(Comparator.comparingInt(Ui.Unlock::rank))
                     .ifPresent(r -> XPackSounds.play(XPackClient.core().config(), r));
             unlocks.clear();
         }

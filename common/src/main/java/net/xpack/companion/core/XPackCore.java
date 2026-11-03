@@ -1377,7 +1377,10 @@ public final class XPackCore {
         if (!config.toasts || !b.has("unlocked")) return;
         for (JsonElement el : b.getAsJsonArray("unlocked")) {
             JsonObject u = el.getAsJsonObject();
-            ui.toastUnlocked(u.get("name").getAsString(), u.get("points").getAsInt(), u.has("rarity") ? u.get("rarity").getAsString() : "commun");
+            // Objet, part des joueurs et difficulté : absents d'un ancien serveur.
+            String rarity = text(u.get("rarity"));
+            ui.toastUnlocked(new Ui.Unlock(u.get("name").getAsString(), u.get("points").getAsInt(), rarity != null ? rarity : "commun", text(u.get("item")),
+                    u.has("percent") && u.get("percent").isJsonPrimitive() ? u.get("percent").getAsDouble() : -1, text(u.get("difficulty"))));
         }
         // Paliers du modpack (#60) : toast spécial, après ceux des succès du lot. 100 % dans « completed »,
         // 25/50/75 % dans « milestone ».

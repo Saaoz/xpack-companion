@@ -53,8 +53,8 @@ final class Ui1122 implements Ui {
                 Lang.tr("xpack.consent.accept"), Lang.tr("xpack.consent.refuse"), false, answer);
     }
     @Override
-    public void toastUnlocked(String name, int points, String rarity) {
-        Toasts1122.unlocked(name, points, rarity); // affiché après les progrès du jeu
+    public void toastUnlocked(Ui.Unlock unlock) {
+        Toasts1122.unlocked(unlock); // affiché après les progrès du jeu
     }
 
     @Override

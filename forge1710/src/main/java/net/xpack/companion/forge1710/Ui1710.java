@@ -53,8 +53,8 @@ final class Ui1710 implements Ui {
     }
 
     @Override
-    public void toastUnlocked(String name, int points, String rarity) {
-        Toasts1710.unlocked(name, points, rarity);
+    public void toastUnlocked(Ui.Unlock unlock) {
+        Toasts1710.unlocked(unlock);
     }
 
     @Override

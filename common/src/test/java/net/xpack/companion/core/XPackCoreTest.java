@@ -85,8 +85,8 @@ class XPackCoreTest {
         }
 
         @Override
-        public void toastUnlocked(String name, int points, String rarity) {
-            toasts.add(name + ":" + points + ":" + rarity);
+        public void toastUnlocked(Ui.Unlock u) {
+            toasts.add(u.name + ":" + u.points + ":" + u.rarity + (u.item != null ? ":" + u.item + ":" + u.shownPercent() + ":" + u.difficulty : ""));
         }
 
         @Override
@@ -486,7 +486,7 @@ class XPackCoreTest {
         linkedAndJoined();
         core.onAdvancements(List.of("minecraft:story/root", "minecraft:recipes/misc/torch"), true, 10);
         core.onAdvancements(List.of("minecraft:story/root", "create:andesite_alloy"), false, 2_000);
-        api.reply(200, "{\"accepted\":2,\"unlocked\":[{\"achievementId\":\"x/alliage\",\"name\":\"Alliage\",\"points\":10,\"rarity\":\"rare\"}],"
+        api.reply(200, "{\"accepted\":2,\"unlocked\":[{\"achievementId\":\"x/alliage\",\"name\":\"Alliage\",\"points\":10,\"rarity\":\"rare\"},{\"achievementId\":\"x/diamants\",\"name\":\"Diamants\",\"points\":19,\"rarity\":\"epique\",\"item\":\"minecraft:diamond\",\"percent\":0.4,\"difficulty\":\"hard\"}],"
                 + "\"integrity\":{\"status\":\"propre\",\"flaggedAt\":null}}");
         core.tick();
 
@@ -498,7 +498,7 @@ class XPackCoreTest {
         assertEquals(1, events.get(1).getAsJsonObject().get("seq").getAsInt());
         assertFalse(events.get(1).getAsJsonObject().has("snapshot"));
         assertTrue(first.get("id").getAsString().startsWith("adv-"), "identifiant déterministe pour le dédoublonnage");
-        assertEquals(List.of("Alliage:10:rare"), ui.toasts);
+        assertEquals(List.of("Alliage:10:rare", "Diamants:19:epique:minecraft:diamond:0:hard"), ui.toasts, "ancien serveur, puis objet, part des joueurs et difficulté");
     }
 
     @Test

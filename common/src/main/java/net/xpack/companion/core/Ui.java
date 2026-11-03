@@ -13,7 +13,109 @@ public interface Ui {
     void showCheatModeWarning(String mode, Runnable onDisable, Runnable onContinue);
 
     /** Toast « Succès débloqué » (#39). */
-    void toastUnlocked(String name, int points, String rarity);
+    void toastUnlocked(Unlock unlock);
+
+    /** Un succès débloqué, tel que le toast l'affiche. */
+    final class Unlock {
+        public final String name;
+        public final int points;
+        /** commun, peu_commun, rare, epique ou legendaire. */
+        public final String rarity;
+        /** Objet icône du progrès (« minecraft:diamond »), ou null : succès sans progrès du jeu, ancien serveur. */
+        public final String item;
+        /** Part des joueurs du modpack qui l'ont (en %), ou -1 si le serveur ne l'envoie pas. */
+        public final double percent;
+        /** Badge de difficulté du monde (peaceful … hardcore), ou null. */
+        public final String difficulty;
+
+        public Unlock(String name, int points, String rarity, String item, double percent, String difficulty) {
+            this.name = name;
+            this.points = points;
+            this.rarity = rarity;
+            this.item = item;
+            this.percent = percent;
+            this.difficulty = difficulty;
+        }
+
+        /** Rang de la rareté, du commun (0) au légendaire (4). */
+        public static int rank(String rarity) {
+            switch (rarity) {
+                case "peu_commun":
+                    return 1;
+                case "rare":
+                    return 2;
+                case "epique":
+                    return 3;
+                case "legendaire":
+                    return 4;
+                default:
+                    return 0;
+            }
+        }
+
+        /** Couleur de la rareté (celles du site). */
+        public static int color(String rarity) {
+            switch (rarity) {
+                case "peu_commun":
+                    return 0x4CC38A;
+                case "rare":
+                    return 0x4FA3FF;
+                case "epique":
+                    return 0xB47CFF;
+                case "legendaire":
+                    return 0xFFB347;
+                default:
+                    return 0xA9B6C4;
+            }
+        }
+
+        /** Le plus rare d'une liste non vide (le premier en cas d'égalité). */
+        public static Unlock rarest(java.util.List<Unlock> unlocks) {
+            Unlock best = unlocks.get(0);
+            for (Unlock u : unlocks) if (rank(u.rarity) > rank(best.rarity)) best = u;
+            return best;
+        }
+
+        /** Pourcentage arrondi pour le toast, -1 inconnu, 0 pour « moins de 1 % ». */
+        public long shownPercent() {
+            return percent < 0 ? -1 : percent < 1 ? 0 : Math.round(percent);
+        }
+
+        /** Traduction d'une clé des fichiers de langue du mod, propre à chaque version de Minecraft. */
+        public interface Tr {
+            String tr(String key, Object... args);
+        }
+
+        /** 1re ligne du toast : « SUCCÈS XPACK · RARE », ou « 3 SUCCÈS XPACK ». */
+        public static String header(java.util.List<Unlock> unlocks, Tr t) {
+            String text = unlocks.size() == 1 ? t.tr("xpack.toast.header", t.tr("xpack.rarity." + unlocks.get(0).rarity)) : t.tr("xpack.toast.headerMany", unlocks.size());
+            return text.toUpperCase(java.util.Locale.ROOT);
+        }
+
+        /** 2e ligne : le nom, ou les noms séparés par des virgules. */
+        public static String names(java.util.List<Unlock> unlocks) {
+            StringBuilder out = new StringBuilder();
+            for (Unlock u : unlocks) out.append(out.length() == 0 ? "" : ", ").append(u.name);
+            return out.toString();
+        }
+
+        /** 3e ligne : part des joueurs et difficulté ; pour plusieurs succès, la rareté du plus rare. */
+        public static String detail(java.util.List<Unlock> unlocks, Tr t) {
+            Unlock rarest = rarest(unlocks);
+            if (unlocks.size() > 1) return t.tr("xpack.toast.rarest", t.tr("xpack.rarity." + rarest.rarity));
+            long p = rarest.shownPercent();
+            String players = p < 0 ? null : p == 0 ? t.tr("xpack.toast.playersFew") : t.tr("xpack.toast.players", p);
+            String difficulty = rarest.difficulty == null ? null : t.tr("xpack.difficulty." + rarest.difficulty);
+            if (players != null && difficulty != null) return players + " · " + difficulty;
+            return players != null ? players : difficulty != null ? difficulty : "";
+        }
+
+        public static int totalPoints(java.util.List<Unlock> unlocks) {
+            int sum = 0;
+            for (Unlock u : unlocks) sum += u.points;
+            return sum;
+        }
+    }
 
     /** Toast « Modpack terminé à 100 % » (#60), plus marqué qu'un succès. {@code modpackName} peut être null. */
     void toastCompleted(String modpackName, int achievements, long playtimeTicks);
