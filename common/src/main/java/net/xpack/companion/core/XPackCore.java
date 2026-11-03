@@ -540,6 +540,7 @@ public final class XPackCore {
         flushWorldFile(); // avant que le monde suivant ne remplace l'écriture en attente
         world = null;
         worldId = null;
+        invulnerableSince = -1;
         sessionId = null;
         sessionPending = false;
         pending.clear();
@@ -801,7 +802,18 @@ public final class XPackCore {
         }
     }
 
+    /**
+     * Invulnérabilité en survie tolérée tant qu'elle ne dure pas plus d'une minute de jeu d'affilée :
+     * des mods la donnent un instant à l'apparition et entre les dimensions (AngerMod dans GT:NH,
+     * 10 s par défaut, jusqu'au premier pas ou coup).
+     */
+    static final long INVULNERABLE_GRACE_TICKS = 60 * 20;
+    /** Début de l'invulnérabilité en cours (temps de jeu), -1 sans invulnérabilité. */
+    private long invulnerableSince = -1;
+
     public void onPlayerState(PlayerState s, long playtimeTicks) {
+        if (!s.invulnerable() || playtimeTicks < invulnerableSince) invulnerableSince = -1;
+        else if (invulnerableSince < 0) invulnerableSince = playtimeTicks;
         if (!tracking() || integrity.isFlagged()) return;
         switch (s.gameMode()) {
             case "creative":
@@ -812,7 +824,9 @@ public final class XPackCore {
                 break;
             default:
                 // Le vol en survie n'est pas signalé (#48) : jetpacks, anneaux, sorts, /home et /back… trop de façons légitimes.
-                if (s.invulnerable()) flagWithNotice(WorldIntegrity.Reason.ABILITIES, "invulnerable", "xpack.flagged.godmode");
+                // Certains modpacks (GT: New Horizons) donnent ou font gagner l'invulnérabilité : jamais signalée.
+                if (rules.ignoresInvulnerability(loadedMods)) break;
+                if (invulnerableSince >= 0 && playtimeTicks - invulnerableSince >= INVULNERABLE_GRACE_TICKS) flagWithNotice(WorldIntegrity.Reason.ABILITIES, "invulnerable", "xpack.flagged.godmode");
         }
     }
 

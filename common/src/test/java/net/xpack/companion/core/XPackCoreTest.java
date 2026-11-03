@@ -601,6 +601,38 @@ class XPackCoreTest {
                 new ModpackDetector.ModpackInfo("modrinth", null, null, "Engrenages", "1.4.0"), new JsonObject(), false));
         assertFalse(core.integrity().isFlagged());
         core.onPlayerState(new XPackCore.PlayerState("survival", true), 30);
+        assertFalse(core.integrity().isFlagged(), "protection au spawn (AngerMod) : tolérée une minute");
+        core.onPlayerState(new XPackCore.PlayerState("survival", true), 30 + XPackCore.INVULNERABLE_GRACE_TICKS);
+        assertTrue(core.integrity().isFlagged());
+    }
+
+    @Test
+    void laProtectionAuSpawnDesModsNEstPasDuGodmode() {
+        linkedAndJoined();
+        // AngerMod (GT:NH) : quelques secondes à chaque apparition ou changement de dimension, sans fin.
+        for (long t = 0; t < 10 * XPackCore.INVULNERABLE_GRACE_TICKS; t += XPackCore.INVULNERABLE_GRACE_TICKS / 3) {
+            core.onPlayerState(new XPackCore.PlayerState("survival", true), t);
+            core.onPlayerState(new XPackCore.PlayerState("survival", false), t + 200);
+        }
+        assertFalse(core.integrity().isFlagged());
+        // Changer de monde ne garde pas l'invulnérabilité du monde précédent.
+        core.onPlayerState(new XPackCore.PlayerState("survival", true), 20_000);
+        core.onLeaveWorld();
+        linkedAndJoined();
+        core.onPlayerState(new XPackCore.PlayerState("survival", true), 20_000 + XPackCore.INVULNERABLE_GRACE_TICKS);
+        assertFalse(core.integrity().isFlagged());
+    }
+
+    @Test
+    void gtNewHorizonsNeSignaleJamaisLInvulnerabilite() {
+        // dreamcraft : mod cœur de GT: New Horizons, où l'invulnérabilité se gagne en jeu.
+        core.setLoadedMods(List.of("minecraft", "forge", "dreamcraft", "angermod"));
+        linkedAndJoined();
+        core.onPlayerState(new XPackCore.PlayerState("survival", true), 0);
+        core.onPlayerState(new XPackCore.PlayerState("survival", true), 100 * XPackCore.INVULNERABLE_GRACE_TICKS);
+        assertFalse(core.integrity().isFlagged());
+        // Le créatif, lui, reste signalé.
+        core.onPlayerState(new XPackCore.PlayerState("creative", true), 100 * XPackCore.INVULNERABLE_GRACE_TICKS + 20);
         assertTrue(core.integrity().isFlagged());
     }
 
@@ -786,6 +818,7 @@ class XPackCoreTest {
         core.setLoadedMods(List.of("minecraft", "mekanism"));
         linkedAndJoined();
         core.onPlayerState(new XPackCore.PlayerState("survival", true), 30);
+        core.onPlayerState(new XPackCore.PlayerState("survival", true), 30 + XPackCore.INVULNERABLE_GRACE_TICKS);
         assertEquals(List.of("xpack.flagged.godmode"), ui.alerts, "notification avec accès au support");
 
         assertTrue(core.canContactSupport());

@@ -24,6 +24,7 @@ public final class IntegrityRules {
     private final Set<String> alwaysAllowed;
     private final Set<String> dangerousIfAllowed;
     private final Set<String> blacklistedMods;
+    private final Set<String> invulnerabilityIgnoredWithMods;
 
     public IntegrityRules(Collection<String> cheatCommands, Collection<String> alwaysAllowed, Collection<String> dangerousIfAllowed) {
         this(cheatCommands, alwaysAllowed, dangerousIfAllowed, J8.listOf());
@@ -31,10 +32,16 @@ public final class IntegrityRules {
 
     public IntegrityRules(Collection<String> cheatCommands, Collection<String> alwaysAllowed, Collection<String> dangerousIfAllowed,
             Collection<String> blacklistedMods) {
+        this(cheatCommands, alwaysAllowed, dangerousIfAllowed, blacklistedMods, J8.listOf());
+    }
+
+    public IntegrityRules(Collection<String> cheatCommands, Collection<String> alwaysAllowed, Collection<String> dangerousIfAllowed,
+            Collection<String> blacklistedMods, Collection<String> invulnerabilityIgnoredWithMods) {
         this.cheatCommands = J8.copyOfSet(cheatCommands);
         this.alwaysAllowed = J8.copyOfSet(alwaysAllowed);
         this.dangerousIfAllowed = J8.copyOfSet(dangerousIfAllowed);
         this.blacklistedMods = J8.copyOfSet(blacklistedMods);
+        this.invulnerabilityIgnoredWithMods = J8.copyOfSet(invulnerabilityIgnoredWithMods);
     }
 
     /** Règles embarquées dans le jar (copie de spec/integrity-rules.json). */
@@ -43,7 +50,8 @@ public final class IntegrityRules {
             if (in == null) throw new IllegalStateException("integrity-rules.json introuvable dans le jar");
             JsonObject json = J8.parseJson(new InputStreamReader(in, StandardCharsets.UTF_8)).getAsJsonObject();
             return new IntegrityRules(strings(json.getAsJsonArray("cheatCommands")), strings(json.getAsJsonArray("alwaysAllowedCommands")),
-                    strings(json.getAsJsonArray("dangerousIfAllowed")), strings(json.getAsJsonArray("blacklistedMods")));
+                    strings(json.getAsJsonArray("dangerousIfAllowed")), strings(json.getAsJsonArray("blacklistedMods")),
+                    strings(json.getAsJsonArray("invulnerabilityIgnoredWithMods")));
         } catch (IOException e) {
             throw new IllegalStateException(e);
         }
@@ -51,7 +59,7 @@ public final class IntegrityRules {
 
     /** Remplace les listes par celles renvoyées par l'API (mises à jour sans nouvelle version du mod). */
     public IntegrityRules withServerLists(List<String> cheat, List<String> allowed) {
-        return new IntegrityRules(cheat.isEmpty() ? cheatCommands : cheat, allowed.isEmpty() ? alwaysAllowed : allowed, dangerousIfAllowed, blacklistedMods);
+        return new IntegrityRules(cheat.isEmpty() ? cheatCommands : cheat, allowed.isEmpty() ? alwaysAllowed : allowed, dangerousIfAllowed, blacklistedMods, invulnerabilityIgnoredWithMods);
     }
 
     /**
@@ -59,12 +67,17 @@ public final class IntegrityRules {
      * modpack fournit volontairement. {@code null} (ancien serveur) garde la liste embarquée.
      */
     public IntegrityRules withBlacklist(List<String> modIds) {
-        return modIds == null ? this : new IntegrityRules(cheatCommands, alwaysAllowed, dangerousIfAllowed, modIds);
+        return modIds == null ? this : new IntegrityRules(cheatCommands, alwaysAllowed, dangerousIfAllowed, modIds, invulnerabilityIgnoredWithMods);
     }
 
     /** Mods chargés qui figurent sur la liste noire, triés. */
     public List<String> blacklisted(Collection<String> loadedModIds) {
         return loadedModIds.stream().map(id -> id.toLowerCase(Locale.ROOT)).filter(blacklistedMods::contains).distinct().sorted().collect(java.util.stream.Collectors.toList());
+    }
+
+    /** Un mod chargé rend l'invulnérabilité normale dans ce modpack (GT: New Horizons…) : jamais signalée. */
+    public boolean ignoresInvulnerability(Collection<String> loadedModIds) {
+        return loadedModIds.stream().map(id -> id.toLowerCase(Locale.ROOT)).anyMatch(invulnerabilityIgnoredWithMods::contains);
     }
 
     static List<String> strings(JsonArray array) {
