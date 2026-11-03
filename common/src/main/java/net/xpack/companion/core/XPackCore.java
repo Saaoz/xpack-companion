@@ -223,8 +223,14 @@ public final class XPackCore {
         private final String frame;
         private final String icon;
         private final boolean hidden;
+        /** Onglet où le jeu le range (1.7.10 : page d'achievements du mod), ou null : son arbre. */
+        private final String tab;
 
         public AdvancementInfo(String id, String parent, String title, String description, String frame, String icon, boolean hidden) {
+            this(id, parent, title, description, frame, icon, hidden, null);
+        }
+
+        public AdvancementInfo(String id, String parent, String title, String description, String frame, String icon, boolean hidden, String tab) {
             this.id = id;
             this.parent = parent;
             this.title = title;
@@ -232,6 +238,11 @@ public final class XPackCore {
             this.frame = frame;
             this.icon = icon;
             this.hidden = hidden;
+            this.tab = tab;
+        }
+
+        public String tab() {
+            return tab;
         }
 
         public String id() {
@@ -267,17 +278,17 @@ public final class XPackCore {
             if (this == o) return true;
             if (!(o instanceof AdvancementInfo)) return false;
             AdvancementInfo other = (AdvancementInfo) o;
-            return java.util.Objects.equals(id, other.id) && java.util.Objects.equals(parent, other.parent) && java.util.Objects.equals(title, other.title) && java.util.Objects.equals(description, other.description) && java.util.Objects.equals(frame, other.frame) && java.util.Objects.equals(icon, other.icon) && java.util.Objects.equals(hidden, other.hidden);
+            return java.util.Objects.equals(id, other.id) && java.util.Objects.equals(parent, other.parent) && java.util.Objects.equals(title, other.title) && java.util.Objects.equals(description, other.description) && java.util.Objects.equals(frame, other.frame) && java.util.Objects.equals(icon, other.icon) && java.util.Objects.equals(hidden, other.hidden) && java.util.Objects.equals(tab, other.tab);
         }
 
         @Override
         public int hashCode() {
-            return java.util.Objects.hash(id, parent, title, description, frame, icon, hidden);
+            return java.util.Objects.hash(id, parent, title, description, frame, icon, hidden, tab);
         }
 
         @Override
         public String toString() {
-            return "AdvancementInfo[" + "id=" + id + ", parent=" + parent + ", title=" + title + ", description=" + description + ", frame=" + frame + ", icon=" + icon + ", hidden=" + hidden + "]";
+            return "AdvancementInfo[" + "id=" + id + ", parent=" + parent + ", title=" + title + ", description=" + description + ", frame=" + frame + ", icon=" + icon + ", hidden=" + hidden + ", tab=" + tab + "]";
         }
     }
 
@@ -734,6 +745,7 @@ public final class XPackCore {
             o.addProperty("frame", a.frame());
             if (a.icon() != null) o.addProperty("icon", a.icon());
             if (a.hidden()) o.addProperty("hidden", true);
+            if (a.tab() != null && !J8.isBlank(a.tab())) o.addProperty("tab", a.tab());
             list.add(o);
         }
         JsonObject body = new JsonObject();

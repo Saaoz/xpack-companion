@@ -31,6 +31,18 @@ class LegacyStatsTest {
     }
 
     @Test
+    void namesAchievementsWithTheirCaseAndWithoutTheGamePrefix() {
+        assertEquals("achievement:openInventory", LegacyStats.achievementId("achievement.openInventory"));
+        assertEquals("achievement:hee.3540", LegacyStats.achievementId("achievement.hee.3540"));
+        assertEquals("achievement:item.HeavyDutyAlloyIngotT4", LegacyStats.achievementId("achievement.item.HeavyDutyAlloyIngotT4"));
+        // Mod sans le préfixe du jeu, caractères inattendus.
+        assertEquals("achievement:gt.blockmachines.1", LegacyStats.achievementId("gt.blockmachines.1"));
+        assertEquals("achievement:Tinker_s_first_tool", LegacyStats.achievementId("achievement.Tinker's first tool"));
+        assertNull(LegacyStats.achievementId("achievement."));
+        assertNull(LegacyStats.achievementId(null));
+    }
+
+    @Test
     void ignoresWhatHasNoCommonEquivalent() {
         assertNull(LegacyStats.toKey("achievement.openInventory"));
         assertNull(LegacyStats.toKey("stat.killEntity.Zombie"));

@@ -46,6 +46,19 @@ public final class LegacyStats {
         return "minecraft:custom/minecraft:" + snake(name);
     }
 
+    /**
+     * Identifiant XPack d'un achievement 1.7.10 : « achievement:openInventory ». Le préfixe
+     * « achievement. » du jeu est retiré s'il est là (certains mods ne le mettent pas, HEE a
+     * « achievement.hee.3540 ») ; les caractères hors {@code [A-Za-z0-9_./-]} deviennent « _ ».
+     * {@code null} si le nom est vide.
+     */
+    public static String achievementId(String statId) {
+        if (statId == null) return null;
+        String name = statId.startsWith("achievement.") ? statId.substring("achievement.".length()) : statId;
+        name = name.replaceAll("[^A-Za-z0-9_./-]", "_");
+        return name.isEmpty() ? null : "achievement:" + name;
+    }
+
     private static String snake(String camel) {
         StringBuilder sb = new StringBuilder();
         for (char c : camel.toCharArray()) {

@@ -22,6 +22,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -53,6 +54,7 @@ import net.minecraft.stats.Achievement;
 import net.minecraft.stats.AchievementList;
 import net.minecraft.stats.StatBase;
 import net.minecraft.stats.StatCrafting;
+import net.minecraft.util.EnumChatFormatting;
 import net.minecraft.util.StatCollector;
 import net.minecraft.world.WorldServer;
 import net.minecraft.world.WorldSettings;
@@ -316,9 +318,9 @@ public final class Client1710 {
         return item == null ? null : Item.itemRegistry.getNameForObject(item);
     }
 
-    /** Identifiant XPack d'un achievement : « achievement:openInventory » (le nom du jeu, sans le préfixe). */
+    /** Identifiant XPack d'un achievement : « achievement:openInventory » (voir {@link LegacyStats#achievementId}). */
     private static String achievementId(StatBase stat) {
-        return "achievement:" + stat.statId.substring("achievement.".length());
+        return LegacyStats.achievementId(stat.statId);
     }
 
     /**
@@ -342,7 +344,8 @@ public final class Client1710 {
                 StatBase stat = (StatBase) e.getKey();
                 int value = (Integer) e.getValue();
                 if (stat.isAchievement()) {
-                    if (value > 0 && doneAchievements.add(achievementId(stat))) done.add(achievementId(stat));
+                    String id = achievementId(stat);
+                    if (value > 0 && id != null && doneAchievements.add(id)) done.add(id);
                 } else {
                     String object = stat instanceof StatCrafting ? registryName(((StatCrafting) stat).func_150959_a()) : null;
                     String key = LegacyStats.toKey(stat.statId, object);
@@ -364,23 +367,45 @@ public final class Client1710 {
     /** Catalogue (#80) : tous les achievements du jeu et des mods (GT: New Horizons en a des centaines). */
     private static void refreshCatalog(Minecraft mc) {
         if (core == null || mc.theWorld == null) return;
-        List<Achievement> all = new ArrayList<>();
-        Set<String> seen = new HashSet<>();
-        for (Object o : AchievementList.achievementList) addAchievement(all, seen, (Achievement) o);
+        // Onglet de chaque achievement, comme dans l'écran du jeu : la page du mod, sinon « Minecraft ».
+        // Les pages d'abord : les achievements des mods sont aussi dans la liste du jeu.
+        Map<Achievement, String> tabs = new LinkedHashMap<>();
         for (Object page : AchievementPage.getAchievementPages()) {
-            for (Object o : ((AchievementPage) page).getAchievements()) addAchievement(all, seen, (Achievement) o);
+            AchievementPage p = (AchievementPage) page;
+            String tab = p.getName() == null ? null : clean(StatCollector.translateToLocal(p.getName()));
+            for (Object o : p.getAchievements()) addAchievement(tabs, (Achievement) o, tab);
         }
+        for (Object o : AchievementList.achievementList) addAchievement(tabs, (Achievement) o, "Minecraft");
         List<XPackCore.AdvancementInfo> out = new ArrayList<>();
-        for (Achievement a : all) {
-            String icon = a.theItemStack == null ? null : registryName(a.theItemStack.getItem());
-            out.add(new XPackCore.AdvancementInfo(achievementId(a), a.parentAchievement == null ? null : achievementId(a.parentAchievement), StatCollector.translateToLocal(a.statId),
-                    a.getDescription(), a.getSpecial() ? "challenge" : "task", icon == null ? "minecraft:air" : icon, false));
+        Set<String> seen = new HashSet<>();
+        for (Map.Entry<Achievement, String> e : tabs.entrySet()) {
+            Achievement a = e.getKey();
+            String id = achievementId(a);
+            if (id == null || !seen.add(id)) continue;
+            try {
+                String icon = a.theItemStack == null || a.theItemStack.getItem() == null ? null : registryName(a.theItemStack.getItem());
+                // Le nom affiché par le jeu : la clé de traduction n'est pas toujours l'identifiant (HEE : « achievement.hee.3540 » → « achievement.newAdventures »).
+                String title = clean(a.func_150951_e().getUnformattedText());
+                if (title.isEmpty()) title = a.statId;
+                String parent = a.parentAchievement == null ? null : achievementId(a.parentAchievement);
+                out.add(new XPackCore.AdvancementInfo(id, parent, title, clean(a.getDescription()), a.getSpecial() ? "challenge" : "task", icon == null ? "minecraft:air" : icon, false, e.getValue()));
+            } catch (RuntimeException ex) {
+                // Achievement d'un mod mal formé : on se passe de lui, pas du catalogue.
+                FMLLog.fine("[XPack] achievement ignoré %s : %s", a.statId, ex);
+            }
         }
         core.onAdvancementCatalog(out, mc.gameSettings.language == null ? "en_us" : mc.gameSettings.language);
     }
 
-    private static void addAchievement(List<Achievement> all, Set<String> seen, Achievement a) {
-        if (a != null && a.statId != null && a.statId.startsWith("achievement.") && seen.add(a.statId)) all.add(a);
+    private static void addAchievement(Map<Achievement, String> tabs, Achievement a, String tab) {
+        if (a != null && a.statId != null && !tabs.containsKey(a)) tabs.put(a, tab);
+    }
+
+    /** Texte sans codes de couleur (« §a »), sans espaces autour ; vide si absent. */
+    private static String clean(String s) {
+        if (s == null) return "";
+        String plain = EnumChatFormatting.getTextWithoutFormattingCodes(s);
+        return plain == null ? "" : plain.trim();
     }
 
     /** Ramassage d'un objet (#128) : l'entité de l'objet existe encore tant que la tâche passe avant celle du jeu. */
