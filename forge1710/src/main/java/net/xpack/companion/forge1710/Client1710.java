@@ -4,11 +4,13 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
 import cpw.mods.fml.common.FMLCommonHandler;
+import cpw.mods.fml.common.FMLLog;
 import cpw.mods.fml.common.Loader;
 import cpw.mods.fml.common.ModContainer;
 import cpw.mods.fml.common.eventhandler.SubscribeEvent;
 import cpw.mods.fml.common.gameevent.TickEvent;
 import cpw.mods.fml.common.network.FMLNetworkEvent;
+import io.netty.channel.ChannelPipeline;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -42,7 +44,6 @@ import net.minecraft.entity.item.EntityItem;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
-import net.minecraft.network.NetworkManager;
 import net.minecraft.network.play.client.C01PacketChatMessage;
 import net.minecraft.network.play.client.C16PacketClientStatus;
 import net.minecraft.network.play.server.S0DPacketCollectItem;
@@ -157,9 +158,16 @@ public final class Client1710 {
 
     @SubscribeEvent
     public void onConnected(FMLNetworkEvent.ClientConnectedToServerEvent event) {
-        NetworkManager manager = event.manager;
-        if (manager.channel().pipeline().get(PacketSpy.IN) == null) manager.channel().pipeline().addBefore("packet_handler", PacketSpy.IN, new PacketSpy.Inbound());
-        if (manager.channel().pipeline().get(PacketSpy.OUT) == null) manager.channel().pipeline().addBefore("encoder", PacketSpy.OUT, new PacketSpy.Outbound());
+        // Avant « packet_handler », présent partout : en solo, la connexion locale n'a ni « encoder » ni
+        // « decoder » (#181). Les écritures partent de la fin du pipeline : la sortie voit bien C01.
+        ChannelPipeline pipeline = event.manager.channel().pipeline();
+        try {
+            if (pipeline.get(PacketSpy.IN) == null) pipeline.addBefore("packet_handler", PacketSpy.IN, new PacketSpy.Inbound());
+            if (pipeline.get(PacketSpy.OUT) == null) pipeline.addBefore("packet_handler", PacketSpy.OUT, new PacketSpy.Outbound());
+        } catch (RuntimeException e) {
+            // Pipeline inattendu (autre mod) : jamais couper la connexion, on se passe des espions.
+            FMLLog.warning("[XPack] espions de paquets non installés : %s", e);
+        }
     }
 
     // ------------------------------------------------------------------ tick client
