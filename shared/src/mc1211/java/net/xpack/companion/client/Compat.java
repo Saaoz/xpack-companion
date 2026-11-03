@@ -14,6 +14,7 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.server.IntegratedServer;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.item.ItemStack;
 import net.xpack.companion.core.XPackCore;
 
 /**
@@ -66,6 +67,26 @@ public final class Compat {
     private static XPackCore.AdvancementInfo info(String id, String parent, DisplayInfo d) {
         return new XPackCore.AdvancementInfo(id, parent, d.getTitle().getString(), d.getDescription().getString(), d.getType().getSerializedName(),
                 BuiltInRegistries.ITEM.getKey(d.getIcon().getItem()).toString(), d.isHidden());
+    }
+
+    /** Pile d'un objet par son identifiant (#189) ; null si inconnu. */
+    static ItemStack stackOf(String id) {
+        ResourceLocation key = ResourceLocation.tryParse(id);
+        return key == null ? null : BuiltInRegistries.ITEM.getOptional(key).map(ItemStack::new).orElse(null);
+    }
+
+    /** Repère de l'interface (profondeur -11000) pour dessiner un objet hors écran (#189). En 1.21.1 : pile de matrices joml. */
+    static void pushIconView() {
+        org.joml.Matrix4fStack stack = com.mojang.blaze3d.systems.RenderSystem.getModelViewStack();
+        stack.pushMatrix();
+        stack.identity();
+        stack.translate(0f, 0f, -11000f);
+        com.mojang.blaze3d.systems.RenderSystem.applyModelViewMatrix();
+    }
+
+    static void popIconView() {
+        com.mojang.blaze3d.systems.RenderSystem.getModelViewStack().popMatrix();
+        com.mojang.blaze3d.systems.RenderSystem.applyModelViewMatrix();
     }
 
     static boolean allowCommands(IntegratedServer server) {

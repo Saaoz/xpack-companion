@@ -591,6 +591,10 @@ public final class XPackCore {
         catalogSentHash = null;
         catalogInFlight = false;
         nextCatalogAt = 0;
+        iconQueue.clear();
+        iconGapsAsked = false;
+        iconGapsInFlight = false;
+        nextIconGapsAt = 0;
         questsSynced = false;
         questsSavedAt = 0;
         questsLeftAt = 0;
@@ -818,6 +822,51 @@ public final class XPackCore {
             if (ok && index + 1 == parts.size()) catalogSentHash = hash;
             else if (!ok) nextCatalogAt = clock.millis() + CATALOG_RETRY_MS;
             // Catalogue changé pendant l'envoi : le nouveau part au prochain tick.
+        }, mainThread);
+    }
+
+    // ------------------------------------------------------------------ icônes d'objets (#189)
+
+    /** Au plus ce nombre d'objets demandés par partie (un pack n'en a que quelques dizaines à fournir). */
+    static final int MAX_ICON_REQUESTS = 400;
+    static final long ICON_RETRY_MS = 60_000;
+    private final java.util.ArrayDeque<String> iconQueue = new java.util.ArrayDeque<>();
+    private boolean iconGapsAsked;
+    private boolean iconGapsInFlight;
+    private long nextIconGapsAt;
+
+    /** Prochain objet dont le serveur attend l'icône (identifiant « mod:objet »), ou null. Fil du jeu. */
+    public String nextIconToDraw() {
+        return iconQueue.poll();
+    }
+
+    /** Envoie l'icône dessinée (PNG). Le serveur refuse tout objet qu'il n'a pas demandé : rien à gérer ici. */
+    public void submitIcon(String item, byte[] png) {
+        if (sessionId == null || token == null || png == null || png.length == 0) return;
+        api.postIcon(sessionId, item, java.util.Base64.getEncoder().encodeToString(png), token);
+    }
+
+    /**
+     * Une fois le catalogue du modpack reçu par le serveur, demande les objets dont l'import n'a pas pu
+     * lire la texture. Une seule demande par partie ; en cas d'échec, une nouvelle plus tard.
+     */
+    private void tickIcons(long t) {
+        if (iconGapsAsked || iconGapsInFlight || t < nextIconGapsAt || sessionId == null || token == null) return;
+        if (catalogHash == null || !catalogHash.equals(catalogSentHash)) return;
+        iconGapsInFlight = true;
+        String wid = worldId;
+        api.iconGaps(sessionId, token).thenAcceptAsync(res -> {
+            iconGapsInFlight = false;
+            if (!wid.equals(worldId)) return;
+            if (!res.ok()) {
+                nextIconGapsAt = clock.millis() + ICON_RETRY_MS;
+                return;
+            }
+            iconGapsAsked = true;
+            JsonArray items = res.body().has("items") && res.body().get("items").isJsonArray() ? res.body().getAsJsonArray("items") : new JsonArray();
+            for (int i = 0; i < items.size() && iconQueue.size() < MAX_ICON_REQUESTS; i++) {
+                if (items.get(i).isJsonPrimitive()) iconQueue.add(items.get(i).getAsString());
+            }
         }, mainThread);
     }
 
@@ -1462,6 +1511,7 @@ public final class XPackCore {
         }
         if (t >= nextFlushAt) flushNow();
         if (catalog != null && !catalogHash.equals(catalogSentHash) && t >= nextCatalogAt) sendCatalog();
+        tickIcons(t);
     }
 
     private void flushNow() {

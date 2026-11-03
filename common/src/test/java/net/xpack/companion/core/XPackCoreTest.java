@@ -921,6 +921,33 @@ class XPackCoreTest {
     }
 
     @Test
+    void demandeLesIconesManquantesUneFoisLeCatalogueEnvoyeEtLesEnvoieUneAUne() {
+        creds.put(config.apiUrl, UUID, "Steve", "jeton");
+        api.reply(201, SESSION);
+        core.onJoinWorld(world());
+        core.tick();
+        assertNull(api.last("/icon-gaps"), "pas avant que le serveur ait le catalogue");
+        core.onAdvancementCatalog(List.of(adv("mekanism:root", null, "task")), "fr_fr");
+        api.reply(200, "{\"items\":[\"mekanism:jetpack\",\"create:track_signal\"]}");
+        core.tick();
+        XPackCoreTest.FakeApi.Call ask = api.last("/icon-gaps");
+        assertNotNull(ask);
+        assertEquals("GET", ask.method());
+        assertEquals("/v1/sessions/s_1/icon-gaps", ask.path());
+        core.tick();
+        assertEquals(1, api.calls.stream().filter(c -> c.path().endsWith("/icon-gaps")).count(), "une seule demande par partie");
+        assertEquals("mekanism:jetpack", core.nextIconToDraw());
+        core.submitIcon("mekanism:jetpack", new byte[] {1, 2, 3});
+        XPackCoreTest.FakeApi.Call sent = api.last("/icons");
+        assertEquals("POST", sent.method());
+        assertEquals("/v1/sessions/s_1/icons", sent.path());
+        assertEquals("mekanism:jetpack", sent.body().get("item").getAsString());
+        assertEquals("AQID", sent.body().get("png").getAsString());
+        assertEquals("create:track_signal", core.nextIconToDraw());
+        assertNull(core.nextIconToDraw());
+    }
+
+    @Test
     void leLivreDeQuetesPartAvecLesProgresEtEnPlusieursEnvoisSIlEstGros() {
         linkedAndJoined();
         core.onAdvancementCatalog(List.of(adv("minecraft:story/root", null, "task")), "en_us");

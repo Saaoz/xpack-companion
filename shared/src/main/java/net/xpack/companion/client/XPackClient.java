@@ -192,6 +192,7 @@ public final class XPackClient {
         checkSupportKey(mc);
         XPackToasts.tick(mc);
         XPackSounds.tick(mc);
+        if (inWorld) ItemIcons.tick(mc, core);
 
         if (inWorld) {
             ticksSinceStats++;

@@ -12,6 +12,8 @@ import net.minecraft.client.gui.screens.PauseScreen;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.server.IntegratedServer;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.item.ItemStack;
 import net.xpack.companion.core.XPackCore;
 import net.xpack.companion.mixin.PauseScreenAccessor;
 
@@ -57,6 +59,26 @@ public final class Compat {
                     d.getDescription().getString(), d.getFrame().getName(), BuiltInRegistries.ITEM.getKey(d.getIcon().getItem()).toString(), d.isHidden()));
         }
         return out;
+    }
+
+    /** Pile d'un objet par son identifiant (#189) ; null si inconnu. */
+    static ItemStack stackOf(String id) {
+        ResourceLocation key = ResourceLocation.tryParse(id);
+        return key == null ? null : BuiltInRegistries.ITEM.getOptional(key).map(ItemStack::new).orElse(null);
+    }
+
+    /** Repère de l'interface (profondeur -11000) pour dessiner un objet hors écran (#189). En 1.20.1 : PoseStack. */
+    static void pushIconView() {
+        com.mojang.blaze3d.vertex.PoseStack stack = com.mojang.blaze3d.systems.RenderSystem.getModelViewStack();
+        stack.pushPose();
+        stack.setIdentity();
+        stack.translate(0f, 0f, -11000f);
+        com.mojang.blaze3d.systems.RenderSystem.applyModelViewMatrix();
+    }
+
+    static void popIconView() {
+        com.mojang.blaze3d.systems.RenderSystem.getModelViewStack().popPose();
+        com.mojang.blaze3d.systems.RenderSystem.applyModelViewMatrix();
     }
 
     static boolean allowCommands(IntegratedServer server) {

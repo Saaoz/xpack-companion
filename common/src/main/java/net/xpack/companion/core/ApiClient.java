@@ -144,6 +144,19 @@ public final class ApiClient {
         return transport.send("POST", "/v1/sessions/" + sessionId + "/catalog", body, token);
     }
 
+    /** Objets du modpack dont l'import n'a pas pu lire la texture : le jeu peut en dessiner l'icône (#189). */
+    public CompletableFuture<Response> iconGaps(String sessionId, String token) {
+        return transport.send("GET", "/v1/sessions/" + sessionId + "/icon-gaps", null, token);
+    }
+
+    /** Icône d'un objet dessinée en jeu (PNG en base64) ; le serveur ne l'accepte que pour un objet demandé. */
+    public CompletableFuture<Response> postIcon(String sessionId, String item, String pngBase64, String token) {
+        JsonObject b = new JsonObject();
+        b.addProperty("item", item);
+        b.addProperty("png", pngBase64);
+        return transport.send("POST", "/v1/sessions/" + sessionId + "/icons", b, token);
+    }
+
     /** Demande au support (contestation d'une détection), envoyée par e-mail à l'équipe. */
     public CompletableFuture<Response> supportReport(JsonObject body, String token) {
         return transport.send("POST", "/v1/support/reports", body, token);
