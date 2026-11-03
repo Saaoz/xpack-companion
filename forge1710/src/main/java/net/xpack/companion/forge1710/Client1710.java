@@ -53,10 +53,13 @@ import net.minecraft.stats.AchievementList;
 import net.minecraft.stats.StatBase;
 import net.minecraft.stats.StatCrafting;
 import net.minecraft.util.StatCollector;
+import net.minecraft.world.WorldServer;
 import net.minecraft.world.WorldSettings;
+import net.minecraft.world.storage.WorldInfo;
 import net.minecraftforge.client.ClientCommandHandler;
 import net.minecraftforge.client.event.GuiScreenEvent;
 import net.minecraftforge.common.AchievementPage;
+import net.minecraftforge.common.DimensionManager;
 import net.minecraftforge.common.MinecraftForge;
 import net.xpack.companion.core.ApiClient;
 import net.xpack.companion.core.Config;
@@ -227,9 +230,10 @@ public final class Client1710 {
         if (server != null) {
             storeFile = new File(mc.mcDataDir, "saves/" + server.getFolderName()).toPath().resolve("xpack.json");
             kind = "singleplayer";
-            cheatsAllowed = server.worldServers[0].getWorldInfo().areCommandsAllowed();
+            WorldInfo info = overworldInfo(server);
+            cheatsAllowed = info != null && info.areCommandsAllowed();
             // Monde créé en créatif : un monde de test, même si le joueur est repassé en survie.
-            creative |= server.worldServers[0].getWorldInfo().getGameType() == WorldSettings.GameType.CREATIVE;
+            creative |= info != null && info.getGameType() == WorldSettings.GameType.CREATIVE;
         } else {
             ServerData data = mc.func_147104_D();
             String address = data != null ? data.serverIP : "inconnu";
@@ -266,7 +270,19 @@ public final class Client1710 {
     /** Commandes de triche possibles : monde ouvert avec les commandes, ou joueur opérateur. */
     private static boolean cheatsAllowed(Minecraft mc) {
         IntegratedServer server = mc.getIntegratedServer();
-        return server != null ? server.worldServers[0].getWorldInfo().areCommandsAllowed() : mc.thePlayer.canCommandSenderUseCommand(2, "");
+        if (server == null) return mc.thePlayer.canCommandSenderUseCommand(2, "");
+        WorldInfo info = overworldInfo(server);
+        return info != null && info.areCommandsAllowed();
+    }
+
+    /**
+     * Infos du monde principal en solo, ou null s'il n'est pas (encore) chargé. Forge range les mondes
+     * dans DimensionManager ; server.worldServers peut rester vide (crash au lancement d'un monde GT:NH).
+     */
+    private static WorldInfo overworldInfo(IntegratedServer server) {
+        WorldServer world = DimensionManager.getWorld(0);
+        if (world == null && server.worldServers.length > 0) world = server.worldServers[0];
+        return world != null ? world.getWorldInfo() : null;
     }
 
     /** Autres joueurs dont on connaît l'identité (ceux chargés autour de nous). */
