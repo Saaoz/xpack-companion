@@ -30,6 +30,7 @@ import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.gui.inventory.GuiContainer;
 import net.minecraft.client.gui.inventory.GuiInventory;
 import net.minecraft.client.network.NetworkPlayerInfo;
+import net.minecraft.client.resources.I18n;
 import net.minecraft.client.resources.ResourcePackRepository;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.item.EntityItem;
@@ -63,6 +64,7 @@ import net.xpack.companion.core.J8;
 import net.xpack.companion.core.LegacyStats;
 import net.xpack.companion.core.ModpackDetector;
 import net.xpack.companion.core.QuestRewards;
+import net.xpack.companion.core.QuestWatcher;
 import net.xpack.companion.core.XPackCore;
 
 /**
@@ -87,6 +89,8 @@ public final class Client1122 {
     private static List<String> modIds = J8.listOf();
     private static boolean inWorld;
     private static int ticks;
+    /** Quêtes BetterQuesting du monde solo en cours (RLCraft) ; null sans BetterQuesting ou en multijoueur. */
+    private static QuestWatcher quests;
     private static long ticksSinceStats;
     /** Multijoueur : temps joué reçu avec les dernières statistiques (-1 : pas encore reçu). */
     private static long playerPlaytime = -1;
@@ -156,6 +160,7 @@ public final class Client1122 {
         if (nowInWorld && !inWorld) join(mc);
         if (!nowInWorld && inWorld) {
             ticks = 0;
+            stopQuests();
             core.onLeaveWorld();
         }
         inWorld = nowInWorld;
@@ -167,6 +172,7 @@ public final class Client1122 {
             long playtime = playtime(mc);
             core.setPlaytime(playtime);
             ticks++;
+            if (quests != null) quests.tick();
             if (ticks % STATE_INTERVAL_TICKS == 0 && mc.playerController != null) {
                 core.onPlayerState(new XPackCore.PlayerState(mc.playerController.getCurrentGameType().getName(), mc.player.capabilities.disableDamage), playtime);
                 core.onCheatsAllowed(cheatsAllowed(mc));
@@ -203,6 +209,31 @@ public final class Client1122 {
         core.setQuestRewards(questRewards);
         core.onJoinWorld(worldContext(mc));
         refreshCatalog(mc);
+        startQuests(mc);
+    }
+
+    /**
+     * Livre BetterQuesting (RLCraft) : chaque quête est un succès. Solo seulement : en multijoueur
+     * les fichiers de quêtes restent sur le serveur.
+     */
+    private static void startQuests(Minecraft mc) {
+        stopQuests();
+        IntegratedServer server = mc.getIntegratedServer();
+        if (server == null || !modIds.contains("betterquesting")) return;
+        Path worldDir = server.getWorld(0).getSaveHandler().getWorldDirectory().toPath();
+        quests = new QuestWatcher(core, worldDir, mc.player.getUniqueID().toString(), Client1122::translate,
+                () -> mc.gameSettings.language == null ? "en_us" : mc.gameSettings.language, () -> playtime(mc));
+    }
+
+    private static void stopQuests() {
+        if (quests != null) quests.close();
+        quests = null;
+    }
+
+    /** Texte du jeu pour une clé de traduction ; un texte déjà rédigé (GT: New Horizons) reste tel quel. */
+    private static String translate(String key) {
+        if (key == null || key.isEmpty() || key.indexOf(' ') >= 0 || !I18n.hasKey(key)) return key;
+        return I18n.format(key);
     }
 
     private static XPackCore.WorldContext worldContext(Minecraft mc) {

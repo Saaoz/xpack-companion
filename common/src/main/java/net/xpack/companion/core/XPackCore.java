@@ -465,6 +465,8 @@ public final class XPackCore {
         difficultyWarned = store.difficultyWarned;
         teamReminderDay = store.teamReminderDay;
         playtimeFloor = store.playtime;
+        questsSavedAt = store.questsSavedAt;
+        questsLeftAt = store.leftAt;
         // Le temps de jeu du monde précédent ne doit pas servir de plancher à celui-ci.
         currentPlaytime = 0;
         sentPlaytime = 0;
@@ -547,6 +549,7 @@ public final class XPackCore {
     public void onLeaveWorld() {
         if (world == null) return;
         flushNow();
+        leftAt = clock.millis(); // fin de partie suivie : les quêtes finies juste avant comptent (onQuests)
         saveWorld();
         flushWorldFile(); // avant que le monde suivant ne remplace l'écriture en attente
         world = null;
@@ -583,9 +586,15 @@ public final class XPackCore {
         allowedCommands = J8.listOf();
         trackedStats = J8.setOf();
         catalog = null;
+        advancementCatalog = J8.listOf();
+        questCatalog = J8.listOf();
         catalogSentHash = null;
         catalogInFlight = false;
         nextCatalogAt = 0;
+        questsSynced = false;
+        questsSavedAt = 0;
+        questsLeftAt = 0;
+        leftAt = 0;
     }
 
     private void openSession() {
@@ -702,8 +711,12 @@ public final class XPackCore {
 
     // ------------------------------------------------------------------ catalogue des progrès (#80)
 
-    static final int MAX_CATALOG = 5_000;
+    static final int MAX_CATALOG = 10_000;
+    /** Taille d'un envoi du catalogue (caractères JSON) : sous la limite de 1 Mo de l'API. */
+    static final int CATALOG_PART_CHARS = 700_000;
     static final long CATALOG_RETRY_MS = 60_000;
+    private List<AdvancementInfo> advancementCatalog = J8.listOf();
+    private List<AdvancementInfo> questCatalog = J8.listOf();
     private List<AdvancementInfo> catalog;
     private String catalogLang;
     private String catalogHash;
@@ -718,11 +731,36 @@ public final class XPackCore {
      */
     public void onAdvancementCatalog(List<AdvancementInfo> advancements, String lang) {
         if (world == null || practice) return;
-        List<AdvancementInfo> kept = advancements.stream().filter(a -> !a.id().contains(":recipes/")).limit(MAX_CATALOG).collect(java.util.stream.Collectors.toList());
-        if (kept.isEmpty()) return;
-        catalog = kept;
+        advancementCatalog = advancements.stream().filter(a -> !a.id().contains(":recipes/")).collect(java.util.stream.Collectors.toList());
         catalogLang = lang;
-        catalogHash = hashOf(kept, lang);
+        updateCatalog();
+    }
+
+    /** Livre de quêtes du modpack (BetterQuesting), envoyé avec les progrès : chaque quête est un succès. */
+    public void onQuestCatalog(List<AdvancementInfo> quests, String lang) {
+        if (world == null || practice) return;
+        questCatalog = J8.copyOf(quests);
+        catalogLang = lang;
+        updateCatalog();
+    }
+
+    /**
+     * Les quêtes BetterQuesting ne s'ajoutent qu'aux modpacks qui ont moins de 300 progrès
+     * (RLCraft : 104) ; au-delà (GT: New Horizons : ~1 100), les progrès suffisent.
+     */
+    public static final int QUESTS_BELOW_ADVANCEMENTS = 300;
+
+    /** Le livre de quêtes compte pour cette partie (voir {@link #QUESTS_BELOW_ADVANCEMENTS}). */
+    public boolean wantsQuests() {
+        return world != null && !practice && advancementCatalog.size() < QUESTS_BELOW_ADVANCEMENTS;
+    }
+
+    private void updateCatalog() {
+        List<AdvancementInfo> all = new ArrayList<>(advancementCatalog);
+        if (advancementCatalog.size() < QUESTS_BELOW_ADVANCEMENTS) all.addAll(questCatalog);
+        if (all.isEmpty() || catalogLang == null) return;
+        catalog = all.size() > MAX_CATALOG ? new ArrayList<>(all.subList(0, MAX_CATALOG)) : all;
+        catalogHash = hashOf(catalog, catalogLang);
         sendCatalog();
     }
 
@@ -734,8 +772,10 @@ public final class XPackCore {
 
     private void sendCatalog() {
         if (catalog == null || catalogInFlight || catalogHash.equals(catalogSentHash) || sessionId == null || token == null || !tracking()) return;
-        String hash = catalogHash;
-        JsonArray list = new JsonArray();
+        // Un gros livre de quêtes (GT: New Horizons : ~3 800 quêtes) part en plusieurs envois.
+        List<JsonArray> parts = new ArrayList<>();
+        JsonArray part = new JsonArray();
+        int size = 0;
         for (AdvancementInfo a : catalog) {
             JsonObject o = new JsonObject();
             o.addProperty("id", a.id());
@@ -746,19 +786,78 @@ public final class XPackCore {
             if (a.icon() != null) o.addProperty("icon", a.icon());
             if (a.hidden()) o.addProperty("hidden", true);
             if (a.tab() != null && !J8.isBlank(a.tab())) o.addProperty("tab", a.tab());
-            list.add(o);
+            int length = o.toString().length() + 1;
+            if (size > 0 && size + length > CATALOG_PART_CHARS) {
+                parts.add(part);
+                part = new JsonArray();
+                size = 0;
+            }
+            part.add(o);
+            size += length;
         }
+        parts.add(part);
+        catalogInFlight = true;
+        sendCatalogPart(parts, 0, catalogHash, worldId);
+    }
+
+    private void sendCatalogPart(List<JsonArray> parts, int index, String hash, String wid) {
         JsonObject body = new JsonObject();
         body.addProperty("lang", catalogLang);
-        body.add("advancements", list);
-        catalogInFlight = true;
-        String wid = worldId;
+        body.add("advancements", parts.get(index));
         api.postCatalog(sessionId, body, token).thenAcceptAsync(res -> {
+            if (!wid.equals(worldId) || sessionId == null) {
+                catalogInFlight = false;
+                return;
+            }
+            boolean ok = res.ok() || res.status() == 422; // 422 : inutile de renvoyer le même
+            if (ok && index + 1 < parts.size() && hash.equals(catalogHash)) {
+                sendCatalogPart(parts, index + 1, hash, wid);
+                return;
+            }
             catalogInFlight = false;
-            if (!wid.equals(worldId)) return;
-            if (res.ok() || res.status() == 422) catalogSentHash = hash; // 422 : inutile de renvoyer le même
-            else nextCatalogAt = clock.millis() + CATALOG_RETRY_MS;
+            if (ok && index + 1 == parts.size()) catalogSentHash = hash;
+            else if (!ok) nextCatalogAt = clock.millis() + CATALOG_RETRY_MS;
+            // Catalogue changé pendant l'envoi : le nouveau part au prochain tick.
         }, mainThread);
+    }
+
+    // ------------------------------------------------------------------ quêtes BetterQuesting
+
+    /** Le premier relevé des quêtes de la partie est passé (les suivants sont des quêtes du moment). */
+    private boolean questsSynced;
+    /** Date du fichier de progression lu en dernier pendant une partie suivie (ms). */
+    private long questsSavedAt;
+    /** Sortie du monde à la partie précédente (ms, 0 : inconnue). */
+    private long questsLeftAt;
+    /** Sortie de ce monde (ms) : écrit à la sortie pour la partie suivante. */
+    private long leftAt;
+
+    /**
+     * Quêtes terminées par le joueur (identifiant → date de fin en ms, 0 si inconnue), lues dans le
+     * fichier que BetterQuesting écrit à chaque sauvegarde ({@code savedAt} : sa date). Le premier
+     * relevé est un instantané, comme le paquet initial des progrès ; une quête finie à la fin de la
+     * partie précédente, après la dernière sauvegarde lue mais avant la sortie, compte quand même.
+     */
+    public void onQuests(Map<String, Long> completed, long savedAt, long playtimeTicks) {
+        if (!wantsQuests()) return;
+        if (!questsSynced) {
+            questsSynced = true;
+            List<String> snapshot = new ArrayList<>();
+            List<String> tail = new ArrayList<>();
+            for (Map.Entry<String, Long> e : completed.entrySet()) {
+                long at = e.getValue() == null ? 0 : e.getValue();
+                boolean lastSession = questsSavedAt > 0 && questsLeftAt > 0 && at > questsSavedAt && at <= questsLeftAt;
+                (lastSession ? tail : snapshot).add(e.getKey());
+            }
+            if (!snapshot.isEmpty()) onAdvancements(snapshot, true, playtimeTicks);
+            if (!tail.isEmpty()) onAdvancements(tail, false, playtimeTicks);
+        } else {
+            onAdvancements(completed.keySet(), false, playtimeTicks);
+        }
+        if (savedAt != questsSavedAt) {
+            questsSavedAt = savedAt;
+            saveWorld();
+        }
     }
 
     public Set<String> trackedStats() {
@@ -1557,6 +1656,8 @@ public final class XPackCore {
         s.teamReminderDay = teamReminderDay;
         s.practice = practice;
         s.playtime = playtimeFloor();
+        s.questsSavedAt = questsSavedAt;
+        s.leftAt = leftAt;
         worldWriter.write(world.storeFile(), GSON.toJson(s));
     }
 
@@ -1593,6 +1694,10 @@ public final class XPackCore {
         boolean practice;
         /** Dernier temps de jeu connu (ticks), plancher du temps de jeu en multijoueur (#74). */
         long playtime;
+        /** Quêtes BetterQuesting : date du fichier de progression lu en dernier pendant la partie (ms). */
+        long questsSavedAt;
+        /** Sortie du monde (ms) ; 0 si la partie s'est mal terminée (plantage). */
+        long leftAt;
         List<JsonObject> pending = new ArrayList<>();
         /** Premier passage du mod dans ce monde (aucun fichier). Non sauvegardé. */
         transient boolean fresh;

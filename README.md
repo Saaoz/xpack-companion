@@ -121,6 +121,7 @@ Forge 1.12.2-14.23.5.2847 : c'est la dernière version dont le paquet `userdev` 
 - **Gson 2.2.4** : c'est la version qu'embarque Minecraft 1.12.2. Pas de `JsonParser.parseString`, ni de `deepCopy` publique : utiliser `J8.parseJson` et `J8.copy`. Le projet 1.12.2 compile le cœur face à ce Gson, donc une API trop récente fait échouer son build.
 
 - **Couche client 1.12.2** (`forge1122/src/main/java/.../forge1122/`) : sans Mixin. `PacketSpy` s'insère dans le pipeline Netty de la connexion et lit les paquets de progrès, de statistiques et de ramassage sans les modifier ; les commandes passent par `ClientChatEvent` de Forge, le reste par le tick client. Les statistiques 1.12.2 (`stat.mineBlock.minecraft.stone`) sont traduites au format commun par `LegacyStats`. Les textes sont les mêmes fichiers `lang/*.json` que les autres versions.
+- **Quêtes BetterQuesting** (RLCraft, solo) : chaque quête du livre est un succès si le modpack a moins de 300 progrès, lu dans les fichiers `betterquesting/` du monde par `QuestWatcher` (voir aussi la 1.7.10).
 - **Fait** : progrès en temps réel et catalogue, statistiques, objets reçus, détection du mode de jeu, de la triche et du mode créatif, commandes `/xpack settings|check|diagnostic`, alerte avant une commande de triche (écran oui/non du jeu), consentement, toasts, écran de réglages (liaison du compte) et bouton XPack du menu pause.
 - **Alignés sur les autres versions** : toasts (succès, paliers, alerte d'intégrité : mêmes couleurs, durées et regroupement, affichés après ceux du jeu), son des succès, badge d'état du menu pause, écran de réglages (envoi, toasts, badge, son, volume, écoute, liaison, monde de test, support) et écran de contact du support.
 - **Pas encore fait** : écran Équipe, mode triche de JEI/FTB Quests, suivi des blocs minés pour la détection de x-ray.
@@ -141,6 +142,7 @@ Même cœur que les autres versions (`common/`, Java 8, Gson 2.2) et mêmes text
 - **Statistiques** : les identifiants numériques de la 1.7.10 (`stat.mineBlock.1`) sont traduits en noms (`minecraft:mined/minecraft:stone`) par `LegacyStats`.
 - **Commandes de triche** : pas d'événement de chat en 1.7.10, la commande est retenue dans la connexion (`PacketSpy.Outbound`) avant l'envoi, puis renvoyée si le joueur confirme.
 - **Toasts** : la 1.7.10 n'a pas de système de toasts (il date de la 1.12) : la pile et le glissement sont dessinés par le mod (`Toasts1710`), au même dessin que les autres versions.
+- **Quêtes BetterQuesting** (solo) : comme en 1.12.2, seulement pour un modpack de **moins de 300 progrès** (`XPackCore.QUESTS_BELOW_ADVANCEMENTS`, même seuil côté serveur). GT: New Horizons (~1 100 achievements) n'est donc pas concerné : son livre n'est même pas lu. Le format GTNH (identifiants UUID, `QuestProgress/<uuid>.json`) reste pris en charge pour les packs plus petits.
 - Textes, sons, badge du menu pause, réglages, support, `/xpack` avec complétion et suggestions : comme en 1.12.2.
 - **Pas encore fait** : écran Équipe, mode triche de JEI/FTB Quests, suivi des blocs minés (x-ray).
 - **Pas encore testé dans un vrai client 1.7.10** : le jar compile et se construit, mais aucune partie n'a été jouée.

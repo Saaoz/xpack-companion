@@ -921,6 +921,93 @@ class XPackCoreTest {
     }
 
     @Test
+    void leLivreDeQuetesPartAvecLesProgresEtEnPlusieursEnvoisSIlEstGros() {
+        linkedAndJoined();
+        core.onAdvancementCatalog(List.of(adv("minecraft:story/root", null, "task")), "en_us");
+        List<XPackCore.AdvancementInfo> quests = new ArrayList<>();
+        String longText = "x".repeat(590);
+        for (int i = 0; i < 2_000; i++) {
+            quests.add(new XPackCore.AdvancementInfo(BetterQuesting.PREFIX + i, null, "Quest " + i, longText, "task", "minecraft:stone", false, "Tier 0"));
+        }
+        int before = api.calls.size();
+        core.onQuestCatalog(quests, "en_us");
+        List<FakeApi.Call> parts = api.calls.subList(before, api.calls.size());
+        assertTrue(parts.size() >= 2, "plus d'un envoi : " + parts.size());
+        int total = 0;
+        for (FakeApi.Call c : parts) {
+            assertTrue(c.body().toString().length() < 1_000_000, "chaque envoi tient sous la limite de l'API");
+            total += c.body().getAsJsonArray("advancements").size();
+        }
+        assertEquals(2_001, total, "progrès et quêtes, chacun une fois");
+        assertEquals("Tier 0", parts.get(parts.size() - 1).body().getAsJsonArray("advancements").get(0).getAsJsonObject().get("tab").getAsString());
+        core.onQuestCatalog(quests, "en_us");
+        assertEquals(before + parts.size(), api.calls.size(), "même livre : rien de renvoyé");
+    }
+
+    @Test
+    void pasDeQuetesPourUnModpackDe300ProgresOuPlus() {
+        linkedAndJoined();
+        List<XPackCore.AdvancementInfo> quests = List.of(new XPackCore.AdvancementInfo(BetterQuesting.PREFIX + "0", null, "Quest", "", "task", "minecraft:stone", false, "Tier 0"));
+        List<XPackCore.AdvancementInfo> advancements = new ArrayList<>();
+        for (int i = 0; i < 299; i++) advancements.add(adv("gregtech:a" + i, null, "task"));
+        core.onAdvancementCatalog(advancements, "en_us");
+        assertTrue(core.wantsQuests(), "299 progrès : le livre s'ajoute");
+        core.onQuestCatalog(quests, "en_us");
+        assertEquals(300, api.last("/catalog").body().getAsJsonArray("advancements").size());
+
+        advancements.add(adv("gregtech:a299", null, "task"));
+        core.onAdvancementCatalog(advancements, "en_us");
+        assertFalse(core.wantsQuests(), "300 progrès : les progrès suffisent");
+        JsonArray sent = api.last("/catalog").body().getAsJsonArray("advancements");
+        assertEquals(300, sent.size());
+        for (var a : sent) assertFalse(a.getAsJsonObject().get("id").getAsString().startsWith(BetterQuesting.PREFIX));
+        core.onQuests(Map.of(BetterQuesting.PREFIX + "0", 1_000L), 2_000, 10);
+        clock.millis += 10_000;
+        core.tick();
+        for (FakeApi.Call c : api.calls) {
+            if (c.path().endsWith("/events")) assertFalse(c.body().toString().contains(BetterQuesting.PREFIX), "quête ignorée");
+        }
+    }
+
+    @Test
+    void lesQuetesTermineesAvantLeModSontUnInstantaneEtCellesDeLaFinDePartieComptent() {
+        linkedAndJoined();
+        // Première partie : instantané, puis une quête finie en jeu.
+        core.onQuests(Map.of(BetterQuesting.PREFIX + "0", 1_000L), 2_000, 10);
+        core.onQuests(Map.of(BetterQuesting.PREFIX + "0", 1_000L, BetterQuesting.PREFIX + "1", 5_000L), 6_000, 20);
+        clock.millis += 10_000;
+        core.tick();
+        List<String> events = new ArrayList<>();
+        for (FakeApi.Call c : api.calls) {
+            if (!c.path().endsWith("/events")) continue;
+            for (var e : c.body().getAsJsonArray("events")) {
+                JsonObject o = e.getAsJsonObject();
+                if (o.get("type").getAsString().equals("advancement")) events.add(o.get("key").getAsString() + (o.has("snapshot") ? ":instantane" : ""));
+            }
+        }
+        assertEquals(List.of("betterquesting:quest/0:instantane", "betterquesting:quest/1"), events);
+
+        // Quête finie juste avant de quitter (après la dernière sauvegarde lue) : elle compte à la
+        // partie suivante. Celle finie après la sortie (sans le mod) reste un instantané.
+        long left = clock.millis();
+        core.onLeaveWorld();
+        api.calls.clear();
+        api.reply(201, SESSION);
+        core.onJoinWorld(world());
+        core.onQuests(Map.of(BetterQuesting.PREFIX + "0", 1_000L, BetterQuesting.PREFIX + "1", 5_000L, BetterQuesting.PREFIX + "2", left - 1, BetterQuesting.PREFIX + "3", left + 60_000), left + 60_000, 30);
+        clock.millis += 10_000;
+        core.tick();
+        List<String> next = new ArrayList<>();
+        for (var e : sentEvents()) {
+            JsonObject o = e.getAsJsonObject();
+            if (o.get("type").getAsString().equals("advancement")) next.add(o.get("key").getAsString() + (o.has("snapshot") ? ":instantane" : ""));
+        }
+        assertTrue(next.contains("betterquesting:quest/2"), next.toString());
+        assertTrue(next.contains("betterquesting:quest/3:instantane"), next.toString());
+        assertFalse(next.contains("betterquesting:quest/2:instantane"), next.toString());
+    }
+
+    @Test
     void pasDeCatalogueDansUnMondeDeTest() {
         creds.put(config.apiUrl, UUID, "Steve", "jeton");
         core.onJoinWorld(creativeWorld("test2"));
