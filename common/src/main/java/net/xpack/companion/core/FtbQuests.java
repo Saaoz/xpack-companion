@@ -86,7 +86,12 @@ public final class FtbQuests {
         JsonObject groupFile = readObject(root.resolve("chapter_groups.snbt"));
         for (JsonObject g : objects(groupFile == null ? null : groupFile.get("chapter_groups"))) groups.add(str(g, "id"));
         String code = lang == null ? "en_us" : lang.toLowerCase(Locale.ROOT);
-        JsonObject chapterLang = merged(readObject(root.resolve("lang").resolve("en_us").resolve("chapter.snbt")), readObject(root.resolve("lang").resolve(code).resolve("chapter.snbt")));
+        // Textes : un dossier par langue, ou un seul fichier fusionné par FTB Quests (lang/<langue>.snbt,
+        // ATM10 8.4), qui l'emporte : c'est le plus récent. Anglais d'abord, puis la langue du joueur.
+        JsonObject singleEn = readObject(root.resolve("lang").resolve("en_us.snbt"));
+        JsonObject singleCode = readObject(root.resolve("lang").resolve(code + ".snbt"));
+        JsonObject chapterLang = merged(merged(merged(readObject(root.resolve("lang").resolve("en_us").resolve("chapter.snbt")), singleEn),
+                readObject(root.resolve("lang").resolve(code).resolve("chapter.snbt"))), singleCode);
 
         List<JsonObject> chapters = new ArrayList<>();
         Map<JsonObject, String> files = new LinkedHashMap<>();
@@ -116,8 +121,8 @@ public final class FtbQuests {
         for (JsonObject ch : chapters) {
             String chapterId = str(ch, "id");
             String file = files.get(ch);
-            JsonObject questLang = merged(readObject(root.resolve("lang").resolve("en_us").resolve("chapters").resolve(file + ".snbt")),
-                    readObject(root.resolve("lang").resolve(code).resolve("chapters").resolve(file + ".snbt")));
+            JsonObject questLang = merged(merged(merged(readObject(root.resolve("lang").resolve("en_us").resolve("chapters").resolve(file + ".snbt")), singleEn),
+                    readObject(root.resolve("lang").resolve(code).resolve("chapters").resolve(file + ".snbt"))), singleCode);
             String chapterTitle = clean(firstNonNull(text(chapterLang.get("chapter." + chapterId + ".title")), text(ch.get("title"))));
             if (chapterTitle.isEmpty()) chapterTitle = pretty(file);
             List<JsonObject> quests = objects(ch.get("quests"));

@@ -103,6 +103,19 @@ class FtbQuestsTest {
     }
 
     @Test
+    void textesDansUnSeulFichierParLangue(@TempDir Path game) throws Exception {
+        book(game);
+        Path q = FtbQuests.booksDir(game);
+        write(q.resolve("lang/en_us.snbt"), "{\n\tchapter.24151251C8730F2E.title: \"Aether Realm\"\n\tquest.27F62C4B42B16015.title: \"Glow Up\"\n}");
+        write(q.resolve("lang/fr_fr.snbt"), "{ quest.27F62C4B42B16015.title: \"Ça brille\" }");
+        FtbQuests.Quest fr = FtbQuests.readBook(game, "fr_fr").get(2);
+        assertEquals("Ça brille", fr.title);
+        FtbQuests.Quest en = FtbQuests.readBook(game, "en_us").get(2);
+        assertEquals("Glow Up", en.title);
+        assertEquals("Aether Realm", en.chapter);
+    }
+
+    @Test
     void progressionDeLEquipeDuJoueur(@TempDir Path world) throws Exception {
         Path own = world.resolve("ftbquests").resolve(PLAYER + ".snbt");
         write(own, "{\n\tversion: 1\n\tcompleted: {\n\t\t\"27F62C4B42B16015\": 1730000000000L\n\t\t\"24151251C8730F2E\": 1730000000500L\n\t}\n\ttask_progress: { \"3677156DC4D715D5\": 10L }\n}");
