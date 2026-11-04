@@ -32,6 +32,8 @@ import net.minecraft.stats.StatType;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.storage.LevelResource;
 import net.xpack.companion.core.ApiClient;
+import net.xpack.companion.core.FtbQuests;
+import net.xpack.companion.core.QuestWatcher;
 import net.xpack.companion.core.Config;
 import net.xpack.companion.core.Credentials;
 import net.minecraft.client.gui.screens.ChatScreen;
@@ -184,6 +186,7 @@ public final class XPackClient {
         if (nowInWorld && !inWorld) join(mc);
         if (!nowInWorld && inWorld) {
             ticks = 0;
+            stopQuests();
             core.onLeaveWorld();
             SmokeTest.log("left world");
         }
@@ -193,6 +196,7 @@ public final class XPackClient {
         XPackToasts.tick(mc);
         XPackSounds.tick(mc);
         if (inWorld) ItemIcons.tick(mc, core);
+        if (inWorld && quests != null) quests.tick();
 
         if (inWorld) {
             ticksSinceStats++;
@@ -306,6 +310,35 @@ public final class XPackClient {
         SmokeTest.log("joined " + ctx.kind() + " world, modpack=" + ctx.modpack());
         core.onJoinWorld(ctx);
         refreshCatalog(mc);
+        startQuests(mc);
+    }
+
+    // ------------------------------------------------------------------ quêtes FTB Quests (04/11/2026)
+
+    /** Livre FTB Quests du monde solo (ATM10…) : jauge « Avancement » du site. */
+    private static QuestWatcher quests;
+
+    /**
+     * Solo seulement : en multijoueur, la progression FTB Quests reste sur le serveur. Le livre est
+     * celui de l'instance, la progression celle de l'équipe du joueur dans le monde.
+     */
+    private static void startQuests(Minecraft mc) {
+        stopQuests();
+        IntegratedServer server = mc.getSingleplayerServer();
+        if (server == null || !modIds.contains("ftbquests")) return;
+        Path worldDir = server.getWorldPath(LevelResource.ROOT);
+        java.util.function.Supplier<String> lang = () -> mc.options == null ? "en_us" : mc.options.languageCode;
+        quests = new QuestWatcher(core, FtbQuests.source(gameDir, worldDir, mc.player.getUUID().toString(), lang), XPackClient::translate, lang, () -> playtime(mc));
+    }
+
+    private static void stopQuests() {
+        if (quests != null) quests.close();
+        quests = null;
+    }
+
+    /** Texte du jeu pour une clé de traduction ; la clé telle quelle s'il ne la connaît pas. */
+    private static String translate(String key) {
+        return key != null && net.minecraft.client.resources.language.I18n.exists(key) ? net.minecraft.client.resources.language.I18n.get(key) : key;
     }
 
     private static XPackCore.WorldContext worldContext(Minecraft mc) {

@@ -16,12 +16,45 @@ import java.util.function.LongSupplier;
 import java.util.function.Supplier;
 
 /**
- * Suivi des quêtes BetterQuesting d'un monde solo, pour une partie : le livre une fois, puis les
- * quêtes terminées chaque fois que BetterQuesting réécrit son fichier (sauvegarde du monde, pause).
+ * Suivi des quêtes d'un monde solo (BetterQuesting ou FTB Quests), pour une partie : le livre une
+ * fois, puis les quêtes terminées chaque fois que le mod de quêtes réécrit son fichier (sauvegarde du
+ * monde, pause).
  * Les fichiers sont lus hors du thread du jeu (GT: New Horizons : 14 Mo) ; les résultats passent au
  * cœur pendant {@link #tick()}, sur le thread du jeu.
  */
 public final class QuestWatcher {
+    /** D'où viennent le livre et la progression : BetterQuesting ou FTB Quests (04/11/2026). */
+    public interface Source {
+        /** Fichier dont la date de modification annonce de nouvelles quêtes terminées. */
+        Path progressFile();
+
+        /** Le livre (vide s'il n'y en a pas) ; lu hors du thread du jeu. */
+        List<XPackCore.AdvancementInfo> readCatalog(Function<String, String> translate);
+
+        /** Quêtes terminées → date de fin (ms, 0 si inconnue) ; null si illisible pour l'instant. */
+        Map<String, Long> readCompleted();
+    }
+
+    /** Livre et progression BetterQuesting d'un monde (RLCraft, GT: New Horizons). */
+    public static Source betterQuesting(Path worldDir, String playerUuid) {
+        return new Source() {
+            @Override
+            public Path progressFile() {
+                return BetterQuesting.progressFile(worldDir, playerUuid);
+            }
+
+            @Override
+            public List<XPackCore.AdvancementInfo> readCatalog(Function<String, String> translate) {
+                return BetterQuesting.catalog(BetterQuesting.readQuests(worldDir), translate);
+            }
+
+            @Override
+            public Map<String, Long> readCompleted() {
+                return BetterQuesting.readCompleted(worldDir, playerUuid);
+            }
+        };
+    }
+
     static final int INTERVAL_TICKS = 100;
     private static final ExecutorService READER = Executors.newSingleThreadExecutor(r -> {
         Thread t = new Thread(r, "XPack quêtes");
@@ -30,8 +63,7 @@ public final class QuestWatcher {
     });
 
     private final XPackCore core;
-    private final Path worldDir;
-    private final String playerUuid;
+    private final Source source;
     private final Function<String, String> translate;
     private final Supplier<String> lang;
     private final LongSupplier playtime;
@@ -48,13 +80,21 @@ public final class QuestWatcher {
      * connaît pas) ; {@code playtime} : temps de jeu des événements (#74).
      */
     public QuestWatcher(XPackCore core, Path worldDir, String playerUuid, Function<String, String> translate, Supplier<String> lang, LongSupplier playtime) {
-        this(core, worldDir, playerUuid, translate, lang, playtime, READER);
+        this(core, betterQuesting(worldDir, playerUuid), translate, lang, playtime, READER);
+    }
+
+    /** Avec une autre source de quêtes (FTB Quests : {@link FtbQuests#source}). */
+    public QuestWatcher(XPackCore core, Source source, Function<String, String> translate, Supplier<String> lang, LongSupplier playtime) {
+        this(core, source, translate, lang, playtime, READER);
     }
 
     QuestWatcher(XPackCore core, Path worldDir, String playerUuid, Function<String, String> translate, Supplier<String> lang, LongSupplier playtime, Executor background) {
+        this(core, betterQuesting(worldDir, playerUuid), translate, lang, playtime, background);
+    }
+
+    QuestWatcher(XPackCore core, Source source, Function<String, String> translate, Supplier<String> lang, LongSupplier playtime, Executor background) {
         this.core = core;
-        this.worldDir = worldDir;
-        this.playerUuid = playerUuid;
+        this.source = source;
         this.translate = translate;
         this.lang = lang;
         this.playtime = playtime;
@@ -74,20 +114,20 @@ public final class QuestWatcher {
         if (closed || busy || ticks++ % INTERVAL_TICKS != 0) return;
         // Partie d'entraînement ou sans monde : le livre ne compte pas, inutile de le lire.
         if (!core.wantsQuests()) return;
-        Path progress = BetterQuesting.progressFile(worldDir, playerUuid);
+        Path progress = source.progressFile();
         long modified = modified(progress);
         boolean readCatalog = !catalogSent;
         boolean readProgress = modified != lastModified;
         if (!readCatalog && !readProgress) return;
         busy = true;
         background.execute(() -> {
-            List<BetterQuesting.Quest> quests = readCatalog ? BetterQuesting.readQuests(worldDir) : null;
+            List<XPackCore.AdvancementInfo> quests = readCatalog ? source.readCatalog(translate) : null;
             // Pas encore de fichier (monde neuf, jamais sauvegardé) : aucune quête terminée.
-            Map<String, Long> done = !readProgress ? null : modified == 0 ? Collections.<String, Long>emptyMap() : BetterQuesting.readCompleted(worldDir, playerUuid);
+            Map<String, Long> done = !readProgress ? null : modified == 0 ? Collections.<String, Long>emptyMap() : source.readCompleted();
             results.add(() -> {
                 busy = false;
                 if (quests != null && !quests.isEmpty()) {
-                    core.onQuestCatalog(BetterQuesting.catalog(quests, translate), lang.get());
+                    core.onQuestCatalog(quests, lang.get());
                     catalogSent = true;
                 }
                 if (done != null) { // null : fichier en cours d'écriture, relu au prochain passage
