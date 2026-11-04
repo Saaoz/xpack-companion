@@ -420,7 +420,8 @@ public final class Client1710 {
                 String title = clean(a.func_150951_e().getUnformattedText());
                 if (title.isEmpty()) title = a.statId;
                 String parent = a.parentAchievement == null ? null : achievementId(a.parentAchievement);
-                out.add(new XPackCore.AdvancementInfo(id, parent, title, clean(a.getDescription()), a.getSpecial() ? "challenge" : "task", icon == null ? "minecraft:air" : icon, false, e.getValue()));
+                out.add(new XPackCore.AdvancementInfo(id, parent, title, clean(a.getDescription()), a.getSpecial() ? "challenge" : "task", icon == null ? "minecraft:air" : icon, false, e.getValue())
+                        .withPosition(a.displayColumn, a.displayRow));
             } catch (RuntimeException ex) {
                 // Achievement d'un mod mal formé : on se passe de lui, pas du catalogue.
                 FMLLog.fine("[XPack] achievement ignoré %s : %s", a.statId, ex);

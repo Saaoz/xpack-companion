@@ -225,12 +225,21 @@ public final class XPackCore {
         private final boolean hidden;
         /** Onglet où le jeu le range (1.7.10 : page d'achievements du mod), ou null : son arbre. */
         private final String tab;
+        /** Position du succès sur la page du jeu (1.7.10 : displayColumn / displayRow), ou null. */
+        private final Integer column;
+        private final Integer row;
 
         public AdvancementInfo(String id, String parent, String title, String description, String frame, String icon, boolean hidden) {
             this(id, parent, title, description, frame, icon, hidden, null);
         }
 
         public AdvancementInfo(String id, String parent, String title, String description, String frame, String icon, boolean hidden, String tab) {
+            this(id, parent, title, description, frame, icon, hidden, tab, null, null);
+        }
+
+        public AdvancementInfo(String id, String parent, String title, String description, String frame, String icon, boolean hidden, String tab, Integer column, Integer row) {
+            this.column = column;
+            this.row = row;
             this.id = id;
             this.parent = parent;
             this.title = title;
@@ -243,6 +252,19 @@ public final class XPackCore {
 
         public String tab() {
             return tab;
+        }
+
+        public Integer column() {
+            return column;
+        }
+
+        public Integer row() {
+            return row;
+        }
+
+        /** Le même succès avec sa position sur la page du jeu. */
+        public AdvancementInfo withPosition(int column, int row) {
+            return new AdvancementInfo(id, parent, title, description, frame, icon, hidden, tab, column, row);
         }
 
         public String id() {
@@ -278,17 +300,17 @@ public final class XPackCore {
             if (this == o) return true;
             if (!(o instanceof AdvancementInfo)) return false;
             AdvancementInfo other = (AdvancementInfo) o;
-            return java.util.Objects.equals(id, other.id) && java.util.Objects.equals(parent, other.parent) && java.util.Objects.equals(title, other.title) && java.util.Objects.equals(description, other.description) && java.util.Objects.equals(frame, other.frame) && java.util.Objects.equals(icon, other.icon) && java.util.Objects.equals(hidden, other.hidden) && java.util.Objects.equals(tab, other.tab);
+            return java.util.Objects.equals(id, other.id) && java.util.Objects.equals(parent, other.parent) && java.util.Objects.equals(title, other.title) && java.util.Objects.equals(description, other.description) && java.util.Objects.equals(frame, other.frame) && java.util.Objects.equals(icon, other.icon) && java.util.Objects.equals(hidden, other.hidden) && java.util.Objects.equals(tab, other.tab) && java.util.Objects.equals(column, other.column) && java.util.Objects.equals(row, other.row);
         }
 
         @Override
         public int hashCode() {
-            return java.util.Objects.hash(id, parent, title, description, frame, icon, hidden, tab);
+            return java.util.Objects.hash(id, parent, title, description, frame, icon, hidden, tab, column, row);
         }
 
         @Override
         public String toString() {
-            return "AdvancementInfo[" + "id=" + id + ", parent=" + parent + ", title=" + title + ", description=" + description + ", frame=" + frame + ", icon=" + icon + ", hidden=" + hidden + ", tab=" + tab + "]";
+            return "AdvancementInfo[" + "id=" + id + ", parent=" + parent + ", title=" + title + ", description=" + description + ", frame=" + frame + ", icon=" + icon + ", hidden=" + hidden + ", tab=" + tab + ", column=" + column + ", row=" + row + "]";
         }
     }
 
@@ -790,6 +812,10 @@ public final class XPackCore {
             if (a.icon() != null) o.addProperty("icon", a.icon());
             if (a.hidden()) o.addProperty("hidden", true);
             if (a.tab() != null && !J8.isBlank(a.tab())) o.addProperty("tab", a.tab());
+            if (a.column() != null && a.row() != null) {
+                o.addProperty("col", a.column());
+                o.addProperty("row", a.row());
+            }
             int length = o.toString().length() + 1;
             if (size > 0 && size + length > CATALOG_PART_CHARS) {
                 parts.add(part);

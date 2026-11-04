@@ -921,6 +921,18 @@ class XPackCoreTest {
     }
 
     @Test
+    void envoieLaPositionDuSuccesSurLaPageDuJeuQuandElleExiste() {
+        creds.put(config.apiUrl, UUID, "Steve", "jeton");
+        api.reply(201, SESSION);
+        core.onJoinWorld(world());
+        core.onAdvancementCatalog(List.of(adv("gt:a", null, "task").withPosition(3, -2), adv("gt:b", "gt:a", "task")), "en_us");
+        JsonArray list = api.last("/catalog").body().getAsJsonArray("advancements");
+        assertEquals(3, list.get(0).getAsJsonObject().get("col").getAsInt());
+        assertEquals(-2, list.get(0).getAsJsonObject().get("row").getAsInt());
+        assertFalse(list.get(1).getAsJsonObject().has("col"), "pas de position connue : rien d'envoyé");
+    }
+
+    @Test
     void demandeLesIconesManquantesUneFoisLeCatalogueEnvoyeEtLesEnvoieUneAUne() {
         creds.put(config.apiUrl, UUID, "Steve", "jeton");
         api.reply(201, SESSION);
