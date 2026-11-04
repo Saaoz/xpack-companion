@@ -27,6 +27,7 @@
   "xpack.toast.players": "%s%% of players",
   "xpack.toast.playersFew": "under 1%% of players",
   "xpack.toast.points": "points",
+  "xpack.toast.questPoints": "progression",
   "xpack.toast.rarest": "Rarest: %s",
   "xpack.toast.completed": "Modpack 100% complete!",
   "xpack.toast.completedDetail": "%s achievements · %s h",

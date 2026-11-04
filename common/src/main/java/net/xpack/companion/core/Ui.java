@@ -27,8 +27,15 @@ public interface Ui {
         public final double percent;
         /** Badge de difficulté du monde (peaceful … hardcore), ou null. */
         public final String difficulty;
+        /** Quête BetterQuesting : `points` sont des points d'avancement, à part des succès (04/11/2026). */
+        public final boolean quest;
 
         public Unlock(String name, int points, String rarity, String item, double percent, String difficulty) {
+            this(name, points, rarity, item, percent, difficulty, false);
+        }
+
+        public Unlock(String name, int points, String rarity, String item, double percent, String difficulty, boolean quest) {
+            this.quest = quest;
             this.name = name;
             this.points = points;
             this.rarity = rarity;
@@ -110,10 +117,23 @@ public interface Ui {
             return players != null ? players : difficulty != null ? difficulty : "";
         }
 
+        /** Que des quêtes : le toast affiche des points d'avancement. */
+        public static boolean allQuests(java.util.List<Unlock> unlocks) {
+            for (Unlock u : unlocks) if (!u.quest) return false;
+            return !unlocks.isEmpty();
+        }
+
+        /** Points du toast : ceux des succès ; ceux des quêtes seulement si le toast n'a que des quêtes. */
         public static int totalPoints(java.util.List<Unlock> unlocks) {
+            boolean quests = allQuests(unlocks);
             int sum = 0;
-            for (Unlock u : unlocks) sum += u.points;
+            for (Unlock u : unlocks) if (quests || !u.quest) sum += u.points;
             return sum;
+        }
+
+        /** Clé du texte sous les points : « points » ou « avancement ». */
+        public static String unitKey(java.util.List<Unlock> unlocks) {
+            return allQuests(unlocks) ? "xpack.toast.questPoints" : "xpack.toast.points";
         }
     }
 

@@ -771,19 +771,17 @@ public final class XPackCore {
     }
 
     /**
-     * Les quêtes BetterQuesting ne s'ajoutent qu'aux modpacks qui ont moins de 300 progrès
-     * (RLCraft : 104) ; au-delà (GT: New Horizons : ~1 100), les progrès suffisent.
+     * Le livre de quêtes BetterQuesting compte pour cette partie, quel que soit le nombre de progrès
+     * (04/11/2026 : les quêtes ont leur jauge « Avancement » sur le site, à part des succès ; le
+     * seuil de 300 progrès, qui écartait GT: New Horizons, n'a plus lieu d'être).
      */
-    public static final int QUESTS_BELOW_ADVANCEMENTS = 300;
-
-    /** Le livre de quêtes compte pour cette partie (voir {@link #QUESTS_BELOW_ADVANCEMENTS}). */
     public boolean wantsQuests() {
-        return world != null && !practice && advancementCatalog.size() < QUESTS_BELOW_ADVANCEMENTS;
+        return world != null && !practice;
     }
 
     private void updateCatalog() {
         List<AdvancementInfo> all = new ArrayList<>(advancementCatalog);
-        if (advancementCatalog.size() < QUESTS_BELOW_ADVANCEMENTS) all.addAll(questCatalog);
+        all.addAll(questCatalog);
         if (all.isEmpty() || catalogLang == null) return;
         catalog = all.size() > MAX_CATALOG ? new ArrayList<>(all.subList(0, MAX_CATALOG)) : all;
         catalogHash = hashOf(catalog, catalogLang);
@@ -802,9 +800,12 @@ public final class XPackCore {
         List<JsonArray> parts = new ArrayList<>();
         JsonArray part = new JsonArray();
         int size = 0;
+        int order = 0;
         for (AdvancementInfo a : catalog) {
             JsonObject o = new JsonObject();
             o.addProperty("id", a.id());
+            // Rang dans la liste du jeu : le site range les onglets (pages 1.7.10, chapitres) dans cet ordre.
+            o.addProperty("order", order++);
             if (a.parent() != null) o.addProperty("parent", a.parent());
             o.addProperty("title", a.title());
             if (a.description() != null && !J8.isBlank(a.description())) o.addProperty("description", a.description());
@@ -1591,7 +1592,9 @@ public final class XPackCore {
             // Objet, part des joueurs et difficulté : absents d'un ancien serveur.
             String rarity = text(u.get("rarity"));
             Ui.Unlock unlock = new Ui.Unlock(u.get("name").getAsString(), u.get("points").getAsInt(), rarity != null ? rarity : "commun", text(u.get("item")),
-                    u.has("percent") && u.get("percent").isJsonPrimitive() ? u.get("percent").getAsDouble() : -1, text(u.get("difficulty")));
+                    u.has("percent") && u.get("percent").isJsonPrimitive() ? u.get("percent").getAsDouble() : -1, text(u.get("difficulty")),
+                    // Quête : points d'avancement (serveur du 04/11/2026 ; absent avant).
+                    u.has("quest") && u.get("quest").isJsonPrimitive() && u.get("quest").getAsBoolean());
             later(() -> ui.toastUnlocked(unlock));
         }
         // Paliers du modpack (#60) : toast spécial, après ceux des succès du lot. 100 % dans « completed »,

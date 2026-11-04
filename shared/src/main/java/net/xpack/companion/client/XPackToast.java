@@ -94,7 +94,7 @@ final class XPackToast implements Toast {
         // Points à droite.
         String pts = "+" + Ui.Unlock.totalPoints(unlocks);
         g.drawString(font, pts, WIDTH - 6 - font.width(pts), 10, GOLD, false);
-        String unit = Texts.tr("xpack.toast.points").getString();
+        String unit = Texts.tr(Ui.Unlock.unitKey(unlocks)).getString();
         g.drawString(font, unit, WIDTH - 6 - font.width(unit), 21, GREY, false);
 
         // Trois lignes : rareté, nom(s), part des joueurs et difficulté.

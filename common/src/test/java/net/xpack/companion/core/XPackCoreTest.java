@@ -984,28 +984,38 @@ class XPackCoreTest {
     }
 
     @Test
-    void pasDeQuetesPourUnModpackDe300ProgresOuPlus() {
+    void quetesAussiPourUnModpackRicheEnProgresAvecLeurOrdre() {
+        // 04/11/2026 : plus de seuil de 300 progrès (GT: New Horizons) ; les quêtes ont leur jauge
+        // « Avancement » à part sur le site. Chaque entrée porte son rang (ordre des onglets).
         linkedAndJoined();
         List<XPackCore.AdvancementInfo> quests = List.of(new XPackCore.AdvancementInfo(BetterQuesting.PREFIX + "0", null, "Quest", "", "task", "minecraft:stone", false, "Tier 0"));
         List<XPackCore.AdvancementInfo> advancements = new ArrayList<>();
-        for (int i = 0; i < 299; i++) advancements.add(adv("gregtech:a" + i, null, "task"));
+        for (int i = 0; i < 300; i++) advancements.add(adv("gregtech:a" + i, null, "task"));
         core.onAdvancementCatalog(advancements, "en_us");
-        assertTrue(core.wantsQuests(), "299 progrès : le livre s'ajoute");
+        assertTrue(core.wantsQuests(), "300 progrès : le livre compte quand même");
         core.onQuestCatalog(quests, "en_us");
-        assertEquals(300, api.last("/catalog").body().getAsJsonArray("advancements").size());
-
-        advancements.add(adv("gregtech:a299", null, "task"));
-        core.onAdvancementCatalog(advancements, "en_us");
-        assertFalse(core.wantsQuests(), "300 progrès : les progrès suffisent");
         JsonArray sent = api.last("/catalog").body().getAsJsonArray("advancements");
-        assertEquals(300, sent.size());
-        for (var a : sent) assertFalse(a.getAsJsonObject().get("id").getAsString().startsWith(BetterQuesting.PREFIX));
+        assertEquals(301, sent.size());
+        JsonObject last = sent.get(300).getAsJsonObject();
+        assertEquals(BetterQuesting.PREFIX + "0", last.get("id").getAsString());
+        assertEquals(300, last.get("order").getAsInt());
+        assertEquals(0, sent.get(0).getAsJsonObject().get("order").getAsInt());
         core.onQuests(Map.of(BetterQuesting.PREFIX + "0", 1_000L), 2_000, 10);
         clock.millis += 10_000;
         core.tick();
-        for (FakeApi.Call c : api.calls) {
-            if (c.path().endsWith("/events")) assertFalse(c.body().toString().contains(BetterQuesting.PREFIX), "quête ignorée");
-        }
+        boolean reported = false;
+        for (FakeApi.Call c : api.calls) if (c.path().endsWith("/events") && c.body().toString().contains(BetterQuesting.PREFIX)) reported = true;
+        assertTrue(reported, "quête terminée envoyée");
+    }
+
+    @Test
+    void toastDeQuetesEnPointsDAvancement() {
+        Ui.Unlock success = new Ui.Unlock("A", 8, "commun", null, -1, null);
+        Ui.Unlock quest = new Ui.Unlock("Q", 5, "commun", null, -1, null, true);
+        assertEquals("xpack.toast.questPoints", Ui.Unlock.unitKey(List.of(quest)));
+        assertEquals(5, Ui.Unlock.totalPoints(List.of(quest)));
+        assertEquals("xpack.toast.points", Ui.Unlock.unitKey(List.of(success, quest)));
+        assertEquals(8, Ui.Unlock.totalPoints(List.of(success, quest)), "toast mixte : seulement les points de succès");
     }
 
     @Test

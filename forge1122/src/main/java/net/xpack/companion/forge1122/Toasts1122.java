@@ -268,7 +268,7 @@ public final class Toasts1122 {
 
             // Points à droite, puis les trois lignes de texte.
             String pts = "+" + Ui.Unlock.totalPoints(unlocks);
-            String unit = Lang.tr("xpack.toast.points");
+            String unit = Lang.tr(Ui.Unlock.unitKey(unlocks));
             font.drawString(pts, WIDTH - 6 - font.getStringWidth(pts), 10, 0xFFD166);
             font.drawString(unit, WIDTH - 6 - font.getStringWidth(unit), 21, 0xA3B1C2);
             int textX = x + 4;

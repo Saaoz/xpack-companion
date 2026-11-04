@@ -72,7 +72,7 @@ public final class QuestWatcher {
         Runnable r;
         while (!closed && (r = results.poll()) != null) r.run();
         if (closed || busy || ticks++ % INTERVAL_TICKS != 0) return;
-        // Modpack riche en progrès (300 et plus) : le livre ne compte pas, inutile de le lire.
+        // Partie d'entraînement ou sans monde : le livre ne compte pas, inutile de le lire.
         if (!core.wantsQuests()) return;
         Path progress = BetterQuesting.progressFile(worldDir, playerUuid);
         long modified = modified(progress);
