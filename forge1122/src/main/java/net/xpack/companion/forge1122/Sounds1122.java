@@ -16,7 +16,7 @@ import net.xpack.companion.core.J8;
  */
 final class Sounds1122 {
     /** Sons proposés dans les réglages, dans l'ordre du bouton. */
-    static final List<String> PRESETS = J8.listOf("carillon", "cloche", "fanfare", "off");
+    static final List<String> PRESETS = J8.listOf("gourmand", "carillon", "cloche", "fanfare", "off");
     static final List<String> RARITIES = J8.listOf("commun", "peu_commun", "rare", "epique", "legendaire");
 
     private static final class Note {
@@ -40,9 +40,32 @@ final class Sounds1122 {
     private static final List<Note> pending = new ArrayList<>();
     private static long now;
 
+    /** Combo du son « gourmand » (#204) : succès débloqués à moins de COMBO_WINDOW_MS d'écart. */
+    private static final long COMBO_WINDOW_MS = 10000;
+    private static final int COMBO_MAX_STEPS = 6;
+    /** À partir de ce nombre de succès dans un seul toast, un seul son sans combo (pas de rafale). */
+    private static final int BURST = 4;
+    private static long lastUnlockAt;
+    private static int combo;
+
     private Sounds1122() {}
 
     static void play(Config c, String rarity) {
+        play(c.sound, c.soundVolume, rarity);
+    }
+
+    /** Réglages : l'écoute d'un aperçu ne doit pas compter comme un succès enchaîné. */
+    static void resetCombo() {
+        combo = 0;
+        lastUnlockAt = 0;
+    }
+
+    /** Son d'un toast qui regroupe {@code count} succès (le plus rare donne la rareté). */
+    static void play(Config c, String rarity, int count) {
+        if ("gourmand".equals(c.sound) && count >= BURST) {
+            playGourmand(c.soundVolume, rarity, 0, true);
+            return;
+        }
         play(c.sound, c.soundVolume, rarity);
     }
 
@@ -52,6 +75,13 @@ final class Sounds1122 {
         int rank = Math.max(0, RARITIES.indexOf(rarity));
         pending.clear(); // un nouveau son remplace celui en cours
         switch (preset) {
+            case "gourmand": {
+                long t = System.currentTimeMillis();
+                combo = t - lastUnlockAt <= COMBO_WINDOW_MS ? Math.min(combo + 1, COMBO_MAX_STEPS) : 0;
+                lastUnlockAt = t;
+                playGourmand(volumePercent, rarity, combo, false);
+                break;
+            }
             case "cloche":
                 for (int i = 0; i <= Math.min(rank, 3); i++) note(i * NOTE_GAP_TICKS * 2, SoundEvents.BLOCK_NOTE_BELL, semitones(ARPEGGIO[i] - 5), volume);
                 if (rank == 4) note(8 * NOTE_GAP_TICKS, SoundEvents.BLOCK_NOTE_BELL, 1.2f, volume * 0.5f);
@@ -63,6 +93,36 @@ final class Sounds1122 {
             default:
                 for (int i = 0; i <= Math.min(rank, 3); i++) note(i * NOTE_GAP_TICKS, SoundEvents.BLOCK_NOTE_CHIME, semitones(ARPEGGIO[i]), volume);
                 if (rank == 4) note(4 * NOTE_GAP_TICKS, SoundEvents.BLOCK_NOTE_CHIME, 1.5f, volume);
+        }
+    }
+
+    /**
+     * Son « gourmand » (#204) : le « ping » de l'orbe d'expérience, plus aigu à chaque succès enchaîné
+     * (combo, +2 demi-tons, jusqu'à une octave). La rareté ajoute de la matière, jusqu'à l'éclat de
+     * feu d'artifice du légendaire.
+     */
+    private static void playGourmand(int volumePercent, String rarity, int comboSteps, boolean burst) {
+        if (volumePercent <= 0) return;
+        float volume = Math.min(volumePercent, 100) / 100f;
+        int rank = Math.max(0, RARITIES.indexOf(rarity));
+        pending.clear();
+        int lift = comboSteps * 2;
+        note(0, SoundEvents.ENTITY_EXPERIENCE_ORB_PICKUP, semitones(lift), volume * 0.9f);
+        if (burst) {
+            note(3, SoundEvents.ENTITY_EXPERIENCE_ORB_PICKUP, semitones(lift + 7), volume * 0.8f);
+            note(6, SoundEvents.BLOCK_NOTE_CHIME, 1.3f, volume * 0.7f);
+            return;
+        }
+        if (rank >= 1) note(3, SoundEvents.ENTITY_EXPERIENCE_ORB_PICKUP, semitones(lift + 4), volume * 0.8f);
+        if (rank >= 2) note(5, SoundEvents.BLOCK_NOTE_CHIME, semitones(lift + 7), volume * 0.8f);
+        if (rank >= 3) {
+            note(7, SoundEvents.BLOCK_NOTE_CHIME, semitones(lift + 12), volume);
+            note(9, SoundEvents.BLOCK_NOTE_CHIME, semitones(lift + 16), volume * 0.8f);
+        }
+        if (rank == 4) {
+            note(8, SoundEvents.UI_TOAST_CHALLENGE_COMPLETE, 1.3f, volume * 0.6f);
+            note(10, SoundEvents.ENTITY_FIREWORK_TWINKLE, 1.0f, volume * 0.7f);
+            note(12, SoundEvents.BLOCK_NOTE_BELL, 0.8f, volume * 0.5f);
         }
     }
 

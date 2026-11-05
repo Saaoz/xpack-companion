@@ -168,6 +168,7 @@ public final class SettingsScreen1122 extends GuiScreen {
                 core.saveConfig();
                 break;
             case LISTEN:
+                Sounds1122.resetCombo();
                 Sounds1122.play(c, Sounds1122.RARITIES.get(listened));
                 listened = (listened + 1) % Sounds1122.RARITIES.size();
                 break;

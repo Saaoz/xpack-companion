@@ -91,7 +91,7 @@ public final class Toasts1122 {
         if (!unlocks.isEmpty()) {
             show(toasts, new UnlockToast(new ArrayList<>(unlocks)), UnlockToast.HEIGHT, ownCorner, now);
             // Un seul son pour le toast : celui du plus rare des succès qu'il regroupe.
-            Sounds1122.play(Client1122.core().config(), Ui.Unlock.rarest(unlocks).rarity);
+            Sounds1122.play(Client1122.core().config(), Ui.Unlock.rarest(unlocks).rarity, unlocks.size());
             unlocks.clear();
         }
         // Palier (#60) : une fois le toast du dernier succès parti, avec son propre son.

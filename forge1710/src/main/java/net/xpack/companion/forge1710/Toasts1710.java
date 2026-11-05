@@ -113,7 +113,7 @@ public final class Toasts1710 {
             String rarest = Ui.Unlock.rarest(list).rarity;
             show(new Toast(Toast.UNLOCK, UNLOCK_WIDTH, UNLOCK_HEIGHT, 5_000, null, null, Ui.Unlock.color(rarest), 0, list), now);
             // Un seul son pour le toast : celui du plus rare des succès qu'il regroupe.
-            Sounds1710.play(Client1710.core().config(), rarest);
+            Sounds1710.play(Client1710.core().config(), rarest, list.size());
             unlocks.clear();
         }
         // Palier (#60) : une fois le toast du dernier succès parti, avec son propre son.
