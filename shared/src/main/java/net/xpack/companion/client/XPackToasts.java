@@ -119,8 +119,9 @@ final class XPackToasts {
         if (!unlocks.isEmpty()) {
             show(toasts, XPackToast.of(List.copyOf(unlocks)), ownCorner, now);
             // Un seul son pour le toast : celui du plus rare des succès qu'il regroupe.
+            int count = unlocks.size();
             unlocks.stream().map(u -> u.rarity).max(Comparator.comparingInt(Ui.Unlock::rank))
-                    .ifPresent(r -> XPackSounds.play(XPackClient.core().config(), r));
+                    .ifPresent(r -> XPackSounds.play(XPackClient.core().config(), r, count));
             unlocks.clear();
         }
         // Palier (#60) : une fois le toast du dernier succès parti, avec son propre son.

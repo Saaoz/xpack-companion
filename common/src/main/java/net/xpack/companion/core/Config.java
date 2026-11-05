@@ -43,8 +43,8 @@ public final class Config {
     public String toastPosition;
     /** Délai avant l'apparition d'un toast de succès, en secondes (0 à 10). */
     public int toastDelay = 0;
-    /** Son joué avec le toast d'un succès (#59) : {@code carillon}, {@code cloche}, {@code fanfare} ou {@code off}. */
-    public String sound = "carillon";
+    /** Son joué avec le toast d'un succès (#59) : {@code gourmand}, {@code carillon}, {@code cloche}, {@code fanfare} ou {@code off}. */
+    public String sound = "gourmand";
     /** Volume de ce son, de 0 à 100 (en plus du volume général du jeu). */
     public int soundVolume = 80;
     /** Badge d'état (comptabilisé / hors-ligne / non comptabilisé) dans le menu pause (#39). */

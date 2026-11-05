@@ -77,6 +77,7 @@ public final class SettingsScreen extends Screen {
                     core.saveConfig();
                 }));
         addRenderableWidget(Button.builder(listenLabel(), b -> {
+            XPackSounds.resetCombo();
             XPackSounds.play(c, XPackSounds.RARITIES.get(listened));
             listened = (listened + 1) % XPackSounds.RARITIES.size();
             b.setMessage(listenLabel());
