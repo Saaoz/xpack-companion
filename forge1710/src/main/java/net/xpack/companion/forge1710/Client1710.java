@@ -194,6 +194,7 @@ public final class Client1710 {
         inWorld = nowInWorld;
         Toasts1710.tick();
         Sounds1710.tick(mc);
+        if (inWorld) ItemIcons1710.tick(mc, core);
 
         if (inWorld) {
             ticksSinceStats++;

@@ -166,6 +166,7 @@ public final class Client1122 {
         inWorld = nowInWorld;
         Toasts1122.tick(mc);
         Sounds1122.tick(mc);
+        if (inWorld) ItemIcons1122.tick(mc, core);
 
         if (inWorld) {
             ticksSinceStats++;
