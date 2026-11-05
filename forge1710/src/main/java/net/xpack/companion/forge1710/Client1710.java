@@ -539,7 +539,7 @@ public final class Client1710 {
             case "team":
             case "equipe":
             case "équipe":
-                Ui1710.say("Cet écran n'est pas encore disponible en 1.7.10 / This screen is not available yet on 1.7.10.");
+                defer(() -> Minecraft.getMinecraft().displayGuiScreen(new TeamScreen1710(null)));
                 break;
             default:
                 help();

@@ -462,7 +462,7 @@ public final class Client1122 {
             case "team":
             case "equipe":
             case "équipe":
-                Ui1122.say("Cet écran n'est pas encore disponible en 1.12.2 / This screen is not available yet on 1.12.2.");
+                defer(() -> Minecraft.getMinecraft().displayGuiScreen(new TeamScreen1122(null)));
                 break;
             default:
                 help();
