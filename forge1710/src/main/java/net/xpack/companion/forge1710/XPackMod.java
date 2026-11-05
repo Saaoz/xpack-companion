@@ -8,7 +8,7 @@ import cpw.mods.fml.relauncher.Side;
  * Point d'entrée Forge 1.7.10. Client uniquement : jamais une dépendance du modpack, et un serveur
  * qui l'aurait dans ses mods l'ignore.
  */
-@Mod(modid = "xpack", name = "XPack Companion", version = "0.3.0", acceptedMinecraftVersions = "[1.7.10]", acceptableRemoteVersions = "*")
+@Mod(modid = "xpack", name = "XPack Companion", version = "0.4.0", acceptedMinecraftVersions = "[1.7.10]", acceptableRemoteVersions = "*")
 public class XPackMod {
     @Mod.EventHandler
     public void init(FMLInitializationEvent event) {

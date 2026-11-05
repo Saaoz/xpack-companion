@@ -73,7 +73,7 @@ import net.xpack.companion.core.XPackCore;
  * commandes par l'événement de chat de Forge, le reste à chaque tick du client.
  */
 public final class Client1122 {
-    private static final String MOD_VERSION = "0.3.0";
+    private static final String MOD_VERSION = "0.4.0";
     /** Fréquence de demande des statistiques au serveur (#36). */
     private static final int STATS_INTERVAL_TICKS = 20 * 60;
     /** Vérification du mode de jeu et des capacités (#47, #48). */
