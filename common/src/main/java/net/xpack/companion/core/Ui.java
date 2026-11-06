@@ -112,7 +112,8 @@ public interface Ui {
             if (unlocks.size() > 1) return t.tr("xpack.toast.rarest", t.tr("xpack.rarity." + rarest.rarity));
             long p = rarest.shownPercent();
             String players = p < 0 ? null : p == 0 ? t.tr("xpack.toast.playersFew") : t.tr("xpack.toast.players", p);
-            String difficulty = rarest.difficulty == null ? null : t.tr("xpack.difficulty." + rarest.difficulty);
+            // « Normal » est le cas courant (×1) : seule une autre difficulté mérite la place.
+            String difficulty = rarest.difficulty == null || "normal".equals(rarest.difficulty) ? null : t.tr("xpack.difficulty." + rarest.difficulty);
             if (players != null && difficulty != null) return players + " · " + difficulty;
             return players != null ? players : difficulty != null ? difficulty : "";
         }
