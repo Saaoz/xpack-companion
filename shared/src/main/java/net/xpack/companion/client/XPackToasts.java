@@ -58,7 +58,8 @@ final class XPackToasts {
 
     /** Pile dans le coin choisi, après les toasts du jeu : depuis le bord haut ou bas, entrée et sortie par le côté. */
     static void render(GuiGraphics g, ToastComponent toasts) {
-        if (placed.isEmpty()) return;
+        // Interface masquée (F1) : comme les toasts du jeu.
+        if (placed.isEmpty() || Minecraft.getInstance().options.hideGui) return;
         String corner = corner();
         boolean left = corner.endsWith("_left");
         boolean bottom = corner.startsWith("bottom");
