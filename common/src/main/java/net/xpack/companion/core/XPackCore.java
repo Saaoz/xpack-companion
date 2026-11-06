@@ -419,6 +419,58 @@ public final class XPackCore {
         return credentials.token(config.apiUrl, minecraftUuid) != null;
     }
 
+    // ------------------------------------------------------------------ serveur local (développement)
+
+    /** Une API XPack tourne sur ce PC (Docker local) : les réglages proposent de s'en servir. */
+    private volatile boolean localServerFound;
+
+    /** Client vers {@link Config#LOCAL_API} ; la détection part au premier tick (le jeu n'existe pas encore à l'init sous NeoForge). */
+    private ApiClient localProbe;
+    private boolean localProbed;
+
+    public void setLocalProbe(ApiClient probe) {
+        this.localProbe = probe;
+    }
+
+    /** Nouvelle recherche du serveur local (ouverture des réglages : Docker a pu démarrer entre-temps). */
+    public void refreshLocalServer() {
+        if (localProbe != null) detectLocalServer(localProbe);
+    }
+
+    public boolean localServerFound() {
+        return localServerFound;
+    }
+
+    /**
+     * Au lancement : cherche une API XPack sur ce PC ({@code probe} vise {@link Config#LOCAL_API}).
+     * Rien n'est jamais choisi d'office : le joueur bascule lui-même dans les réglages. Si le mod
+     * est resté sur le serveur local et qu'il ne répond pas, on le dit sans rebasculer en ligne :
+     * des parties de test ne doivent pas partir sur le vrai site. Les succès attendent dans le
+     * fichier du monde que Docker redémarre.
+     */
+    public void detectLocalServer(ApiClient probe) {
+        probe.health().thenAcceptAsync(res -> {
+            boolean was = localServerFound;
+            localServerFound = res.ok() && res.body().has("service") && "xpack".equals(text(res.body().get("service")));
+            if (!localServerFound && config.usesLocalServer() && (was || !localProbedOnce)) ui.notify("xpack.server.local_gone");
+            localProbedOnce = true;
+        }, mainThread);
+    }
+
+    private boolean localProbedOnce;
+
+    /** Changement de serveur : seulement hors d'un monde (la session en cours appartient à l'autre). */
+    public boolean canSwitchServer() {
+        return world == null;
+    }
+
+    public void useLocalServer(boolean local) {
+        if (!canSwitchServer() || local == config.usesLocalServer() || (local && !localServerFound)) return;
+        cancelLinking(); // un code de liaison vaut pour un seul serveur
+        config.useLocalServer(local);
+        config.save(configFile);
+    }
+
     /** Pseudos Minecraft liés à XPack sur cette machine. */
     public List<String> linkedNames() {
         return credentials.linkedNames(config.apiUrl);
@@ -483,6 +535,8 @@ public final class XPackCore {
         firstSeen = store.firstSeen != null ? store.firstSeen : ctx.createdAt();
         // Chaque compte Minecraft a son propre jeton : changer de compte ne mélange rien.
         token = credentials.token(config.apiUrl, ctx.playerUuid());
+        // Serveur de développement : le rappeler à chaque monde, pour ne pas croire que rien ne compte en ligne.
+        if (config.usesLocalServer()) ui.notify("xpack.server.local_active");
         cheatsNoticeShown = store.cheatsNoticeShown;
         startedLate = store.startedLate;
         lateNoticeShown = store.lateNoticeShown;
@@ -1536,6 +1590,10 @@ public final class XPackCore {
     /** À appeler à chaque tick client : liaison du compte et envoi périodique. */
     public void tick() {
         long t = clock.millis();
+        if (!localProbed && localProbe != null) {
+            localProbed = true;
+            detectLocalServer(localProbe);
+        }
         tickDelayedToasts(t);
         tickLinking(t);
         tickPresence(t);

@@ -11,10 +11,31 @@ import java.nio.file.Path;
 public final class Config {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 
-    /** Adresse de l'API XPack (en développement : http://localhost:8787). */
-    public String apiUrl = "https://api.xpack.saaoz.fr";
-    /** Page du site où saisir le code de liaison (en développement : http://localhost:5173/link). */
-    public String linkUrl = "https://xpack.saaoz.fr/link";
+    /** Serveur XPack en ligne. */
+    public static final String ONLINE_API = "https://api.xpack.saaoz.fr";
+    public static final String ONLINE_LINK = "https://xpack.saaoz.fr/link";
+    /**
+     * Serveur de développement sur le PC (Docker local : {@code npm run dev:docker}). Proposé dans les
+     * réglages seulement quand il répond (voir {@link XPackCore#detectLocalServer}).
+     */
+    public static final String LOCAL_API = "http://localhost:8787";
+    public static final String LOCAL_LINK = "http://localhost:5173/link";
+
+    /** Adresse de l'API XPack. */
+    public String apiUrl = ONLINE_API;
+    /** Page du site où saisir le code de liaison. */
+    public String linkUrl = ONLINE_LINK;
+
+    /** Le mod parle au serveur de développement local. */
+    public boolean usesLocalServer() {
+        return apiUrl != null && apiUrl.startsWith(LOCAL_API);
+    }
+
+    /** Bascule entre le serveur en ligne et le serveur local (adresses de l'API et de la liaison). */
+    public void useLocalServer(boolean local) {
+        apiUrl = local ? LOCAL_API : ONLINE_API;
+        linkUrl = local ? LOCAL_LINK : ONLINE_LINK;
+    }
     /**
      * Anciennes versions uniquement : le jeton était rangé ici, dans {@code config/}, qui part
      * avec les exports de modpack. Il est déplacé au démarrage vers {@link Credentials} puis effacé

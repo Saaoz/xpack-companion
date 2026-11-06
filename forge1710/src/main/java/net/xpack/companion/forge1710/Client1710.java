@@ -141,9 +141,11 @@ public final class Client1710 {
         Path configFile = configDir.resolve("xpack.json");
         Config config = Config.load(configFile);
         config.save(configFile); // écrit les valeurs par défaut au premier lancement
-        ApiClient api = new ApiClient(ApiClient.http(config.apiUrl, "XPackCompanion/" + MOD_VERSION + " (forge 1.7.10)"));
+        String userAgent = "XPackCompanion/" + MOD_VERSION + " (forge 1.7.10)";
+        ApiClient api = new ApiClient(ApiClient.http(() -> config.apiUrl, userAgent));
         core = new XPackCore(config, configFile, new Credentials(Credentials.defaultLocation()), api, new Ui1710(), r -> mc.func_152344_a(r), Clock.systemUTC(), IntegrityRules.bundled());
         core.setLoadedMods(modIds);
+        core.setLocalProbe(new ApiClient(ApiClient.http(Config.LOCAL_API, userAgent)));
         // Fichier du monde écrit hors du thread de jeu (#74), et une dernière fois à la fermeture.
         ExecutorService disk = Executors.newSingleThreadExecutor(r -> {
             Thread t = new Thread(r, "XPack disk");

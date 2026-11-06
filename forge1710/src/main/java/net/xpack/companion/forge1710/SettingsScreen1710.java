@@ -19,7 +19,7 @@ import net.xpack.companion.core.XPackCore;
 public final class SettingsScreen1710 extends GuiScreen {
     private static final int ROW = 22;
     private static final List<Integer> VOLUMES = J8.listOf(0, 20, 40, 60, 80, 100);
-    private static final int SENDING = 1, TOASTS = 2, BADGE = 3, SOUND = 4, VOLUME = 5, LISTEN = 6, LINK = 7, OPEN_SITE = 8, COPY = 9, CANCEL = 10, PRACTICE = 11, SUPPORT = 12, DONE = 13, PREVIEW = 14, POSITION = 15, DELAY = 16;
+    private static final int SENDING = 1, TOASTS = 2, BADGE = 3, SOUND = 4, VOLUME = 5, LISTEN = 6, LINK = 7, OPEN_SITE = 8, COPY = 9, CANCEL = 10, PRACTICE = 11, SUPPORT = 12, DONE = 13, PREVIEW = 14, POSITION = 15, DELAY = 16, SERVER = 17;
     /** Prochaine rareté jouée par « Écouter » : on passe de commun à légendaire, clic après clic. */
     private static int listened;
     private final GuiScreen parent;
@@ -29,6 +29,9 @@ public final class SettingsScreen1710 extends GuiScreen {
 
     public SettingsScreen1710(GuiScreen parent) {
         this.parent = parent;
+        // Docker local a pu démarrer depuis le lancement du jeu.
+        XPackCore core = Client1710.core();
+        if (core != null) core.refreshLocalServer();
     }
 
     private static String uuid() {
@@ -80,6 +83,14 @@ public final class SettingsScreen1710 extends GuiScreen {
         buttonList.add(new GuiButton(POSITION, x, y, 150, 20, Lang.tr("xpack.settings.position") + ": " + Lang.tr("xpack.settings.position." + c.toastPosition(Toasts1710.DEFAULT_POSITION))));
         buttonList.add(new GuiButton(DELAY, x + 160, y, 150, 20, Lang.tr("xpack.settings.delay") + ": " + Lang.tr("xpack.settings.delay.value", c.toastDelay)));
 
+        // Serveur de développement sur ce PC (Docker local) : proposé seulement s'il répond.
+        if (core.localServerFound() || c.usesLocalServer()) {
+            y += ROW;
+            GuiButton server = new GuiButton(SERVER, x, y, 310, 20, Lang.tr(c.usesLocalServer() ? "xpack.settings.server.local" : "xpack.settings.server.online"));
+            server.enabled = core.canSwitchServer();
+            buttonList.add(server);
+        }
+
         // Compte : lier / délier le compte Minecraft actuellement connecté.
         y += ROW;
         XPackCore.LinkState link = core.linkState();
@@ -115,7 +126,7 @@ public final class SettingsScreen1710 extends GuiScreen {
 
     private String state(XPackCore core) {
         XPackCore.LinkState l = core.linkState();
-        return core.isLinked(uuid()) + "|" + (l == null ? "-" : l.userCode() + l.failed()) + "|" + core.inWorld() + core.isPracticeWorld();
+        return core.isLinked(uuid()) + "|" + (l == null ? "-" : l.userCode() + l.failed()) + "|" + core.inWorld() + core.isPracticeWorld() + "|" + core.localServerFound() + core.config().usesLocalServer();
     }
 
     @Override
@@ -188,6 +199,10 @@ public final class SettingsScreen1710 extends GuiScreen {
             case PRACTICE:
                 core.markWorldPractice();
                 break;
+            case SERVER:
+                core.useLocalServer(!c.usesLocalServer());
+                initGui();
+                return;
             case SUPPORT:
                 mc.displayGuiScreen(new SupportScreen1710(this));
                 return;

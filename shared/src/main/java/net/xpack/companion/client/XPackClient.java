@@ -81,13 +81,16 @@ public final class XPackClient {
         Path configFile = configDir.resolve("xpack.json");
         Config config = Config.load(configFile);
         config.save(configFile); // écrit les valeurs par défaut au premier lancement
-        ApiClient api = new ApiClient(ApiClient.http(config.apiUrl, "XPackCompanion/" + version + " (" + loaderName + ")"));
+        String userAgent = "XPackCompanion/" + version + " (" + loaderName + ")";
+        // Adresse relue à chaque requête : on peut basculer vers un serveur XPack local depuis les réglages.
+        ApiClient api = new ApiClient(ApiClient.http(() -> config.apiUrl, userAgent));
         // Jetons hors de l'instance (dossier de l'utilisateur) : config/ part avec les exports de modpack.
         Credentials credentials = new Credentials(Credentials.defaultLocation());
         // Minecraft.getInstance() n'existe pas encore sous NeoForge au moment de l'init : résolution différée.
         core = new XPackCore(config, configFile, credentials, api, new MinecraftUi(), r -> Minecraft.getInstance().execute(r), Clock.systemUTC(),
                 IntegrityRules.bundled());
         core.setLoadedMods(modIds);
+        core.setLocalProbe(new ApiClient(ApiClient.http(Config.LOCAL_API, userAgent)));
         // Fichier du monde écrit hors du thread de jeu (#74), et une dernière fois à la fermeture.
         ExecutorService disk = Executors.newSingleThreadExecutor(r -> {
             Thread t = new Thread(r, "XPack disk");

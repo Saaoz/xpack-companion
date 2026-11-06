@@ -29,6 +29,9 @@ public final class SettingsScreen extends Screen {
     public SettingsScreen(Screen parent) {
         super(Texts.tr("xpack.settings.title"));
         this.parent = parent;
+        // Docker local a pu démarrer depuis le lancement du jeu.
+        XPackCore core = XPackClient.core();
+        if (core != null) core.refreshLocalServer();
     }
 
     @Override
@@ -98,6 +101,18 @@ public final class SettingsScreen extends Screen {
                     core.saveConfig();
                 }));
 
+        // Serveur de développement sur ce PC (Docker local) : proposé seulement s'il répond.
+        if (core.localServerFound() || c.usesLocalServer()) {
+            y += ROW;
+            Button server = Button.builder(Texts.tr(c.usesLocalServer() ? "xpack.settings.server.local" : "xpack.settings.server.online"), b -> {
+                core.useLocalServer(!c.usesLocalServer());
+                rebuildWidgets();
+            }).bounds(x, y, 310, 20).build();
+            server.active = core.canSwitchServer();
+            if (!core.canSwitchServer()) server.setTooltip(net.minecraft.client.gui.components.Tooltip.create(Texts.tr("xpack.settings.server.inWorld")));
+            addRenderableWidget(server);
+        }
+
         // Compte : lier / délier le compte Minecraft actuellement connecté.
         y += ROW;
         XPackCore.LinkState link = core.linkState();
@@ -156,7 +171,7 @@ public final class SettingsScreen extends Screen {
     private String state(XPackCore core) {
         XPackCore.LinkState l = core.linkState();
         return core.isLinked(Compat.userUuid(minecraft)) + "|" + (l == null ? "-" : l.userCode() + l.failed())
-                + "|" + core.inWorld() + core.isPracticeWorld();
+                + "|" + core.inWorld() + core.isPracticeWorld() + "|" + core.localServerFound() + core.config().usesLocalServer();
     }
 
     @Override

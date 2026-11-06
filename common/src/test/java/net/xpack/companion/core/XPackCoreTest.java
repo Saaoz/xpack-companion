@@ -338,6 +338,55 @@ class XPackCoreTest {
     }
 
     @Test
+    void serveurLocalProposeSeulementSIlRepondEtChoisiParLeJoueur() {
+        FakeApi probe = new FakeApi().reply(200, "{\"ok\":true,\"service\":\"xpack\"}");
+        core.setLocalProbe(new ApiClient(probe));
+        assertFalse(core.localServerFound());
+        core.tick(); // détection au premier tick
+        assertEquals("/v1/health", probe.calls.get(0).path());
+        assertTrue(core.localServerFound());
+        assertFalse(config.usesLocalServer(), "jamais choisi d'office");
+
+        core.useLocalServer(true);
+        assertEquals(Config.LOCAL_API, config.apiUrl);
+        assertEquals(Config.LOCAL_LINK, config.linkUrl);
+        assertTrue(readFile("xpack.json").contains("localhost:8787"), "mémorisé");
+
+        // Dans un monde : on ne change pas de serveur (la session appartient à l'autre), et on le rappelle.
+        core.onJoinWorld(world());
+        assertTrue(ui.notices.contains("xpack.server.local_active"));
+        assertFalse(core.canSwitchServer());
+        core.useLocalServer(false);
+        assertTrue(config.usesLocalServer());
+        core.onLeaveWorld();
+        core.useLocalServer(false);
+        assertEquals(Config.ONLINE_API, config.apiUrl);
+    }
+
+    @Test
+    void serveurLocalInjoignablePrevenuSansRepartirEnLigne() {
+        config.useLocalServer(true);
+        // Une autre API qui répond « ok » sans être XPack ne compte pas.
+        core.setLocalProbe(new ApiClient(new FakeApi().reply(200, "{\"ok\":true}")));
+        core.tick();
+        assertFalse(core.localServerFound());
+        assertEquals(Config.LOCAL_API, config.apiUrl, "des parties de test ne partent pas sur le vrai site");
+        assertTrue(ui.notices.contains("xpack.server.local_gone"));
+        // Le bouton reste là pour repasser en ligne soi-même.
+        core.useLocalServer(false);
+        assertEquals(Config.ONLINE_API, config.apiUrl);
+    }
+
+    @Test
+    void lAdresseDuServeurEstRelueAChaqueRequete() {
+        String[] base = {"http://127.0.0.1:1"};
+        ApiClient.Transport t = ApiClient.http(() -> base[0], "test");
+        assertEquals(0, t.send("GET", "/v1/health", null, null).join().status(), "port fermé : erreur réseau");
+        base[0] = "pas une adresse";
+        assertEquals(0, t.send("GET", "/v1/health", null, null).join().status(), "adresse relue, invalide : pas d'exception");
+    }
+
+    @Test
     void unSuccesPartToutDeSuiteSansAttendreLEnvoiGroupe() {
         linkedAndJoined();
         core.tick();

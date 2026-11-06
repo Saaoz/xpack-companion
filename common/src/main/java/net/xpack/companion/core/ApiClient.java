@@ -73,12 +73,19 @@ public final class ApiClient {
 
     /** HttpURLConnection plutôt que java.net.http (Java 11) : le mod doit tourner en Java 8 (Minecraft 1.12.2). */
     public static Transport http(String baseUrl, String userAgent) {
-        String base = baseUrl.endsWith("/") ? baseUrl.substring(0, baseUrl.length() - 1) : baseUrl;
+        return http(() -> baseUrl, userAgent);
+    }
+
+    /** Adresse relue à chaque requête : le serveur (en ligne ou local) peut changer sans relancer le jeu. */
+    public static Transport http(java.util.function.Supplier<String> baseUrl, String userAgent) {
         return (method, path, body, token) -> CompletableFuture.supplyAsync(() -> {
             java.net.HttpURLConnection con = null;
             try {
+                String base = baseUrl.get();
+                if (base.endsWith("/")) base = base.substring(0, base.length() - 1);
                 con = (java.net.HttpURLConnection) new java.net.URL(base + path).openConnection();
-                con.setConnectTimeout(8_000);
+                // Serveur local : il répond tout de suite ou pas du tout.
+                con.setConnectTimeout(base.startsWith(Config.LOCAL_API) ? 1_500 : 8_000);
                 con.setReadTimeout(15_000);
                 con.setRequestMethod(method);
                 con.setRequestProperty("Accept", "application/json");
@@ -116,6 +123,11 @@ public final class ApiClient {
         } catch (RuntimeException e) {
             return new JsonObject();
         }
+    }
+
+    /** {@code GET /v1/health} : {@code { ok: true, service: "xpack" }} pour une API XPack. */
+    public CompletableFuture<Response> health() {
+        return transport.send("GET", "/v1/health", null, null);
     }
 
     public CompletableFuture<Response> linkStart(String minecraftUuid, String minecraftName) {
