@@ -11,6 +11,7 @@ import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.ScaledResolution;
 import net.minecraft.client.renderer.RenderHelper;
 import net.minecraft.client.renderer.entity.RenderItem;
+import net.minecraft.init.Blocks;
 import net.minecraft.init.Items;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
@@ -56,6 +57,8 @@ public final class Toasts1710 {
         final int tier;
         /** Succès d'un toast UNLOCK. */
         final List<Ui.Unlock> unlocks;
+        /** Palier : nom du modpack, sur sa propre ligne (null : inconnu). */
+        String modpack;
         long shownAt;
 
         Toast(int kind, int width, long displayMs, String title, String detail, int color, int tier) {
@@ -90,16 +93,19 @@ public final class Toasts1710 {
 
     static void completed(String modpackName, int achievements, long playtimeTicks) {
         long hours = Math.max(1, Math.round(playtimeTicks / 72_000.0));
-        completions.add(new Toast(Toast.COMPLETION, 200, 8_000, Lang.tr("xpack.toast.completed"), detail(modpackName, Lang.tr("xpack.toast.completedDetail", achievements, hours)), GOLD, 100));
+        completions.add(completion(Lang.tr("xpack.toast.completed"), modpackName, Lang.tr("xpack.toast.completedDetail", achievements, hours), GOLD, 100));
     }
 
     static void milestone(String modpackName, int tier, int achievements, int total) {
         int color = tier >= 75 ? GOLD : tier >= 50 ? SILVER : BRONZE;
-        completions.add(new Toast(Toast.COMPLETION, 200, 8_000, Lang.tr("xpack.toast.milestone", tier), detail(modpackName, Lang.tr("xpack.toast.milestoneDetail", achievements, total)), color, tier));
+        completions.add(completion(Lang.tr("xpack.toast.milestone", tier), modpackName, Lang.tr("xpack.toast.milestoneDetail", achievements, total), color, tier));
     }
 
-    private static String detail(String modpackName, String stats) {
-        return modpackName == null ? stats : modpackName + " · " + stats;
+    /** Palier : 200 × 40 comme un succès (#213), 8 s. */
+    private static Toast completion(String title, String modpackName, String stats, int color, int tier) {
+        Toast t = new Toast(Toast.COMPLETION, 200, UNLOCK_HEIGHT, 8_000, title, stats, color, tier, null);
+        t.modpack = modpackName;
+        return t;
     }
 
     /** Appelé à chaque tick client : retire les toasts finis, en met de nouveaux à l'écran. */
@@ -188,6 +194,37 @@ public final class Toasts1710 {
         if (bar > 0) Gui.drawRect(1, t.height - 3, 1 + bar, t.height - 1, rgb);
     }
 
+    /** Cadre des toasts XPack (#183, #213) : fin (de la couleur pour un moment fort), filet de couleur en haut. */
+    private static void frame(int width, int height, int rgb, boolean strong) {
+        Gui.drawRect(0, 0, width, height, strong ? rgb : 0xFF3D4B60);
+        Gui.drawRect(1, 1, width - 1, height - 1, 0xF0141A23);
+        Gui.drawRect(1, 1, width - 1, 3, rgb);
+    }
+
+    /** Objet dans un cadre de 20 px à la couleur donnée, coin haut gauche en (x, y). */
+    private static void iconCell(Minecraft mc, FontRenderer font, int x, int y, int rgb, ItemStack stack) {
+        Gui.drawRect(x, y, x + 20, y + 20, rgb);
+        Gui.drawRect(x + 2, y + 2, x + 18, y + 18, 0xFF0B0F15);
+        RenderHelper.enableGUIStandardItemLighting();
+        GL11.glEnable(GL12.GL_RESCALE_NORMAL);
+        ITEMS.renderItemAndEffectIntoGUI(font, mc.getTextureManager(), stack, x + 2, y + 2);
+        RenderHelper.disableStandardItemLighting();
+        GL11.glDisable(GL11.GL_LIGHTING);
+        GL11.glEnable(GL11.GL_BLEND);
+    }
+
+    /** Barre du temps d'affichage restant ({@code left} de 1 à 0). */
+    private static void timeBar(int width, int height, int rgb, double left) {
+        int bar = (int) Math.round((width - 2) * Math.max(0, Math.min(1, left)));
+        Gui.drawRect(1, height - 3, width - 1, height - 1, 0xFF0B0F15);
+        if (bar > 0) Gui.drawRect(1, height - 3, 1 + bar, height - 1, rgb);
+    }
+
+    /** Médaille d'un palier, en objet du jeu : brique, lingot de fer, lingot d'or, étoile du Nether à 100 %. */
+    private static ItemStack medal(int tier) {
+        return new ItemStack(tier >= 100 ? Items.nether_star : tier >= 75 ? Items.gold_ingot : tier >= 50 ? Items.iron_ingot : Items.brick);
+    }
+
     /** Texte coupé à la largeur donnée, avec « … » s'il dépasse. */
     private static String fit(FontRenderer font, String text, int width) {
         return font.getStringWidth(text) > width ? font.trimStringToWidth(text, width) + "…" : text;
@@ -245,22 +282,28 @@ public final class Toasts1710 {
             if (bottom) y -= t.height;
             GL11.glPushMatrix();
             GL11.glTranslatef(x, y, 0);
+            int rgb = 0xFF000000 | t.color;
             if (t.kind == Toast.UNLOCK) {
                 drawUnlock(mc, font, t, age);
-            } else {
-                Gui.drawRect(0, 0, t.width, t.height, 0xFF5B5B5B);
-                Gui.drawRect(1, 1, t.width - 1, t.height - 1, t.kind == Toast.ALERT ? 0xF0101418 : 0xF0141A23);
-            }
-            if (t.kind == Toast.ALERT) {
-                font.drawString(fit(font, t.title, t.width - 16), 8, 6, 0xFF000000 | t.color);
-                font.drawString(fit(font, t.detail, t.width - 16), 8, 18, 0xFFFFFF);
+            } else if (t.kind == Toast.ALERT) {
+                // Même dessin que les autres toasts (#213) : TNT dans un cadre orange (pas de barrière en 1.7.10).
+                frame(t.width, t.height, rgb, false);
+                iconCell(mc, font, 6, 6, rgb, new ItemStack(Item.getItemFromBlock(Blocks.tnt)));
+                font.drawString(fit(font, t.title, t.width - 38), 30, 7, rgb);
+                font.drawString(fit(font, t.detail, t.width - 38), 30, 18, 0xFFFFFF);
+                timeBar(t.width, t.height, rgb, 1 - age / (double) t.displayMs);
             } else if (t.kind == Toast.COMPLETION) {
-                // Médaille ★ d'un palier à la place de l'icône d'objet.
-                Gui.drawRect(8, 8, 24, 24, 0xFF000000 | t.color);
-                Gui.drawRect(10, 10, 22, 22, 0xFF2A2418);
-                font.drawString("★", 13, 12, 0xFF000000 | t.color);
-                font.drawString(fit(font, t.title, t.width - 36), 30, 7, 0xFF000000 | t.color);
-                font.drawString(fit(font, t.detail, t.width - 36), 30, 18, 0xFFFFFF);
+                frame(t.width, t.height, rgb, t.tier >= 100);
+                iconCell(mc, font, 6, 11, rgb, medal(t.tier));
+                int textWidth = t.width - 36;
+                font.drawString(fit(font, t.title, textWidth), 30, 6, rgb);
+                if (t.modpack != null) {
+                    font.drawString(fit(font, t.modpack, textWidth), 30, 17, 0xFFFFFF);
+                    font.drawString(fit(font, t.detail, textWidth), 30, 28, 0xA3B1C2);
+                } else {
+                    font.drawString(fit(font, t.detail, textWidth), 30, 17, 0xFFFFFF);
+                }
+                timeBar(t.width, t.height, rgb, 1 - age / (double) t.displayMs);
             }
             GL11.glPopMatrix();
             y = bottom ? y - GAP : y + t.height + GAP;

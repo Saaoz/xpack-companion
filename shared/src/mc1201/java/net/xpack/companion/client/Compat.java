@@ -85,12 +85,7 @@ public final class Compat {
         return server.getWorldData().getAllowCommands();
     }
 
-    /** Pas de sprites de toast étirables en 1.20.1 : cadre dessiné à la main, aux couleurs des toasts. */
-    static void toastBackground(GuiGraphics g, int width, int height, boolean system) {
-        g.fill(0, 0, width, height, 0xFF5B5B5B);
-        g.fill(1, 1, width - 1, height - 1, system ? 0xF0101418 : 0xF0141A23);
-    }
-
+    /** Durée d'affichage (pas d'option d'accessibilité de durée en 1.20.1). */
     static double toastTime(ToastComponent toasts, long ms) {
         return ms;
     }

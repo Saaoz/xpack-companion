@@ -22,9 +22,6 @@ import net.xpack.companion.core.XPackCore;
  * version 1.20.1 (Forge) est dans {@code shared/src/mc1201}. Tout le reste du code est commun.
  */
 public final class Compat {
-    private static final ResourceLocation TOAST_ADVANCEMENT = ResourceLocation.withDefaultNamespace("toast/advancement");
-    private static final ResourceLocation TOAST_SYSTEM = ResourceLocation.withDefaultNamespace("toast/system");
-
     private Compat() {}
 
     /** Fond des écrans : en 1.21, {@code Screen.render} le dessine déjà. */
@@ -91,10 +88,6 @@ public final class Compat {
 
     static boolean allowCommands(IntegratedServer server) {
         return server.getWorldData().isAllowCommands();
-    }
-
-    static void toastBackground(GuiGraphics g, int width, int height, boolean system) {
-        g.blitSprite(system ? TOAST_SYSTEM : TOAST_ADVANCEMENT, 0, 0, width, height);
     }
 
     /** Durée d'affichage, allongée par l'option d'accessibilité « durée des notifications ». */

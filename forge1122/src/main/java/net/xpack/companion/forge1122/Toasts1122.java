@@ -15,6 +15,7 @@ import net.minecraft.client.gui.toasts.GuiToast;
 import net.minecraft.client.gui.toasts.IToast;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.renderer.RenderHelper;
+import net.minecraft.init.Blocks;
 import net.minecraft.init.Items;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
@@ -57,16 +58,12 @@ public final class Toasts1122 {
 
     static void completed(String modpackName, int achievements, long playtimeTicks) {
         long hours = Math.max(1, Math.round(playtimeTicks / 72_000.0));
-        completions.add(new CompletionToast(100, GOLD, Lang.tr("xpack.toast.completed"), detail(modpackName, Lang.tr("xpack.toast.completedDetail", achievements, hours))));
+        completions.add(new CompletionToast(100, GOLD, Lang.tr("xpack.toast.completed"), modpackName, Lang.tr("xpack.toast.completedDetail", achievements, hours)));
     }
 
     static void milestone(String modpackName, int tier, int achievements, int total) {
         int color = tier >= 75 ? GOLD : tier >= 50 ? SILVER : BRONZE;
-        completions.add(new CompletionToast(tier, color, Lang.tr("xpack.toast.milestone", tier), detail(modpackName, Lang.tr("xpack.toast.milestoneDetail", achievements, total))));
-    }
-
-    private static String detail(String modpackName, String stats) {
-        return modpackName == null ? stats : modpackName + " · " + stats;
+        completions.add(new CompletionToast(tier, color, Lang.tr("xpack.toast.milestone", tier), modpackName, Lang.tr("xpack.toast.milestoneDetail", achievements, total)));
     }
 
     /** Coin choisi dans les réglages ; en haut à droite, nos toasts passent par la file du jeu. */
@@ -100,7 +97,7 @@ public final class Toasts1122 {
         boolean unlockShown = toasts.getToast(UnlockToast.class, IToast.NO_TOKEN) != null || placed.stream().anyMatch(p -> p.toast instanceof UnlockToast);
         if (unlocks.isEmpty() && !completions.isEmpty() && !unlockShown) {
             CompletionToast toast = completions.poll();
-            show(toasts, toast, 32, ownCorner, now);
+            show(toasts, toast, CompletionToast.HEIGHT, ownCorner, now);
             if (toast.tier == 100) Sounds1122.playCompletion(Client1122.core().config());
             else Sounds1122.play(Client1122.core().config(), toast.tier == 75 ? "legendaire" : toast.tier == 50 ? "epique" : "rare");
         }
@@ -205,10 +202,28 @@ public final class Toasts1122 {
         return new ItemStack(item == null || item == Items.AIR ? Items.EXPERIENCE_BOTTLE : item);
     }
 
-    /** Fond des toasts, aux couleurs des autres versions. */
-    private static void background(int width, int height, boolean system) {
-        Gui.drawRect(0, 0, width, height, 0xFF5B5B5B);
-        Gui.drawRect(1, 1, width - 1, height - 1, system ? 0xF0101418 : 0xF0141A23);
+    /** Cadre des toasts XPack (#183, #213) : fin (de la couleur pour un moment fort), filet de couleur en haut. */
+    private static void frame(int width, int height, int rgb, boolean strong) {
+        Gui.drawRect(0, 0, width, height, strong ? rgb : 0xFF3D4B60);
+        Gui.drawRect(1, 1, width - 1, height - 1, 0xF0141A23);
+        Gui.drawRect(1, 1, width - 1, 3, rgb);
+    }
+
+    /** Objet dans un cadre de 20 px à la couleur donnée, coin haut gauche en (x, y). */
+    private static void iconCell(Minecraft mc, int x, int y, int rgb, ItemStack stack) {
+        Gui.drawRect(x, y, x + 20, y + 20, rgb);
+        Gui.drawRect(x + 2, y + 2, x + 18, y + 18, 0xFF0B0F15);
+        RenderHelper.enableGUIStandardItemLighting();
+        mc.getRenderItem().renderItemAndEffectIntoGUI(null, stack, x + 2, y + 2);
+        RenderHelper.disableStandardItemLighting();
+        GlStateManager.color(1f, 1f, 1f, 1f);
+    }
+
+    /** Barre du temps d'affichage restant ({@code left} de 1 à 0). */
+    private static void timeBar(int width, int height, int rgb, double left) {
+        int bar = (int) Math.round((width - 2) * Math.max(0, Math.min(1, left)));
+        Gui.drawRect(1, height - 3, width - 1, height - 1, 0xFF0B0F15);
+        if (bar > 0) Gui.drawRect(1, height - 3, 1 + bar, height - 1, rgb);
     }
 
     /** Texte coupé à la largeur donnée, avec « … » s'il dépasse. */
@@ -292,33 +307,51 @@ public final class Toasts1122 {
     private static final int SILVER = 0xD0D6DE;
     private static final int BRONZE = 0xD08A4A;
 
-    /** Toast d'un palier du modpack (#60) : plus large (200) et plus long (8 s). */
+    /**
+     * Toast d'un palier du modpack (#60) : 200 × 40, 8 s, même dessin que celui d'un succès (#213) :
+     * médaille-objet (brique, lingot de fer, lingot d'or, étoile du Nether à 100 %), palier, modpack et
+     * chiffres, barre du temps restant.
+     */
     private static final class CompletionToast implements IToast {
         private static final long DISPLAY_MS = 8_000;
         private static final int WIDTH = 200;
+        static final int HEIGHT = 40;
         final int tier;
         private final int color;
         private final String title;
-        private final String detail;
+        private final String modpackName;
+        private final String stats;
 
-        CompletionToast(int tier, int color, String title, String detail) {
+        CompletionToast(int tier, int color, String title, String modpackName, String stats) {
             this.tier = tier;
             this.color = color;
             this.title = title;
-            this.detail = detail;
+            this.modpackName = modpackName;
+            this.stats = stats;
+        }
+
+        private ItemStack medal() {
+            return new ItemStack(tier >= 100 ? Items.NETHER_STAR : tier >= 75 ? Items.GOLD_INGOT : tier >= 50 ? Items.IRON_INGOT : Items.BRICK);
         }
 
         @Override
         public Visibility draw(GuiToast gui, long delta) {
-            FontRenderer font = gui.getMinecraft().fontRenderer;
+            Minecraft mc = gui.getMinecraft();
+            FontRenderer font = mc.fontRenderer;
+            int rgb = 0xFF000000 | color;
             alignRight(WIDTH);
-            background(WIDTH, 32, false);
-            // Médaille : pastille à la couleur du palier à la place de l'icône d'objet.
-            Gui.drawRect(8, 8, 24, 24, 0xFF000000 | color);
-            Gui.drawRect(10, 10, 22, 22, 0xFF2A2418);
-            font.drawString("★", 13, 12, 0xFF000000 | color);
-            font.drawString(title, 30, 7, 0xFF000000 | color);
-            font.drawString(fit(font, detail, WIDTH - 36), 30, 18, 0xFFFFFF);
+            frame(WIDTH, HEIGHT, rgb, tier >= 100);
+            iconCell(mc, 6, 11, rgb, medal());
+            int textWidth = WIDTH - 36;
+            font.drawString(fit(font, title, textWidth), 30, 6, rgb);
+            if (modpackName != null) {
+                font.drawString(fit(font, modpackName, textWidth), 30, 17, 0xFFFFFF);
+                font.drawString(fit(font, stats, textWidth), 30, 28, 0xA3B1C2);
+            } else {
+                font.drawString(fit(font, stats, textWidth), 30, 17, 0xFFFFFF);
+            }
+            timeBar(WIDTH, HEIGHT, rgb, 1 - delta / (double) DISPLAY_MS);
+            GlStateManager.color(1f, 1f, 1f, 1f);
             return delta >= DISPLAY_MS ? Visibility.HIDE : Visibility.SHOW;
         }
     }
@@ -336,10 +369,16 @@ public final class Toasts1122 {
         @Override
         public Visibility draw(GuiToast gui, long delta) {
             FontRenderer font = gui.getMinecraft().fontRenderer;
+            Minecraft mc = gui.getMinecraft();
+            int rgb = 0xFFFFB347;
             alignRight(WIDTH);
-            background(WIDTH, 32, true);
-            font.drawString(fit(font, Lang.tr("xpack.alert.title"), WIDTH - 16), 8, 6, 0xFFFFB347);
-            font.drawString(fit(font, reason, WIDTH - 16), 8, 18, 0xFFFFFF);
+            // 32 de haut : il tient dans un emplacement du jeu. Barrière dans un cadre orange (#213).
+            frame(WIDTH, 32, rgb, false);
+            iconCell(mc, 6, 6, rgb, new ItemStack(Item.getItemFromBlock(Blocks.BARRIER)));
+            font.drawString(fit(font, Lang.tr("xpack.alert.title"), WIDTH - 38), 30, 7, rgb);
+            font.drawString(fit(font, reason, WIDTH - 38), 30, 18, 0xFFFFFF);
+            timeBar(WIDTH, 32, rgb, 1 - delta / (double) DISPLAY_MS);
+            GlStateManager.color(1f, 1f, 1f, 1f);
             return delta >= DISPLAY_MS ? Visibility.HIDE : Visibility.SHOW;
         }
     }
