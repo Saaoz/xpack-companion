@@ -43,6 +43,11 @@ public final class SettingsScreen1122 extends GuiScreen {
         return Minecraft.getMinecraft().getSession().getUsername();
     }
 
+    /** Coupe le texte d'un bouton pour qu'il ne déborde pas (petits écrans, grandes polices). */
+    private String fit(String text, int buttonWidth) {
+        return fontRenderer.getStringWidth(text) <= buttonWidth - 6 ? text : fontRenderer.trimStringToWidth(text, buttonWidth - 6 - fontRenderer.getStringWidth("…")) + "…";
+    }
+
     private static String onOff(boolean on) {
         return I18n.format(on ? "options.on" : "options.off");
     }
@@ -65,18 +70,18 @@ public final class SettingsScreen1122 extends GuiScreen {
         int y = 50;
         buttonList.add(new GuiButton(SENDING, x, y, 310, 20, Lang.tr("xpack.settings.sending") + ": " + onOff(Boolean.TRUE.equals(c.consented) && c.enabled)));
         y += ROW;
-        buttonList.add(new GuiButton(TOASTS, x, y, 100, 20, Lang.tr("xpack.settings.toasts") + ": " + onOff(c.toasts)));
+        buttonList.add(new GuiButton(TOASTS, x, y, 100, 20, fit(Lang.tr("xpack.settings.toasts") + ": " + onOff(c.toasts), 100)));
         // Toast d'essai : voir le dessin, les textes et le son d'un succès.
-        buttonList.add(new GuiButton(PREVIEW, x + 105, y, 100, 20, Lang.tr("xpack.settings.preview")));
-        buttonList.add(new GuiButton(BADGE, x + 210, y, 100, 20, Lang.tr("xpack.settings.badge") + ": " + onOff(c.badge)));
+        buttonList.add(new GuiButton(PREVIEW, x + 105, y, 100, 20, fit(Lang.tr("xpack.settings.preview"), 100)));
+        buttonList.add(new GuiButton(BADGE, x + 210, y, 100, 20, fit(Lang.tr("xpack.settings.badge") + ": " + onOff(c.badge), 100)));
 
         // Son des succès (#59) : choix du son, volume, et écoute d'une rareté à chaque clic.
         y += ROW;
         String sound = Sounds1122.PRESETS.contains(c.sound) ? c.sound : "carillon";
         int volume = VOLUMES.contains(c.soundVolume) ? c.soundVolume : 80;
-        buttonList.add(new GuiButton(SOUND, x, y, 120, 20, Lang.tr("xpack.settings.sound") + ": " + Lang.tr("xpack.settings.sound." + sound)));
-        buttonList.add(new GuiButton(VOLUME, x + 130, y, 85, 20, Lang.tr("xpack.settings.volume") + ": " + volume + " %"));
-        buttonList.add(new GuiButton(LISTEN, x + 225, y, 85, 20, listenLabel()));
+        buttonList.add(new GuiButton(SOUND, x, y, 120, 20, fit(Lang.tr("xpack.settings.sound") + ": " + Lang.tr("xpack.settings.sound." + sound), 120)));
+        buttonList.add(new GuiButton(VOLUME, x + 130, y, 85, 20, fit(Lang.tr("xpack.settings.volume") + ": " + volume + " %", 85)));
+        buttonList.add(new GuiButton(LISTEN, x + 225, y, 85, 20, fit(listenLabel(), 85)));
 
         // Toasts de succès : coin de l'écran et délai avant l'apparition (le bouton « Essai » les montre).
         y += ROW;

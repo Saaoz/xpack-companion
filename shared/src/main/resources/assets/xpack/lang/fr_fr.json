@@ -55,7 +55,7 @@
   "xpack.settings.delay": "Délai",
   "xpack.settings.delay.value": "%s s",
   "xpack.toast.preview": "Succès d'essai",
-  "xpack.settings.badge": "Badge (menu pause)",
+  "xpack.settings.badge": "Badge pause",
   "xpack.settings.sound": "Son",
   "xpack.settings.sound.gourmand": "Gourmand",
   "xpack.settings.sound.carillon": "Carillon",
