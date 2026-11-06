@@ -349,6 +349,8 @@ public final class XPackCore {
 
     // Réseau
     private boolean inFlight;
+    /** Un progrès ou une quête attend : envoi au tick suivant, pas à la fin de l'intervalle (#210). */
+    private boolean flushSoon;
     private long nextFlushAt;
     private long backoffMs = FLUSH_INTERVAL_MS;
     private boolean lastSendFailed;
@@ -718,6 +720,12 @@ public final class XPackCore {
             e.addProperty("key", id);
             if (initialSync) e.addProperty("snapshot", true);
             enqueue(e);
+            // Succès obtenu en jouant : le toast dépend de la réponse du serveur, on n'attend pas les 5 s
+            // de l'envoi groupé (#210). Sauf pendant un repli après une erreur réseau.
+            if (!initialSync && backoffMs == FLUSH_INTERVAL_MS) {
+                flushSoon = true;
+                nextFlushAt = 0;
+            }
         }
     }
 
@@ -1553,6 +1561,7 @@ public final class XPackCore {
         JsonObject body = new JsonObject();
         body.add("events", events);
         inFlight = true;
+        flushSoon = false; // ce lot les emporte ; un succès arrivé pendant l'envoi le remet
         String sid = sessionId;
         String wid = worldId;
         api.postEvents(sid, body, token).thenAcceptAsync(res -> {
@@ -1564,7 +1573,7 @@ public final class XPackCore {
             if (res.ok()) {
                 pending.removeAll(batch);
                 backoffMs = FLUSH_INTERVAL_MS;
-                nextFlushAt = t + FLUSH_INTERVAL_MS;
+                nextFlushAt = flushSoon ? t : t + FLUSH_INTERVAL_MS;
                 lastSendFailed = false;
                 handleBatchResult(res.body());
                 saveWorld();

@@ -14,9 +14,9 @@ import net.xpack.companion.core.Ui;
 import net.xpack.companion.mixin.ToastComponentAccessor;
 
 /**
- * Nos notifications passent <b>après</b> celles du jeu : on n'en affiche une que lorsqu'aucun
- * progrès vanilla n'est à l'écran et que la file du jeu est vide. Les succès XPack arrivés
- * ensemble sont regroupés en une seule notification (« 3 succès XPack · +45 points »).
+ * Le toast d'un succès XPack s'affiche dès la réponse du serveur, sous le toast du jeu s'il est
+ * encore là (#210). Paliers et alertes passent <b>après</b> les toasts du jeu. Les succès XPack
+ * arrivés ensemble sont regroupés en une seule notification (« 3 succès XPack · +45 points »).
  */
 final class XPackToasts {
 
@@ -114,8 +114,8 @@ final class XPackToasts {
             toasts.addToast(alerts.poll());
             XPackClient.alertShown();
         }
-        // Ailleurs qu'en haut à droite, rien ne se chevauche : pas besoin d'attendre le jeu.
-        if (!ownCorner && !gameQuiet) return;
+        // Succès : tout de suite, même si le toast du jeu est encore là (#210). Depuis la 1.20, la file du
+        // jeu réserve deux emplacements à notre toast de 40 px : il s'affiche dessous, sans chevauchement.
         if (!unlocks.isEmpty()) {
             show(toasts, XPackToast.of(List.copyOf(unlocks)), ownCorner, now);
             // Un seul son pour le toast : celui du plus rare des succès qu'il regroupe.
@@ -124,6 +124,8 @@ final class XPackToasts {
                     .ifPresent(r -> XPackSounds.play(XPackClient.core().config(), r, count));
             unlocks.clear();
         }
+        // Ailleurs qu'en haut à droite, rien ne se chevauche : pas besoin d'attendre le jeu.
+        if (!ownCorner && !gameQuiet) return;
         // Palier (#60) : une fois le toast du dernier succès parti, avec son propre son.
         boolean unlockShown = toasts.getToast(XPackToast.class, Toast.NO_TOKEN) != null || placed.stream().anyMatch(p -> p.toast instanceof XPackToast);
         if (unlocks.isEmpty() && !completions.isEmpty() && !unlockShown) {

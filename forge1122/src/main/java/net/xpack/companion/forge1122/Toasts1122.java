@@ -25,9 +25,9 @@ import net.minecraftforge.fml.relauncher.ReflectionHelper;
 import net.xpack.companion.core.Ui;
 
 /**
- * Toasts XPack, au même dessin que les autres versions (icône du progrès, rareté, points). Ils
- * passent <b>après</b> ceux du jeu (aucun progrès vanilla à l'écran ni en attente) et
- * les succès obtenus ensemble sont regroupés en un seul toast.
+ * Toasts XPack, au même dessin que les autres versions (icône du progrès, rareté, points). Un
+ * succès s'affiche dès la réponse du serveur (#210) ; paliers et alertes passent <b>après</b> ceux
+ * du jeu. Les succès obtenus ensemble sont regroupés en un seul toast.
  */
 public final class Toasts1122 {
     /** Largeur de l'emplacement d'un toast dans le jeu : un toast plus large déborde vers la gauche. */
@@ -86,14 +86,16 @@ public final class Toasts1122 {
         if (gameBusy) gameToastSeenAt = now;
         boolean gameQuiet = !gameBusy && now - gameToastSeenAt >= QUIET_MS;
         if (gameQuiet && !alerts.isEmpty()) toasts.add(alerts.poll());
-        // Ailleurs qu'en haut à droite, rien ne se chevauche : pas besoin d'attendre le jeu.
-        if (!ownCorner && !gameQuiet) return;
+        // Succès : tout de suite, sous le toast du jeu s'il est encore là (#210). Limite 1.12.2 : un toast
+        // du jeu arrivé juste après peut couvrir les 8 derniers pixels du nôtre (emplacements de 32 px).
         if (!unlocks.isEmpty()) {
             show(toasts, new UnlockToast(new ArrayList<>(unlocks)), UnlockToast.HEIGHT, ownCorner, now);
             // Un seul son pour le toast : celui du plus rare des succès qu'il regroupe.
             Sounds1122.play(Client1122.core().config(), Ui.Unlock.rarest(unlocks).rarity, unlocks.size());
             unlocks.clear();
         }
+        // Ailleurs qu'en haut à droite, rien ne se chevauche : pas besoin d'attendre le jeu.
+        if (!ownCorner && !gameQuiet) return;
         // Palier (#60) : une fois le toast du dernier succès parti, avec son propre son.
         boolean unlockShown = toasts.getToast(UnlockToast.class, IToast.NO_TOKEN) != null || placed.stream().anyMatch(p -> p.toast instanceof UnlockToast);
         if (unlocks.isEmpty() && !completions.isEmpty() && !unlockShown) {

@@ -338,6 +338,27 @@ class XPackCoreTest {
     }
 
     @Test
+    void unSuccesPartToutDeSuiteSansAttendreLEnvoiGroupe() {
+        linkedAndJoined();
+        core.tick();
+        clock.millis += 1_000; // en plein intervalle de 5 s
+        int calls = api.calls.size();
+        core.onAdvancements(List.of("minecraft:story/mine_stone"), false, 100);
+        core.tick();
+        assertEquals(calls + 1, api.calls.size(), "envoyé au tick suivant (#210)");
+        assertEquals("minecraft:story/mine_stone", sentEvents().get(0).getAsJsonObject().get("key").getAsString());
+
+        // Une statistique seule attend l'envoi groupé.
+        calls = api.calls.size();
+        core.onStats(java.util.Map.of("minecraft:mined/minecraft:diamond_ore", 3), 120);
+        core.tick();
+        assertEquals(calls, api.calls.size(), "pas d'envoi immédiat pour une statistique");
+        clock.millis += XPackCore.FLUSH_INTERVAL_MS;
+        core.tick();
+        assertEquals(calls + 1, api.calls.size());
+    }
+
+    @Test
     void leJoueurPeutDeclarerUnMondeDeTest() {
         linkedAndJoined();
         core.onAdvancements(List.of("create:andesite_alloy"), false, 100);
