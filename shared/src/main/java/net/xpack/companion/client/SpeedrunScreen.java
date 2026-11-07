@@ -9,6 +9,7 @@ import net.minecraft.client.gui.components.CycleButton;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
+import net.xpack.companion.core.LssImport;
 import net.xpack.companion.core.SpeedrunPresets;
 import net.xpack.companion.core.SpeedrunTimer;
 import net.xpack.companion.core.XPackCore;
@@ -30,6 +31,9 @@ public final class SpeedrunScreen extends Screen {
     private Button toggleButton;
     private Button presetButton;
     private Button exportButton;
+    /** Meilleur temps lu dans un fichier LiveSplit déposé, appliqué à la fermeture avec les étapes. */
+    private List<Long> pendingBest;
+    private Component importMessage;
     private String preset = SpeedrunPresets.CUSTOM;
     /** Vrai pendant le remplissage des cases par un préréglage : ce n'est pas une saisie du joueur. */
     private boolean filling;
@@ -145,6 +149,32 @@ public final class SpeedrunScreen extends Screen {
         return super.keyPressed(keyCode, scanCode, modifiers);
     }
 
+    /** Un fichier LiveSplit (.lss) déposé sur l'écran : ses segments deviennent les étapes (#224). */
+    @Override
+    public void onFilesDrop(List<java.nio.file.Path> files) {
+        for (java.nio.file.Path file : files) {
+            if (!file.getFileName().toString().toLowerCase(java.util.Locale.ROOT).endsWith(".lss")) continue;
+            try {
+                LssImport.Result r = LssImport.read(file);
+                List<String> names = r.steps.size() > MAX_STEPS ? r.steps.subList(0, MAX_STEPS) : r.steps;
+                filling = true;
+                for (int i = 0; i < stepBoxes.size(); i++) stepBoxes.get(i).setValue(i < names.size() ? names.get(i) : "");
+                filling = false;
+                preset = SpeedrunPresets.CUSTOM;
+                if (presetButton != null) presetButton.setMessage(presetLabel());
+                pendingBest = r.steps.size() <= MAX_STEPS ? r.bestTicks : null; // un meilleur temps tronqué ne se compare à rien
+                importMessage = r.steps.size() > MAX_STEPS
+                        ? Texts.tr("xpack.speedrun.import.truncated", r.steps.size(), MAX_STEPS)
+                        : Texts.tr(pendingBest != null && !pendingBest.isEmpty() ? "xpack.speedrun.import.doneBest" : "xpack.speedrun.import.done", names.size());
+            } catch (LssImport.LssException e) {
+                importMessage = Texts.tr("xpack.speedrun.import.error." + e.getMessage());
+            } catch (java.io.IOException e) {
+                importMessage = Texts.tr("xpack.speedrun.import.error.io");
+            }
+            return;
+        }
+    }
+
     @Override
     public void tick() {
         if (toggleButton != null) toggleButton.setMessage(toggleLabel(SpeedrunClient.timer()));
@@ -165,6 +195,7 @@ public final class SpeedrunScreen extends Screen {
         g.drawString(font, "IGT " + SpeedrunTimer.format(timer.igtMs()), left, 40, 0xFFFFFF);
         g.drawString(font, "RTA " + SpeedrunTimer.format(timer.rtaMs()), left + 80, 40, 0xAAAAAA);
         g.drawString(font, Texts.tr("xpack.speedrun.keys"), left, 62 + GAP * 2 + 2, 0xAAAAAA);
+        if (importMessage != null) g.drawCenteredString(font, importMessage, width / 2, height - 42, 0xFFFFFF);
         g.drawString(font, Texts.tr("xpack.speedrun.steps"), right, 66, 0xAAAAAA);
         if (timer.state() == SpeedrunTimer.State.LOST) g.drawString(font, Texts.tr("xpack.speedrun.lostHud").withStyle(net.minecraft.ChatFormatting.RED), left, 50, 0xFF5555);
     }
@@ -178,7 +209,7 @@ public final class SpeedrunScreen extends Screen {
             String v = box.getValue().strip();
             if (!v.isEmpty()) steps.add(v);
         }
-        SpeedrunClient.applySteps(core, steps, preset);
+        SpeedrunClient.applySteps(core, steps, preset, pendingBest);
     }
 
     @Override

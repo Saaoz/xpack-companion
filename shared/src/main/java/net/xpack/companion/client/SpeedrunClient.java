@@ -127,18 +127,21 @@ final class SpeedrunClient {
         core.saveConfig();
     }
 
-    /** Nouvelle liste d'étapes : le meilleur temps ne se compare plus qu'à la même liste, il repart donc de zéro si elle change. */
-    static void applySteps(XPackCore core, List<String> steps, String preset) {
+    /**
+     * Nouvelle liste d'étapes : le meilleur temps ne se compare plus qu'à la même liste, il repart donc de zéro si
+     * elle change. {@code importedBest} (fichier LiveSplit), s'il a une valeur par étape, le remplace.
+     */
+    static void applySteps(XPackCore core, List<String> steps, String preset, List<Long> importedBest) {
         Config c = core.config();
-        if (steps.equals(c.speedrunSteps) && preset.equals(c.speedrunPreset)) return;
+        boolean best = importedBest != null && !importedBest.isEmpty() && importedBest.size() == steps.size();
+        if (steps.equals(c.speedrunSteps) && preset.equals(c.speedrunPreset) && !best) return;
         c.speedrunPreset = preset;
-        if (steps.equals(c.speedrunSteps)) {
-            core.saveConfig();
-            return;
+        if (!steps.equals(c.speedrunSteps)) {
+            c.speedrunSteps = new ArrayList<>(steps);
+            c.speedrunBest = new ArrayList<>();
+            TIMER.setSteps(steps);
         }
-        c.speedrunSteps = new ArrayList<>(steps);
-        c.speedrunBest = new ArrayList<>();
-        TIMER.setSteps(steps);
+        if (best) c.speedrunBest = new ArrayList<>(importedBest);
         TIMER.setBest(c.speedrunBest);
         core.saveConfig();
     }
