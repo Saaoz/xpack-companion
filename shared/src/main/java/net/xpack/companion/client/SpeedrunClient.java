@@ -62,9 +62,13 @@ final class SpeedrunClient {
             TIMER.gameTick();
             // Pause du chrono (touche) : le jeu tourne, donc le joueur ne doit pas bouger (#220). Échap en solo fige
             // la partie : aucun déplacement possible, rien à surveiller.
+            // Pause due à la sortie du monde : le chrono repart tout seul au premier déplacement (il n'est pas perdu).
+            boolean wasExitPaused = TIMER.isExitPaused();
             if (mc.player != null && mc.level != null
                     && TIMER.watchMovement(mc.player.getX(), mc.player.getY(), mc.player.getZ(), mc.level.dimension().location().toString())) {
                 MinecraftUi.say(Texts.tr("xpack.speedrun.lost"));
+            } else if (wasExitPaused && TIMER.isRunning()) {
+                MinecraftUi.say(Texts.tr("xpack.speedrun.resumed"));
             }
         }
         Config c = core.config();

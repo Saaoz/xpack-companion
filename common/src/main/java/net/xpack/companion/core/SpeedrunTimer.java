@@ -132,12 +132,14 @@ public final class SpeedrunTimer {
 
     public void pause() {
         if (state != State.RUNNING) return;
+        exitPaused = false;
         rtaBaseMs = rtaMs();
         state = State.PAUSED;
     }
 
     public void resume() {
         if (state != State.PAUSED) return;
+        exitPaused = false;
         rtaStartedAt = clockMs.getAsLong();
         state = State.RUNNING;
         anchor = null;
@@ -157,6 +159,12 @@ public final class SpeedrunTimer {
     public void pauseForExit() {
         pause();
         anchor = null;
+        exitPaused = state == State.PAUSED;
+    }
+
+    /** Vrai quand la pause vient d'avoir quitté le monde : le chrono repart au premier déplacement. */
+    public boolean isExitPaused() {
+        return exitPaused && state == State.PAUSED;
     }
 
     /** L'état du chrono (temps, étapes validées), à garder avec son monde. Un chrono en cours doit d'abord être mis en pause. */
@@ -200,6 +208,7 @@ public final class SpeedrunTimer {
             startedAtMs = started;
             splits.addAll(list);
             state = saved == State.RUNNING ? State.PAUSED : saved;
+            exitPaused = state == State.PAUSED;
             return true;
         } catch (RuntimeException e) {
             reset();
@@ -209,6 +218,7 @@ public final class SpeedrunTimer {
 
     public void reset() {
         state = State.IDLE;
+        exitPaused = false;
         igtTicks = 0;
         rtaBaseMs = 0;
         splits.clear();
@@ -217,6 +227,7 @@ public final class SpeedrunTimer {
 
     // ------------------------------------------------------------------ pause et déplacement (#220)
 
+    private boolean exitPaused;
     private double[] anchor;
     private String anchorDimension;
 
@@ -240,6 +251,10 @@ public final class SpeedrunTimer {
         double dy = y - anchor[1];
         double dz = z - anchor[2];
         boolean moved = Math.sqrt(dx * dx + dy * dy + dz * dz) > MOVE_EPSILON || !String.valueOf(dimension).equals(anchorDimension);
+        if (moved && exitPaused) { // pause due à la sortie du monde : le chrono repart dès que le joueur bouge, il n'est pas perdu
+            resume();
+            return false;
+        }
         if (moved) lose();
         return moved;
     }

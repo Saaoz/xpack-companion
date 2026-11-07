@@ -240,4 +240,29 @@ class SpeedrunTimerTest {
         assertFalse(other.restore(new com.google.gson.JsonObject()));
         assertEquals(SpeedrunTimer.State.IDLE, other.state());
     }
+
+    @Test
+    void apresUneSortieLeChronoRepartAuPremierDeplacementSansEtrePerdu() {
+        timer.start();
+        play(20, 1_000);
+        timer.pauseForExit();
+        SpeedrunTimer other = new SpeedrunTimer(() -> now);
+        assertTrue(other.restore(timer.toJson()));
+        assertTrue(other.isExitPaused());
+        assertFalse(other.watchMovement(10, 64, 10, "minecraft:overworld")); // point de départ
+        assertEquals(SpeedrunTimer.State.PAUSED, other.state());
+        assertFalse(other.watchMovement(11, 64, 10, "minecraft:overworld")); // il bouge : le chrono repart
+        assertEquals(SpeedrunTimer.State.RUNNING, other.state());
+        assertFalse(other.isExitPaused());
+    }
+
+    @Test
+    void uneVraiePauseALaToucheReste_surveillee() {
+        timer.start();
+        timer.toggle();
+        assertFalse(timer.isExitPaused());
+        timer.watchMovement(0, 64, 0, "minecraft:overworld");
+        assertTrue(timer.watchMovement(5, 64, 0, "minecraft:overworld"));
+        assertEquals(SpeedrunTimer.State.LOST, timer.state());
+    }
 }
