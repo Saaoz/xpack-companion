@@ -126,9 +126,14 @@ final class SpeedrunClient {
     }
 
     /** Nouvelle liste d'étapes : le meilleur temps ne se compare plus qu'à la même liste, il repart donc de zéro si elle change. */
-    static void applySteps(XPackCore core, List<String> steps) {
+    static void applySteps(XPackCore core, List<String> steps, String preset) {
         Config c = core.config();
-        if (steps.equals(c.speedrunSteps)) return;
+        if (steps.equals(c.speedrunSteps) && preset.equals(c.speedrunPreset)) return;
+        c.speedrunPreset = preset;
+        if (steps.equals(c.speedrunSteps)) {
+            core.saveConfig();
+            return;
+        }
         c.speedrunSteps = new ArrayList<>(steps);
         c.speedrunBest = new ArrayList<>();
         TIMER.setSteps(steps);

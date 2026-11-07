@@ -9,6 +9,7 @@ import net.minecraft.client.gui.components.CycleButton;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
+import net.xpack.companion.core.SpeedrunPresets;
 import net.xpack.companion.core.SpeedrunTimer;
 import net.xpack.companion.core.XPackCore;
 
@@ -18,14 +19,19 @@ import net.xpack.companion.core.XPackCore;
  * fermeture ; un chrono libre n'est jamais vérifié.
  */
 public final class SpeedrunScreen extends Screen {
-    private static final int MAX_STEPS = 8;
+    private static final int MAX_STEPS = 7;
     private static final int GAP = 22;
+    private static final int STEP_GAP = 20;
     private static final String[] KEY_LABELS = {"xpack.speedrun.key.toggle", "xpack.speedrun.key.split", "xpack.speedrun.key.stop", "xpack.speedrun.key.reset"};
 
     private final Screen parent;
     private final List<EditBox> stepBoxes = new ArrayList<>();
     private final Button[] keyButtons = new Button[4];
     private Button toggleButton;
+    private Button presetButton;
+    private String preset = SpeedrunPresets.CUSTOM;
+    /** Vrai pendant le remplissage des cases par un préréglage : ce n'est pas une saisie du joueur. */
+    private boolean filling;
     /** Touche en cours de réglage (0 à 3), ou -1. */
     private int capturing = -1;
 
@@ -70,19 +76,45 @@ public final class SpeedrunScreen extends Screen {
             core.saveConfig();
         }));
 
-        // Étapes : les cases vides sont ignorées, l'ordre est celui de la liste.
+        // Préréglage, puis étapes : les cases vides sont ignorées, l'ordre est celui de la liste.
+        preset = SpeedrunPresets.ids().contains(core.config().speedrunPreset) ? core.config().speedrunPreset : SpeedrunPresets.CUSTOM;
+        presetButton = addRenderableWidget(Button.builder(presetLabel(), b -> cyclePreset()).bounds(right, 36, 150, 20).build());
         List<String> steps = core.config().speedrunSteps == null ? new ArrayList<String>() : core.config().speedrunSteps;
         stepBoxes.clear();
-        int sy = 62;
+        int sy = 80;
         for (int i = 0; i < MAX_STEPS; i++) {
-            EditBox box = new EditBox(font, right, sy, 150, 20, Texts.tr("xpack.speedrun.step", i + 1));
+            EditBox box = new EditBox(font, right, sy, 150, 18, Texts.tr("xpack.speedrun.step", i + 1));
             box.setMaxLength(32);
             box.setHint(Texts.tr("xpack.speedrun.step", i + 1));
             if (i < steps.size()) box.setValue(steps.get(i));
+            box.setResponder(v -> {
+                if (!filling && !SpeedrunPresets.CUSTOM.equals(preset)) {
+                    preset = SpeedrunPresets.CUSTOM; // une case modifiée à la main : plus un préréglage
+                    presetButton.setMessage(presetLabel());
+                }
+            });
             stepBoxes.add(addRenderableWidget(box));
-            sy += GAP;
+            sy += STEP_GAP;
         }
         addRenderableWidget(Button.builder(Component.translatable("gui.done"), b -> onClose()).bounds(width / 2 - 100, height - 28, 200, 20).build());
+    }
+
+    private Component presetLabel() {
+        Component name = SpeedrunPresets.CUSTOM.equals(preset) ? Texts.tr("xpack.speedrun.preset.custom") : Texts.tr("xpack.speedrun.preset." + preset);
+        return Texts.tr("xpack.speedrun.preset", name);
+    }
+
+    /** Préréglage suivant : ses étapes remplissent les cases (le nom reste modifiable ensuite). */
+    private void cyclePreset() {
+        List<String> ids = SpeedrunPresets.ids();
+        preset = ids.get((ids.indexOf(preset) + 1) % ids.size());
+        SpeedrunPresets.Preset p = SpeedrunPresets.find(preset);
+        if (p != null) {
+            filling = true;
+            for (int i = 0; i < stepBoxes.size(); i++) stepBoxes.get(i).setValue(i < p.steps.size() ? Texts.tr("xpack.speedrun.step." + p.steps.get(i).id).getString() : "");
+            filling = false;
+        }
+        presetButton.setMessage(presetLabel());
     }
 
     private static Component toggleLabel(SpeedrunTimer timer) {
@@ -129,8 +161,8 @@ public final class SpeedrunScreen extends Screen {
         g.drawString(font, "IGT " + SpeedrunTimer.format(timer.igtMs()), left, 40, 0xFFFFFF);
         g.drawString(font, "RTA " + SpeedrunTimer.format(timer.rtaMs()), left + 80, 40, 0xAAAAAA);
         g.drawString(font, Texts.tr("xpack.speedrun.keys"), left, 62 + GAP * 2 + 2, 0xAAAAAA);
-        g.drawString(font, Texts.tr("xpack.speedrun.steps"), right, 50, 0xAAAAAA);
-        if (timer.state() == SpeedrunTimer.State.LOST) g.drawString(font, Texts.tr("xpack.speedrun.lostHud").withStyle(net.minecraft.ChatFormatting.RED), left + 160, 40, 0xFF5555);
+        g.drawString(font, Texts.tr("xpack.speedrun.steps"), right, 66, 0xAAAAAA);
+        if (timer.state() == SpeedrunTimer.State.LOST) g.drawString(font, Texts.tr("xpack.speedrun.lostHud").withStyle(net.minecraft.ChatFormatting.RED), left, 50, 0xFF5555);
     }
 
     @Override
@@ -142,7 +174,7 @@ public final class SpeedrunScreen extends Screen {
             String v = box.getValue().strip();
             if (!v.isEmpty()) steps.add(v);
         }
-        SpeedrunClient.applySteps(core, steps);
+        SpeedrunClient.applySteps(core, steps, preset);
     }
 
     @Override

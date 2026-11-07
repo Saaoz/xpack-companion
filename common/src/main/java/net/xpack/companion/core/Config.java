@@ -87,6 +87,8 @@ public final class Config {
     public String speedrunResetKey = "key.keyboard.keypad.4";
     /** Affichage du chrono et des étapes à l'écran. */
     public boolean speedrunHud = true;
+    /** Préréglage choisi (voir SpeedrunPresets) ; « custom » pour une liste saisie à la main. */
+    public String speedrunPreset = "custom";
     /** Étapes du chrono libre, dans l'ordre. Vide : étapes numérotées. */
     public java.util.List<String> speedrunSteps = new java.util.ArrayList<>();
     /** Meilleur temps personnel : IGT cumulé, en ticks, à chaque étape. */
