@@ -76,6 +76,22 @@ public final class Config {
      */
     public String supportKey = "key.keyboard.k";
 
+    // ---- Speedrun libre (#219). Touches au nom Minecraft ; le pavé numérique évite les touches de jeu.
+    /** Démarrer, mettre en pause, reprendre. */
+    public String speedrunToggleKey = "key.keyboard.keypad.1";
+    /** Valider l'étape suivante. */
+    public String speedrunSplitKey = "key.keyboard.keypad.2";
+    /** Arrêter le chrono (les temps restent affichés). */
+    public String speedrunStopKey = "key.keyboard.keypad.3";
+    /** Remettre à zéro. */
+    public String speedrunResetKey = "key.keyboard.keypad.4";
+    /** Affichage du chrono et des étapes à l'écran. */
+    public boolean speedrunHud = true;
+    /** Étapes du chrono libre, dans l'ordre. Vide : étapes numérotées. */
+    public java.util.List<String> speedrunSteps = new java.util.ArrayList<>();
+    /** Meilleur temps personnel : IGT cumulé, en ticks, à chaque étape. */
+    public java.util.List<Long> speedrunBest = new java.util.ArrayList<>();
+
     /**
      * Coin effectif des toasts de succès. {@code versionDefault} : celui de la version quand le
      * joueur n'a rien choisi (en haut à droite avec les toasts du jeu ; en bas à droite en 1.7.10,

@@ -113,6 +113,7 @@ public final class XPackClient {
     /** Appelé après le dessin des toasts du jeu (mixin) : les nôtres, s'ils sont dans un autre coin. */
     public static void renderPlacedToasts(net.minecraft.client.gui.GuiGraphics graphics, net.minecraft.client.gui.components.toasts.ToastComponent toasts) {
         XPackToasts.render(graphics, toasts);
+        SpeedrunClient.render(graphics, core); // chrono du speedrun libre (#219), par-dessus le jeu et les menus
     }
 
     static void alertShown() {
@@ -196,6 +197,7 @@ public final class XPackClient {
         inWorld = nowInWorld;
         SmokeTest.tick(mc, inWorld);
         checkSupportKey(mc);
+        SpeedrunClient.tick(mc, core, inWorld);
         XPackToasts.tick(mc);
         XPackSounds.tick(mc);
         if (inWorld) ItemIcons.tick(mc, core);
