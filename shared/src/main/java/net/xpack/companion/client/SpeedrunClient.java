@@ -115,6 +115,22 @@ final class SpeedrunClient {
         if (SpeedrunMode.parse(core.config().speedrunMode).endAuto()) stop(core);
     }
 
+    /**
+     * Retour à l'écran titre : le chrono s'arrête, quel que soit le mode. Le temps reste affiché dans le prochain
+     * monde jusqu'à la remise à zéro. Pas de message : le chat est vidé en quittant le monde. La run classée, elle,
+     * est déjà abandonnée en quittant le monde ({@code XPackCore.onLeaveWorld}).
+     */
+    static void onLeaveWorld(XPackCore core) {
+        if (!core.config().speedrunEnabled || (!TIMER.isRunning() && TIMER.state() != SpeedrunTimer.State.PAUSED)) return;
+        TIMER.stop();
+        List<Long> best = TIMER.newBest();
+        if (best != null) {
+            core.config().speedrunBest = new ArrayList<>(best);
+            core.saveConfig();
+            TIMER.setBest(best);
+        }
+    }
+
     static void split(XPackCore core) {
         SpeedrunTimer.Split s = TIMER.split();
         if (s == null) return;

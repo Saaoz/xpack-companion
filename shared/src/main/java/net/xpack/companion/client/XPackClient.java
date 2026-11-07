@@ -212,6 +212,7 @@ public final class XPackClient {
         if (!nowInWorld && inWorld) {
             ticks = 0;
             stopQuests();
+            SpeedrunClient.onLeaveWorld(core);
             core.onLeaveWorld();
             SmokeTest.log("left world");
         }
