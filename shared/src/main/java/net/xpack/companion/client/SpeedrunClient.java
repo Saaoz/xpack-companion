@@ -115,19 +115,58 @@ final class SpeedrunClient {
         if (SpeedrunMode.parse(core.config().speedrunMode).endAuto()) stop(core);
     }
 
+    // ------------------------------------------------------------------ un chrono par monde
+
+    private static java.nio.file.Path worldFile(String worldId) {
+        return XPackClient.gameDirectory().resolve("xpack-speedrun").resolve("worlds").resolve(worldId.replaceAll("[^A-Za-z0-9._-]", "_") + ".json");
+    }
+
     /**
-     * Retour à l'écran titre : le chrono s'arrête, quel que soit le mode. Le temps reste affiché dans le prochain
-     * monde jusqu'à la remise à zéro. Pas de message : le chat est vidé en quittant le monde. La run classée, elle,
-     * est déjà abandonnée en quittant le monde ({@code XPackCore.onLeaveWorld}).
+     * Quitter le monde : le chrono en cours passe en pause et reste lié à ce monde (fichier du dossier xpack-speedrun),
+     * y compris d'un lancement du jeu à l'autre : les gros modpacks se jouent en plusieurs fois. À appeler avant que
+     * le monde ne soit oublié. La run classée, elle, est abandonnée en quittant le monde ({@code XPackCore.onLeaveWorld}).
      */
     static void onLeaveWorld(XPackCore core) {
-        if (!core.config().speedrunEnabled || (!TIMER.isRunning() && TIMER.state() != SpeedrunTimer.State.PAUSED)) return;
-        TIMER.stop();
-        List<Long> best = TIMER.newBest();
-        if (best != null) {
-            core.config().speedrunBest = new ArrayList<>(best);
-            core.saveConfig();
-            TIMER.setBest(best);
+        String id = core.worldId();
+        if (!core.config().speedrunEnabled || id == null) return;
+        java.nio.file.Path file = worldFile(id);
+        try {
+            if (!TIMER.isActive()) {
+                java.nio.file.Files.deleteIfExists(file); // chrono remis à zéro : pas de vieux chrono à retrouver
+                return;
+            }
+            TIMER.pauseForExit();
+            java.nio.file.Files.createDirectories(file.getParent());
+            java.nio.file.Files.writeString(file, TIMER.toJson().toString());
+        } catch (java.io.IOException e) {
+            // Chrono non gardé : il sera simplement remis à zéro au retour.
+        }
+    }
+
+    /**
+     * Ouvrir un monde : son chrono, s'il en avait un, est retrouvé en pause. Il reprend tout seul si le départ est
+     * automatique, sinon à la touche de pause / reprise. Un monde sans chrono repart d'un chrono neuf, qui ne garde
+     * rien du monde précédent.
+     */
+    static void onJoinWorld(XPackCore core) {
+        if (!core.config().speedrunEnabled) return;
+        load(core);
+        TIMER.reset();
+        String id = core.worldId();
+        if (id == null) return;
+        try {
+            java.nio.file.Path file = worldFile(id);
+            if (!java.nio.file.Files.exists(file) || !TIMER.restore(com.google.gson.JsonParser.parseString(java.nio.file.Files.readString(file)).getAsJsonObject())) return;
+        } catch (java.io.IOException | RuntimeException e) {
+            TIMER.reset();
+            return;
+        }
+        if (TIMER.state() != SpeedrunTimer.State.PAUSED) return; // terminé ou perdu : affiché tel quel
+        if (SpeedrunMode.parse(core.config().speedrunMode).startAuto()) {
+            TIMER.resume();
+            MinecraftUi.say(Texts.tr("xpack.speedrun.resumed"));
+        } else {
+            MinecraftUi.say(Texts.tr("xpack.speedrun.rejoined"));
         }
     }
 

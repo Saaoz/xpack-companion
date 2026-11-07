@@ -346,6 +346,7 @@ public final class XPackClient {
         XPackCore.WorldContext ctx = worldContext(mc);
         SmokeTest.log("joined " + ctx.kind() + " world, modpack=" + ctx.modpack());
         core.onJoinWorld(ctx);
+        SpeedrunClient.onJoinWorld(core);
         refreshCatalog(mc);
         startQuests(mc);
     }

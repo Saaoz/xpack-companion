@@ -1,5 +1,7 @@
 package net.xpack.companion.core;
 
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -146,6 +148,63 @@ public final class SpeedrunTimer {
         if (state != State.RUNNING && state != State.PAUSED) return;
         rtaBaseMs = rtaMs();
         state = State.FINISHED;
+    }
+
+    /**
+     * Quitter le monde : un chrono en cours passe en pause, sans surveillance de déplacement tant qu'on n'est pas
+     * revenu dans le monde. Le chrono est lié à son monde (voir {@link #toJson}).
+     */
+    public void pauseForExit() {
+        pause();
+        anchor = null;
+    }
+
+    /** L'état du chrono (temps, étapes validées), à garder avec son monde. Un chrono en cours doit d'abord être mis en pause. */
+    public JsonObject toJson() {
+        JsonObject o = new JsonObject();
+        o.addProperty("state", state.name());
+        o.addProperty("igtTicks", igtTicks);
+        o.addProperty("rtaMs", rtaMs());
+        o.addProperty("startedAtMs", startedAtMs);
+        JsonArray list = new JsonArray();
+        for (Split sp : splits) {
+            JsonObject j = new JsonObject();
+            j.addProperty("name", sp.name);
+            j.addProperty("igtTicks", sp.igtTicks);
+            j.addProperty("rtaMs", sp.rtaMs);
+            list.add(j);
+        }
+        o.add("splits", list);
+        return o;
+    }
+
+    /**
+     * Reprend un chrono gardé avec son monde. Un chrono qui tournait revient en pause (le joueur le reprend, ou
+     * le départ automatique le fait) ; terminé ou perdu, il revient tel quel. Renvoie faux si les données sont illisibles.
+     */
+    public boolean restore(JsonObject o) {
+        try {
+            State saved = State.valueOf(o.get("state").getAsString());
+            if (saved == State.IDLE) return false;
+            long ticks = o.get("igtTicks").getAsLong();
+            long rta = o.get("rtaMs").getAsLong();
+            long started = o.get("startedAtMs").getAsLong();
+            List<Split> list = new ArrayList<>();
+            for (com.google.gson.JsonElement e : o.getAsJsonArray("splits")) {
+                JsonObject j = e.getAsJsonObject();
+                list.add(new Split(j.get("name").getAsString(), j.get("igtTicks").getAsLong(), j.get("rtaMs").getAsLong()));
+            }
+            reset();
+            igtTicks = ticks;
+            rtaBaseMs = rta;
+            startedAtMs = started;
+            splits.addAll(list);
+            state = saved == State.RUNNING ? State.PAUSED : saved;
+            return true;
+        } catch (RuntimeException e) {
+            reset();
+            return false;
+        }
     }
 
     public void reset() {

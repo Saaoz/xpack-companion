@@ -191,4 +191,53 @@ class SpeedrunTimerTest {
         assertEquals("1:02:03.456", SpeedrunTimer.format(3_723_456));
         assertEquals("-00:00.250", SpeedrunTimer.format(-250));
     }
+
+    @Test
+    void quitterLeMondeMetEnPauseSansPerdreLeChronoAuRetour() {
+        timer.setSteps(Arrays.asList("A", "B"));
+        timer.start();
+        play(40, 3_000);
+        timer.split();
+        timer.pauseForExit();
+        assertEquals(SpeedrunTimer.State.PAUSED, timer.state());
+        // Au retour dans le monde le joueur peut apparaître ailleurs : la garde de pause ne se déclenche pas sur la sortie.
+        assertFalse(timer.watchMovement(1, 64, 1, "minecraft:overworld"));
+        play(100, 60_000); // le temps passé hors du monde ne compte ni en IGT ni en RTA
+        assertEquals(2_000, timer.igtMs());
+        assertEquals(3_000, timer.rtaMs());
+    }
+
+    @Test
+    void lesTempsSontGardesAvecLeMondeEtRepartentEnPause() {
+        timer.setSteps(Arrays.asList("A", "B"));
+        timer.start();
+        play(40, 3_000);
+        timer.split();
+        timer.pauseForExit();
+        com.google.gson.JsonObject saved = timer.toJson();
+
+        SpeedrunTimer other = new SpeedrunTimer(() -> now);
+        other.setSteps(Arrays.asList("A", "B"));
+        assertTrue(other.restore(saved));
+        assertEquals(SpeedrunTimer.State.PAUSED, other.state());
+        assertEquals(1, other.splits().size());
+        assertEquals(2_000, other.igtMs());
+        other.resume();
+        for (int i = 0; i < 20; i++) other.gameTick();
+        now += 1_000;
+        assertEquals(3_000, other.igtMs());
+        assertEquals(4_000, other.rtaMs());
+    }
+
+    @Test
+    void unChronoTermineReviensTelQuelEtDesDonneesIllisiblesSontIgnorees() {
+        timer.start();
+        play(20, 1_000);
+        timer.stop();
+        SpeedrunTimer other = new SpeedrunTimer(() -> now);
+        assertTrue(other.restore(timer.toJson()));
+        assertEquals(SpeedrunTimer.State.FINISHED, other.state());
+        assertFalse(other.restore(new com.google.gson.JsonObject()));
+        assertEquals(SpeedrunTimer.State.IDLE, other.state());
+    }
 }

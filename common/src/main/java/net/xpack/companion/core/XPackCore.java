@@ -497,6 +497,11 @@ public final class XPackCore {
         return world != null && active() && !practice;
     }
 
+    /** Identifiant du monde ouvert (propre à XPack, stable d'une session à l'autre), ou null hors d'un monde. */
+    public String worldId() {
+        return worldId;
+    }
+
     public boolean inWorld() {
         return world != null;
     }
