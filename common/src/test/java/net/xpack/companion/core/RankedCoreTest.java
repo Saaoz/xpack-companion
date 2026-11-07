@@ -36,6 +36,7 @@ class RankedCoreTest {
         clock = new XPackCoreTest.MutableClock();
         config = new Config();
         config.consented = true;
+        config.speedrunEnabled = true; // désactivé par défaut : les tests de la run classée l'activent comme le ferait le joueur
         creds = new Credentials(dir.resolve("credentials.json"));
         core = new XPackCore(config, dir.resolve("xpack.json"), creds, new ApiClient(api), ui, Runnable::run, clock, IntegrityRules.bundled());
         creds.put(config.apiUrl, XPackCoreTest.UUID, "Steve", "jeton");
@@ -134,6 +135,36 @@ class RankedCoreTest {
             assertTrue(core.takeFreshSpawn(), mode.id);
             assertFalse(core.takeFreshSpawn(), "le moment du départ ne se présente qu'une fois");
         }
+    }
+
+    @Test
+    void sansActivationParLeJoueurRienNeDemarreDansUnNouveauMonde() {
+        config.speedrunEnabled = false; // le réglage par défaut
+        api.reply(201, SESSION);
+        core.onJoinWorld(world("world"));
+        core.setPlaytime(3);
+        assertNull(core.rankedRun());
+        assertFalse(core.takeFreshSpawn());
+        core.onAdvancements(List.of("minecraft:story/enter_the_nether"), false, 100);
+        flush();
+        assertFalse(sentTypes().stream().anyMatch(t -> t.startsWith("speedrun_")), "aucun événement de speedrun");
+        assertFalse(ui.notices.contains("xpack.speedrun.ranked.started"));
+    }
+
+    @Test
+    void leReglageParDefautEstDesactive() {
+        assertFalse(new Config().speedrunEnabled);
+    }
+
+    @Test
+    void lActivationApresLOuvertureDuMondeNeLuiDonnePasDeRun() {
+        config.speedrunEnabled = false;
+        api.reply(201, SESSION);
+        core.onJoinWorld(world("world"));
+        core.setPlaytime(3); // première observation : pas activé, la chance est perdue pour ce monde
+        config.speedrunEnabled = true;
+        core.setPlaytime(4);
+        assertNull(core.rankedRun());
     }
 
     @Test

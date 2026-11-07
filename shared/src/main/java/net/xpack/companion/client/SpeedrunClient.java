@@ -57,7 +57,7 @@ final class SpeedrunClient {
     /** Une fois par tick client. Les touches ne comptent qu'en jeu, sans écran ouvert (ni chat, ni menu). */
     static void tick(Minecraft mc, XPackCore core, boolean inWorld) {
         load(core);
-        if (!inWorld) return;
+        if (!inWorld || !core.config().speedrunEnabled) return; // désactivé par défaut : aucune touche, aucun chrono
         if (!mc.isPaused()) {
             TIMER.gameTick();
             // Pause du chrono (touche) : le jeu tourne, donc le joueur ne doit pas bouger (#220). Échap en solo fige
@@ -111,6 +111,7 @@ final class SpeedrunClient {
 
     /** Début des crédits : fin du chrono libre, si la fin est automatique. */
     static void onCredits(XPackCore core) {
+        if (!core.config().speedrunEnabled) return;
         if (SpeedrunMode.parse(core.config().speedrunMode).endAuto()) stop(core);
     }
 
@@ -216,7 +217,7 @@ final class SpeedrunClient {
 
     /** Chrono, puis étapes avec l'écart au meilleur temps. En haut à gauche, les toasts étant à droite. */
     static void render(GuiGraphics g, XPackCore core) {
-        if (core == null || !core.config().speedrunHud) return;
+        if (core == null || !core.config().speedrunEnabled || !core.config().speedrunHud) return;
         Minecraft mc = Minecraft.getInstance();
         if (mc.options.hideGui) return;
         int x = 6;

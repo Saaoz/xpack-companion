@@ -77,6 +77,8 @@ public final class Config {
     public String supportKey = "key.keyboard.k";
 
     // ---- Speedrun libre (#219). Touches au nom Minecraft ; le pavé numérique évite les touches de jeu.
+    /** Mode speedrun activé par le joueur. Désactivé par défaut : ni chrono, ni touches, ni run classée tant qu'il ne l'a pas voulu. */
+    public boolean speedrunEnabled = false;
     /** Pause et reprise. */
     public String speedrunToggleKey = "key.keyboard.keypad.1";
     /** Valider l'étape suivante. */

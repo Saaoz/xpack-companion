@@ -158,7 +158,8 @@ public final class SettingsScreen extends Screen {
             support.active = core.canContactSupport();
             addRenderableWidget(support);
         }
-        addRenderableWidget(Button.builder(Component.translatable("gui.done"), b -> onClose()).bounds(width / 2 - 100, height - 28, 200, 20).build());
+        addRenderableWidget(Button.builder(Texts.tr("xpack.settings.speedrun"), b -> minecraft.setScreen(new SpeedrunScreen(this))).bounds(width / 2 - 155, height - 28, 150, 20).build());
+        addRenderableWidget(Button.builder(Component.translatable("gui.done"), b -> onClose()).bounds(width / 2 + 5, height - 28, 150, 20).build());
     }
 
     /** Prochaine rareté jouée par « Écouter » : on passe de commun à légendaire, clic après clic. */

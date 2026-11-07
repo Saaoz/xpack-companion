@@ -1577,6 +1577,7 @@ public final class XPackCore {
     private void maybeStartRanked(long worldAgeTicks) {
         if (!rankedMayStart || world == null) return;
         rankedMayStart = false; // une seule chance : la première observation
+        if (!config.speedrunEnabled) return; // option du joueur : un monde ouvert sans elle n'aura jamais de run
         if (RankedRun.isFresh(worldAgeTicks)) freshSpawn = true; // le chrono libre peut aussi démarrer ici (SpeedrunMode)
         if (practice || startedLate || integrity.isFlagged() || world.cheatsAllowed()) return;
         if (!SpeedrunMode.parse(config.speedrunMode).ranked()) return; // départ ou fin à la touche : chrono libre, jamais classé

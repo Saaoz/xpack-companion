@@ -30,6 +30,8 @@ public final class SpeedrunScreen extends Screen {
     private final List<EditBox> stepBoxes = new ArrayList<>();
     private final Button[] keyButtons = new Button[5];
     private Button toggleButton;
+    private Button enableButton;
+    private Button doneButton;
     private Button presetButton;
     private Button exportButton;
     /** Meilleur temps lu dans un fichier LiveSplit déposé, appliqué à la fermeture avec les étapes. */
@@ -57,6 +59,13 @@ public final class SpeedrunScreen extends Screen {
         SpeedrunTimer timer = SpeedrunClient.timer();
         int left = width / 2 - 160;
         int right = width / 2 + 10;
+        boolean enabled = core.config().speedrunEnabled;
+        enableButton = addRenderableWidget(Button.builder(enableLabel(enabled), b -> {
+            collectSteps(core);
+            core.config().speedrunEnabled = !core.config().speedrunEnabled;
+            core.saveConfig();
+            rebuildWidgets();
+        }).bounds(left, 24, 150, 16).tooltip(net.minecraft.client.gui.components.Tooltip.create(Texts.tr("xpack.speedrun.enable.hint"))).build());
         // Départ et fin : le menu décide quelles touches sont utiles. La run n'est classée qu'en tout automatique.
         SpeedrunMode mode = SpeedrunMode.parse(core.config().speedrunMode);
         addRenderableWidget(Button.builder(modeLabel(mode), b -> {
@@ -116,7 +125,17 @@ public final class SpeedrunScreen extends Screen {
         }
         exportButton = addRenderableWidget(Button.builder(Texts.tr("xpack.speedrun.export.button"), b -> SpeedrunClient.export(minecraft, core)).bounds(right, 221, 150, 18).build());
         exportButton.active = timer.state() == SpeedrunTimer.State.FINISHED;
-        addRenderableWidget(Button.builder(Component.translatable("gui.done"), b -> onClose()).bounds(width / 2 - 100, height - 28, 200, 20).build());
+        doneButton = addRenderableWidget(Button.builder(Component.translatable("gui.done"), b -> onClose()).bounds(width / 2 - 100, height - 28, 200, 20).build());
+        // Désactivé : tout est visible mais grisé, sauf le bouton d'activation et « Terminé ».
+        if (!enabled) {
+            for (net.minecraft.client.gui.components.events.GuiEventListener child : children()) {
+                if (child instanceof net.minecraft.client.gui.components.AbstractWidget w && w != enableButton && w != doneButton) w.active = false;
+            }
+        }
+    }
+
+    private static Component enableLabel(boolean enabled) {
+        return Texts.tr(enabled ? "xpack.speedrun.enable.on" : "xpack.speedrun.enable.off");
     }
 
     private Component presetLabel() {
@@ -205,13 +224,13 @@ public final class SpeedrunScreen extends Screen {
         int left = width / 2 - 160;
         int right = width / 2 + 10;
         g.drawString(font, Texts.tr("xpack.speedrun.mode"), left, 62, 0xAAAAAA);
-        g.drawCenteredString(font, Texts.tr("xpack.speedrun.free").withStyle(net.minecraft.ChatFormatting.GRAY), width / 2, 28, 0xAAAAAA);
-        g.drawString(font, "IGT " + SpeedrunTimer.format(timer.igtMs()), left, 40, 0xFFFFFF);
-        g.drawString(font, "RTA " + SpeedrunTimer.format(timer.rtaMs()), left + 80, 40, 0xAAAAAA);
+        g.drawString(font, "IGT " + SpeedrunTimer.format(timer.igtMs()), left, 45, 0xFFFFFF);
+        g.drawString(font, "RTA " + SpeedrunTimer.format(timer.rtaMs()), left + 80, 45, 0xAAAAAA);
         g.drawString(font, Texts.tr("xpack.speedrun.keys"), left, 122, 0xAAAAAA);
-        if (importMessage != null) g.drawCenteredString(font, importMessage, width / 2, height - 42, 0xFFFFFF);
+        if (!core.config().speedrunEnabled) g.drawCenteredString(font, Texts.tr("xpack.speedrun.disabledHint"), width / 2, height - 42, 0xFFAA00);
+        else         if (importMessage != null) g.drawCenteredString(font, importMessage, width / 2, height - 42, 0xFFFFFF);
         g.drawString(font, Texts.tr("xpack.speedrun.steps"), right, 66, 0xAAAAAA);
-        if (timer.state() == SpeedrunTimer.State.LOST) g.drawString(font, Texts.tr("xpack.speedrun.lostHud").withStyle(net.minecraft.ChatFormatting.RED), left, 50, 0xFF5555);
+        if (timer.state() == SpeedrunTimer.State.LOST) g.drawString(font, Texts.tr("xpack.speedrun.lostHud").withStyle(net.minecraft.ChatFormatting.RED), left, 54, 0xFF5555);
     }
 
     @Override
