@@ -8,6 +8,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.xpack.companion.core.Config;
 import net.xpack.companion.core.SpeedrunExport;
+import net.xpack.companion.core.SpeedrunMode;
 import net.xpack.companion.core.SpeedrunPresets;
 import net.xpack.companion.core.SpeedrunTimer;
 import net.xpack.companion.core.XPackCore;
@@ -26,7 +27,7 @@ final class SpeedrunClient {
 
     private static final SpeedrunTimer TIMER = new SpeedrunTimer(System::currentTimeMillis);
     /** Touches maintenues au tick précédent : une pression ne compte qu'une fois. */
-    private static final boolean[] HELD = new boolean[4];
+    private static final boolean[] HELD = new boolean[5];
     private static boolean loaded;
 
     private SpeedrunClient() {}
@@ -66,15 +67,20 @@ final class SpeedrunClient {
                 MinecraftUi.say(Texts.tr("xpack.speedrun.lost"));
             }
         }
+        Config c = core.config();
+        SpeedrunMode mode = SpeedrunMode.parse(c.speedrunMode);
+        // Le moment du départ automatique : l'apparition dans un monde neuf (en solo), même si un écran est ouvert.
+        // Consommé même si le départ est manuel.
+        if (core.takeFreshSpawn() && mode.startAuto() && !TIMER.isRunning() && TIMER.state() != SpeedrunTimer.State.PAUSED) start(mc);
         if (mc.screen != null) {
             java.util.Arrays.fill(HELD, true); // une touche tenue en sortant d'un écran ne déclenche rien
             return;
         }
-        Config c = core.config();
-        if (pressedOnce(mc, 0, key(c.speedrunToggleKey, InputConstants.KEY_NUMPAD1))) toggle(mc);
+        if (pressedOnce(mc, 0, key(c.speedrunToggleKey, InputConstants.KEY_NUMPAD1))) pauseResume(mc);
         if (pressedOnce(mc, 1, key(c.speedrunSplitKey, InputConstants.KEY_NUMPAD2))) split(core);
-        if (pressedOnce(mc, 2, key(c.speedrunStopKey, InputConstants.KEY_NUMPAD3))) stop(core);
+        if (pressedOnce(mc, 2, key(c.speedrunStopKey, InputConstants.KEY_NUMPAD3)) && !mode.endAuto()) stop(core);
         if (pressedOnce(mc, 3, key(c.speedrunResetKey, InputConstants.KEY_NUMPAD4))) reset();
+        if (pressedOnce(mc, 4, key(c.speedrunStartKey, InputConstants.KEY_NUMPAD0)) && !mode.startAuto()) start(mc);
     }
 
     // ------------------------------------------------------------------ actions (touches et écran /xpack speedrun)
@@ -88,6 +94,24 @@ final class SpeedrunClient {
         TIMER.toggle();
         MinecraftUi.say(Texts.tr(wasIdle ? "xpack.speedrun.started" : TIMER.isRunning() ? "xpack.speedrun.resumed" : "xpack.speedrun.paused"));
         if (mc.player != null && mc.level != null) TIMER.watchMovement(mc.player.getX(), mc.player.getY(), mc.player.getZ(), mc.level.dimension().location().toString()); // point de départ de la pause
+    }
+
+    /** Départ du chrono (touche de départ, ou apparition dans un monde neuf en départ automatique) : sans effet s'il tourne déjà. */
+    static void start(Minecraft mc) {
+        if (TIMER.isRunning() || TIMER.state() == SpeedrunTimer.State.PAUSED) return;
+        TIMER.start();
+        MinecraftUi.say(Texts.tr("xpack.speedrun.started"));
+    }
+
+    /** Pause puis reprise. Sans effet si le chrono n'est pas lancé. */
+    static void pauseResume(Minecraft mc) {
+        if (!TIMER.isRunning() && TIMER.state() != SpeedrunTimer.State.PAUSED) return;
+        toggle(mc);
+    }
+
+    /** Début des crédits : fin du chrono libre, si la fin est automatique. */
+    static void onCredits(XPackCore core) {
+        if (SpeedrunMode.parse(core.config().speedrunMode).endAuto()) stop(core);
     }
 
     static void split(XPackCore core) {
@@ -109,13 +133,13 @@ final class SpeedrunClient {
         MinecraftUi.say(Texts.tr("xpack.speedrun.reset"));
     }
 
-    /** Nom de la touche réglée pour une action (0 démarrer, 1 étape, 2 arrêter, 3 remise à zéro), lisible. */
+    /** Nom de la touche réglée pour une action (0 pause, 1 étape, 2 fin, 3 remise à zéro, 4 départ), lisible. */
     static String keyName(Config c, int slot) {
         return key(keyOf(c, slot), -1).getDisplayName().getString();
     }
 
     private static String keyOf(Config c, int slot) {
-        return slot == 0 ? c.speedrunToggleKey : slot == 1 ? c.speedrunSplitKey : slot == 2 ? c.speedrunStopKey : c.speedrunResetKey;
+        return slot == 0 ? c.speedrunToggleKey : slot == 1 ? c.speedrunSplitKey : slot == 2 ? c.speedrunStopKey : slot == 3 ? c.speedrunResetKey : c.speedrunStartKey;
     }
 
     static void bindKey(XPackCore core, int slot, String keyName) {
@@ -123,7 +147,8 @@ final class SpeedrunClient {
         if (slot == 0) c.speedrunToggleKey = keyName;
         else if (slot == 1) c.speedrunSplitKey = keyName;
         else if (slot == 2) c.speedrunStopKey = keyName;
-        else c.speedrunResetKey = keyName;
+        else if (slot == 3) c.speedrunResetKey = keyName;
+        else c.speedrunStartKey = keyName;
         core.saveConfig();
     }
 

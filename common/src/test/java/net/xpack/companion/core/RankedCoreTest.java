@@ -42,9 +42,13 @@ class RankedCoreTest {
     }
 
     XPackCore.WorldContext world(String clockKind) {
+        return worldAt("world", clockKind);
+    }
+
+    XPackCore.WorldContext worldAt(String folder, String clockKind) {
         JsonObject fingerprint = new JsonObject();
         fingerprint.addProperty("playtimeClock", clockKind);
-        return new XPackCore.WorldContext(dir.resolve("world/xpack.json"), "singleplayer", "2026-10-01T10:00:00Z", false, XPackCoreTest.UUID, "Steve",
+        return new XPackCore.WorldContext(dir.resolve(folder + "/xpack.json"), "singleplayer", "2026-10-01T10:00:00Z", false, XPackCoreTest.UUID, "Steve",
                 new ModpackDetector.ModpackInfo("modrinth", null, null, "Engrenages", "1.4.0"), fingerprint, false);
     }
 
@@ -116,6 +120,37 @@ class RankedCoreTest {
         List<String> types = sentTypes();
         assertTrue(types.indexOf("speedrun_start") < types.indexOf("speedrun_split"));
         assertTrue(types.indexOf("speedrun_split") < types.indexOf("speedrun_end"));
+    }
+
+    @Test
+    void departOuFinALaToucheNeDonnentJamaisUneRunClasseeMaisLeChronoLibrePeutPartir() {
+        for (SpeedrunMode mode : new SpeedrunMode[] {SpeedrunMode.AUTO_END, SpeedrunMode.AUTO_START, SpeedrunMode.MANUAL}) {
+            setUp();
+            config.speedrunMode = mode.id;
+            api.reply(201, SESSION);
+            core.onJoinWorld(worldAt("world-" + mode.id, "world"));
+            core.setPlaytime(3);
+            assertNull(core.rankedRun(), mode.id);
+            assertTrue(core.takeFreshSpawn(), mode.id);
+            assertFalse(core.takeFreshSpawn(), "le moment du départ ne se présente qu'une fois");
+        }
+    }
+
+    @Test
+    void toutAutomatiqueDonneLeMomentDuDepartEtLaRunClassee() {
+        api.reply(201, SESSION);
+        core.onJoinWorld(world("world"));
+        core.setPlaytime(3);
+        assertNotNull(core.rankedRun());
+        assertTrue(core.takeFreshSpawn());
+    }
+
+    @Test
+    void pasDeMomentDeDepartDansUnMondeDejaAvance() {
+        api.reply(201, SESSION);
+        core.onJoinWorld(world("world"));
+        core.setPlaytime(5_000);
+        assertFalse(core.takeFreshSpawn());
     }
 
     @Test

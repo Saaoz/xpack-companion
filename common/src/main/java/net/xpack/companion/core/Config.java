@@ -77,14 +77,18 @@ public final class Config {
     public String supportKey = "key.keyboard.k";
 
     // ---- Speedrun libre (#219). Touches au nom Minecraft ; le pavé numérique évite les touches de jeu.
-    /** Démarrer, mettre en pause, reprendre. */
+    /** Pause et reprise. */
     public String speedrunToggleKey = "key.keyboard.keypad.1";
     /** Valider l'étape suivante. */
     public String speedrunSplitKey = "key.keyboard.keypad.2";
-    /** Arrêter le chrono (les temps restent affichés). */
+    /** Fin du chrono (utile quand la fin est manuelle) ; les temps restent affichés. */
     public String speedrunStopKey = "key.keyboard.keypad.3";
     /** Remettre à zéro. */
     public String speedrunResetKey = "key.keyboard.keypad.4";
+    /** Départ et fin du chrono : auto, auto_end, auto_start ou manual (voir SpeedrunMode). */
+    public String speedrunMode = "auto";
+    /** Touche de départ du chrono (utile quand le départ est manuel). */
+    public String speedrunStartKey = "key.keyboard.keypad.0";
     /** Affichage du chrono et des étapes à l'écran. */
     public boolean speedrunHud = true;
     /** Préréglage choisi (voir SpeedrunPresets) ; « custom » pour une liste saisie à la main. */

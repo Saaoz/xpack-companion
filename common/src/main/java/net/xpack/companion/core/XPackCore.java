@@ -661,6 +661,7 @@ public final class XPackCore {
         startedLate = false;
         ranked = null;
         rankedMayStart = false;
+        freshSpawn = false;
         lateNoticeShown = false;
         difficultyWarned = false;
         lastDifficulty = null;
@@ -1576,7 +1577,9 @@ public final class XPackCore {
     private void maybeStartRanked(long worldAgeTicks) {
         if (!rankedMayStart || world == null) return;
         rankedMayStart = false; // une seule chance : la première observation
+        if (RankedRun.isFresh(worldAgeTicks)) freshSpawn = true; // le chrono libre peut aussi démarrer ici (SpeedrunMode)
         if (practice || startedLate || integrity.isFlagged() || world.cheatsAllowed()) return;
+        if (!SpeedrunMode.parse(config.speedrunMode).ranked()) return; // départ ou fin à la touche : chrono libre, jamais classé
         RankedRun run = RankedRun.start(worldAgeTicks, clock.millis());
         if (run == null) return;
         ranked = run;
@@ -1619,6 +1622,15 @@ public final class XPackCore {
         if (ranked == null || !ranked.invalidate(reason, currentPlaytime, clock.millis())) return;
         saveWorld();
         ui.notify("xpack.speedrun.ranked.invalid");
+    }
+
+    private boolean freshSpawn;
+
+    /** Vrai une fois, au premier tick d'un monde neuf en solo : le moment du départ automatique. */
+    public boolean takeFreshSpawn() {
+        boolean was = freshSpawn;
+        freshSpawn = false;
+        return was;
     }
 
     /** Run classée du monde ouvert, ou null (pour l'affichage). */

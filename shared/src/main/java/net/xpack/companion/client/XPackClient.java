@@ -224,6 +224,7 @@ public final class XPackClient {
             if (!creditsSeen) {
                 creditsSeen = true;
                 core.onCredits(playtime(mc));
+                SpeedrunClient.onCredits(core);
             }
         } else {
             creditsSeen = false;

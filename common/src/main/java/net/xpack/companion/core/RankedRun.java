@@ -54,6 +54,11 @@ public final class RankedRun {
         }
     }
 
+    /** Le monde vient d'être créé : son âge à la première observation tient dans la fenêtre de départ. */
+    public static boolean isFresh(long worldAgeTicks) {
+        return worldAgeTicks >= 0 && worldAgeTicks <= START_WINDOW_TICKS;
+    }
+
     /** Démarre une run, ou renvoie null si le monde n'est plus neuf (âge du monde trop avancé). */
     public static RankedRun start(long worldAgeTicks, long nowMs) {
         if (worldAgeTicks < 0 || worldAgeTicks > START_WINDOW_TICKS) return null;

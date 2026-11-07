@@ -10,6 +10,7 @@ import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import net.xpack.companion.core.LssImport;
+import net.xpack.companion.core.SpeedrunMode;
 import net.xpack.companion.core.SpeedrunPresets;
 import net.xpack.companion.core.SpeedrunTimer;
 import net.xpack.companion.core.XPackCore;
@@ -23,11 +24,11 @@ public final class SpeedrunScreen extends Screen {
     private static final int MAX_STEPS = 7;
     private static final int GAP = 22;
     private static final int STEP_GAP = 20;
-    private static final String[] KEY_LABELS = {"xpack.speedrun.key.toggle", "xpack.speedrun.key.split", "xpack.speedrun.key.stop", "xpack.speedrun.key.reset"};
+    private static final String[] KEY_LABELS = {"xpack.speedrun.key.toggle", "xpack.speedrun.key.split", "xpack.speedrun.key.stop", "xpack.speedrun.key.reset", "xpack.speedrun.key.start"};
 
     private final Screen parent;
     private final List<EditBox> stepBoxes = new ArrayList<>();
-    private final Button[] keyButtons = new Button[4];
+    private final Button[] keyButtons = new Button[5];
     private Button toggleButton;
     private Button presetButton;
     private Button exportButton;
@@ -56,30 +57,42 @@ public final class SpeedrunScreen extends Screen {
         SpeedrunTimer timer = SpeedrunClient.timer();
         int left = width / 2 - 160;
         int right = width / 2 + 10;
-        int y = 62;
+        // Départ et fin : le menu décide quelles touches sont utiles. La run n'est classée qu'en tout automatique.
+        SpeedrunMode mode = SpeedrunMode.parse(core.config().speedrunMode);
+        addRenderableWidget(Button.builder(modeLabel(mode), b -> {
+            collectSteps(core); // les cases saisies sont gardées avant de reconstruire l'écran
+            core.config().speedrunMode = mode.next().id;
+            core.saveConfig();
+            rebuildWidgets();
+        }).bounds(left, 72, 100, 20).tooltip(net.minecraft.client.gui.components.Tooltip.create(Texts.tr("xpack.speedrun.mode.hint." + mode.id))).build());
+        boolean hud = core.config().speedrunHud;
+        addRenderableWidget(Button.builder(Component.literal("HUD").withStyle(hud ? net.minecraft.ChatFormatting.GREEN : net.minecraft.ChatFormatting.RED), b -> {
+            core.config().speedrunHud = !core.config().speedrunHud;
+            core.saveConfig();
+            b.setMessage(Component.literal("HUD").withStyle(core.config().speedrunHud ? net.minecraft.ChatFormatting.GREEN : net.minecraft.ChatFormatting.RED));
+        }).bounds(left + 104, 72, 46, 20).tooltip(net.minecraft.client.gui.components.Tooltip.create(Texts.tr("xpack.speedrun.hud"))).build());
 
         toggleButton = addRenderableWidget(Button.builder(toggleLabel(timer), b -> {
             SpeedrunClient.toggle(minecraft);
             b.setMessage(toggleLabel(timer));
-        }).bounds(left, y, 73, 20).build());
-        addRenderableWidget(Button.builder(Texts.tr("xpack.speedrun.split.button"), b -> SpeedrunClient.split(core)).bounds(left + 77, y, 73, 20).build());
-        y += GAP;
-        addRenderableWidget(Button.builder(Texts.tr("xpack.speedrun.stop.button"), b -> SpeedrunClient.stop(core)).bounds(left, y, 73, 20).build());
-        addRenderableWidget(Button.builder(Texts.tr("xpack.speedrun.reset.button"), b -> SpeedrunClient.reset()).bounds(left + 77, y, 73, 20).build());
+        }).bounds(left, 96, 37, 20).build());
+        addRenderableWidget(Button.builder(Texts.tr("xpack.speedrun.split.button"), b -> SpeedrunClient.split(core)).bounds(left + 38, 96, 37, 20).build());
+        addRenderableWidget(Button.builder(Texts.tr("xpack.speedrun.stop.button"), b -> SpeedrunClient.stop(core)).bounds(left + 76, 96, 37, 20).build());
+        addRenderableWidget(Button.builder(Texts.tr("xpack.speedrun.reset.button"), b -> SpeedrunClient.reset()).bounds(left + 114, 96, 36, 20).build());
 
-        y += GAP + 14; // place pour le titre « Touches »
-        for (int slot = 0; slot < 4; slot++) {
+        // Touches : départ seulement s'il est manuel, fin seulement si elle est manuelle ; pause, étape et remise à zéro toujours.
+        java.util.Arrays.fill(keyButtons, null);
+        int y = 134;
+        for (int slot : new int[] {4, 0, 1, 2, 3}) {
+            if (slot == 4 && mode.startAuto()) continue;
+            if (slot == 2 && mode.endAuto()) continue;
             final int s = slot;
             keyButtons[slot] = addRenderableWidget(Button.builder(keyLabel(core, slot), b -> {
                 capturing = s;
                 refreshKeyLabels(core);
-            }).bounds(left, y, 150, 20).build());
-            y += GAP;
+            }).bounds(left, y, 150, 18).build());
+            y += 20;
         }
-        addRenderableWidget(CycleButton.onOffBuilder(core.config().speedrunHud).create(left, y, 150, 20, Texts.tr("xpack.speedrun.hud"), (b, v) -> {
-            core.config().speedrunHud = v;
-            core.saveConfig();
-        }));
 
         // Préréglage, puis étapes : les cases vides sont ignorées, l'ordre est celui de la liste.
         preset = SpeedrunPresets.ids().contains(core.config().speedrunPreset) ? core.config().speedrunPreset : SpeedrunPresets.CUSTOM;
@@ -191,10 +204,11 @@ public final class SpeedrunScreen extends Screen {
         SpeedrunTimer timer = SpeedrunClient.timer();
         int left = width / 2 - 160;
         int right = width / 2 + 10;
+        g.drawString(font, Texts.tr("xpack.speedrun.mode"), left, 62, 0xAAAAAA);
         g.drawCenteredString(font, Texts.tr("xpack.speedrun.free").withStyle(net.minecraft.ChatFormatting.GRAY), width / 2, 28, 0xAAAAAA);
         g.drawString(font, "IGT " + SpeedrunTimer.format(timer.igtMs()), left, 40, 0xFFFFFF);
         g.drawString(font, "RTA " + SpeedrunTimer.format(timer.rtaMs()), left + 80, 40, 0xAAAAAA);
-        g.drawString(font, Texts.tr("xpack.speedrun.keys"), left, 62 + GAP * 2 + 2, 0xAAAAAA);
+        g.drawString(font, Texts.tr("xpack.speedrun.keys"), left, 122, 0xAAAAAA);
         if (importMessage != null) g.drawCenteredString(font, importMessage, width / 2, height - 42, 0xFFFFFF);
         g.drawString(font, Texts.tr("xpack.speedrun.steps"), right, 66, 0xAAAAAA);
         if (timer.state() == SpeedrunTimer.State.LOST) g.drawString(font, Texts.tr("xpack.speedrun.lostHud").withStyle(net.minecraft.ChatFormatting.RED), left, 50, 0xFF5555);
@@ -204,12 +218,21 @@ public final class SpeedrunScreen extends Screen {
     public void removed() {
         XPackCore core = XPackClient.core();
         if (core == null) return;
+        collectSteps(core);
+    }
+
+    /** Enregistre les noms d'étapes saisis (cases vides ignorées). */
+    private void collectSteps(XPackCore core) {
         List<String> steps = new ArrayList<>();
         for (EditBox box : stepBoxes) {
             String v = box.getValue().strip();
             if (!v.isEmpty()) steps.add(v);
         }
         SpeedrunClient.applySteps(core, steps, preset, pendingBest);
+    }
+
+    private static Component modeLabel(SpeedrunMode mode) {
+        return Texts.tr("xpack.speedrun.mode." + mode.id);
     }
 
     @Override
