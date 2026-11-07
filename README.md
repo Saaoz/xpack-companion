@@ -1,38 +1,105 @@
 # XPack Companion
 
-Mod compagnon de **[XPack](https://xpack.saaoz.fr)** : il envoie tes succès de modpack vers ton profil XPack, affiche les succès XPack en jeu et vérifie qu'ils ont été obtenus à la loyale.
+Le mod compagnon de **[XPack](https://xpack.saaoz.fr)** : chaque progrès que tu obtiens dans un modpack devient un succès sur ton profil XPack, avec des points, une rareté, des paliers de complétion et des classements.
 
-> Ce dépôt sert uniquement à distribuer le mod. Le code source n'est pas public pour l'instant.
+**Mod client uniquement.** Les serveurs n'ont pas besoin du mod, et aucun modpack n'a à le déclarer comme dépendance : un serveur sans le mod t'accepte normalement, et un modpack sans lui fonctionne comme avant.
+
+> Ce dépôt sert à distribuer le mod. Le code source n'est pas public pour l'instant.
+
+## Ce que fait le mod
+
+- **Tes progrès deviennent des succès.** Le mod lit l'arbre des progrès de ton modpack, avec les titres et descriptions que le jeu affiche (Minecraft et mods), dans ta langue. Tu les retrouves en arbre sur le site, onglet par mod, avec les vraies icônes du jeu.
+- **Des toasts en jeu** pour chaque succès (points, rareté, part des joueurs qui l'ont) et pour les paliers de complétion à 25, 50, 75 et 100 %. Tu choisis le coin de l'écran et le délai, et un bouton « Essai » montre le rendu.
+- **Un son qui fait plaisir.** Le son « Gourmand » (le ping de l'orbe d'expérience) devient plus riche quand le succès est rare, et monte d'un cran si tu en enchaînes plusieurs. Carillon, cloche et fanfare restent disponibles, ou coupe le son. Volume réglable.
+- **Les quêtes dans une jauge à part.** Les quêtes FTB Quests (ATM10…) et BetterQuesting (RLCraft, GT: New Horizons) comptent dans une jauge « Avancement », séparée des points de succès.
+- **La difficulté compte.** Chaque succès garde le badge de difficulté de ton monde (Paisible à Hardcore), avec un multiplicateur de points. Le mod te prévient quand tu la baisses.
+- **Jouer en équipe.** Invite des coéquipiers depuis le jeu (`/xpack team`) : leurs succès portent le badge « Équipe » et ont leur propre classement. `/xpack check` montre qui a XPack dans la partie.
+- **Fair-play sans punition.** Une commande de triche, le mode triche de JEI, REI ou EMI, ou le mode édition de FTB Quests demandent d'abord une confirmation. Un monde où tu triches arrête simplement de compter. Les mondes en créatif ou déclarés « mondes de test » ne sont jamais suivis, et personne n'est banni.
+- **Un support intégré.** Depuis le jeu, tu vois ce qui part, tu ajoutes un message, et la demande arrive à l'équipe.
 
 ## Télécharger
-
-Va dans **[Releases](https://github.com/Saaoz/xpack-companion/releases)** et prends le jar qui correspond à ton modpack :
 
 | Loader | Minecraft | Fichier |
 |---|---|---|
 | Fabric (et Quilt) | 1.21.1 | `xpack-companion-fabric-1.21.1-<version>.jar` |
 | NeoForge | 1.21.1 | `xpack-companion-neoforge-1.21.1-<version>.jar` |
 | Forge | 1.20.1 | `xpack-companion-forge-1.20.1-<version>.jar` |
+| Forge | 1.12.2 (RLCraft…) | `xpack-companion-forge-1.12.2-<version>.jar` |
+| Forge | 1.7.10 (GT: New Horizons…) | `xpack-companion-forge-1.7.10-<version>.jar` |
 
-Le plus simple : ouvre la fiche de ton modpack sur [xpack.saaoz.fr](https://xpack.saaoz.fr), clique sur « 🧩 Ajouter le mod XPack ». La page [/mod](https://xpack.saaoz.fr/mod) choisit le bon jar et donne le tutoriel pour ton lanceur (Modrinth App, CurseForge, Prism, ATLauncher, lanceur officiel).
+Les fichiers sont dans **[Releases](https://github.com/Saaoz/xpack-companion/releases)**. Fabric n'a pas besoin de Fabric API.
+
+Le plus simple : la page **[xpack.saaoz.fr/mod](https://xpack.saaoz.fr/mod)** choisit le bon fichier selon ton loader et ta version de Minecraft, et donne la marche à suivre pour ton lanceur (CurseForge, Modrinth App, Prism, ATLauncher, lanceur officiel).
 
 ## Installer
 
-1. Télécharge le jar adapté.
+1. Télécharge le jar qui correspond à ton modpack.
 2. Copie-le dans le dossier `mods` de l'instance de ton modpack.
-3. Lance le jeu, puis ouvre le menu pause → ⚙ → « Lier mon compte XPack » (ou tape `/xpack settings`) : le mod affiche un code de liaison.
-4. Saisis ce code sur [xpack.saaoz.fr/link](https://xpack.saaoz.fr/link). Tes succès arrivent ensuite sur ton profil.
+3. Lance le jeu. Au premier lancement, un écran de consentement s'affiche : **rien n'est envoyé tant que tu ne l'as pas accepté.**
+4. Ouvre le menu pause → ⚙ → « Lier mon compte XPack » (ou tape `/xpack settings`) : le mod affiche un code.
+5. Saisis ce code sur [xpack.saaoz.fr/link](https://xpack.saaoz.fr/link). Tes succès arrivent ensuite sur ton profil.
+
+**Crée un nouveau monde** pour collectionner tes succès : en solo, un monde commencé sans le mod ne compte pas (sur un serveur, il compte toujours).
+
+> Dans l'app CurseForge, le bouton « Ajouter à un modpack » ne propose que les profils où « Autoriser la gestion du contenu de ce profil » est activé dans les options du profil. L'app ne vérifie pas le loader : choisis un profil du même loader et de la même version que le fichier.
+
+## Commandes
+
+Elles sont traitées par le mod et jamais envoyées au serveur. Elles se complètent avec Tab pendant la saisie.
+
+| Commande | Rôle |
+|---|---|
+| `/xpack` | Aide |
+| `/xpack settings` | Réglages du mod : envoi, toasts, badge, son, volume, liaison du compte, monde de test, support |
+| `/xpack team` | Équipe XPack : inviter, accepter, quitter |
+| `/xpack check` | Qui a XPack dans la partie |
+| `/xpack support` | Contacter le support |
+| `/xpack diagnostic` | Copie, anonymisés, les fichiers qui décrivent ton modpack, pour aider le support |
+
+## Tes données
+
+Rien n'est envoyé avant que tu acceptes l'écran de consentement. Une fois ton compte lié, le mod envoie à l'API XPack (`api.xpack.saaoz.fr`) :
+
+- le nom, la version et la plateforme du modpack, et un identifiant de monde ;
+- tes progrès, tes statistiques et ton temps de jeu ;
+- la liste des progrès du modpack (titres et descriptions du jeu) et quelques icônes d'objets, dessinées par le jeu, pour des objets que la plateforme connaît déjà ;
+- la difficulté du monde et si d'autres joueurs sont connectés (oui ou non seulement) ;
+- des informations techniques : version de Minecraft, loader, version du mod, nombre de mods et empreinte de leur liste ;
+- des signaux d'intégrité contre la triche : mode de jeu, triche autorisée, invulnérabilité hors créatif, commandes de triche confirmées, provenance des objets de valeur reçus, packs de ressources ajoutés, compteurs de minage ;
+- en multijoueur, des empreintes (SHA-256) des identifiants des joueurs pour savoir qui a XPack, jamais les identifiants ni les pseudos.
+
+Le chat, le journal du jeu et tes fichiers ne sont jamais lus. La liste complète des mods n'est envoyée que si tu contactes le support depuis le mod. Ton jeton de liaison est rangé dans le dossier de ton compte système (`%APPDATA%\XPack\` sous Windows), jamais dans l'instance, pour ne pas partir avec un export de modpack.
+
+Tu peux délier le mod, exporter tes données ou supprimer ton compte à tout moment depuis le site.
 
 ## Créateurs de modpacks
 
-Tu peux inclure le mod dans ton pack : la page [/mod](https://xpack.saaoz.fr/mod#creators) donne un texte prêt à copier pour Modrinth et CurseForge.
+Tu peux inclure le mod dans ton pack : la page [/mod](https://xpack.saaoz.fr/mod#creators) donne un texte prêt à copier pour Modrinth et CurseForge. Le mod reste facultatif pour tes joueurs.
 
-## Problème ?
+## Un problème ?
 
-Écris au support depuis [xpack.saaoz.fr](https://xpack.saaoz.fr).
+Écris au support depuis [xpack.saaoz.fr](https://xpack.saaoz.fr), ou directement depuis le jeu avec `/xpack support`.
 
 ---
 
-**English** — Companion mod for [XPack](https://xpack.saaoz.fr): syncs your modpack achievements to your XPack profile. Download the jar matching your loader and Minecraft version from [Releases](https://github.com/Saaoz/xpack-companion/releases) and drop it into your instance's `mods` folder. Then, in game, open the pause menu → ⚙ → “Link my XPack account” and enter the code on [xpack.saaoz.fr/link](https://xpack.saaoz.fr/link).
+# English
+
+**XPack Companion** links your Minecraft modpacks to [XPack](https://xpack.saaoz.fr): every advancement you earn becomes an achievement on your XPack profile, with points, rarity, completion tiers and rankings. It is **client-side only**: servers don't need it and no modpack has to declare it.
+
+**Features**
+- Your modpack's advancements become achievements, with the texts the game shows, in your language, and the real item icons on the site.
+- In-game toasts for achievements and completion tiers (25 / 50 / 75 / 100 %), with a choice of screen corner and delay.
+- A satisfying "Treat" sound, richer for rarer achievements and higher when you chain them. Other sounds or silence in the settings.
+- FTB Quests and BetterQuesting quests count in a separate "Progress" gauge.
+- Difficulty badge (Peaceful to Hardcore) with point multipliers, and a "Team" badge when you play with teammates (`/xpack team`).
+- Fair play without punishment: cheat commands and the cheat modes of JEI, REI, EMI or FTB Quests ask for confirmation first, and a world where you cheat simply stops counting. Nobody is banned.
+
+**Supported versions:** Fabric (and Quilt) 1.21.1, NeoForge 1.21.1, Forge 1.20.1, Forge 1.12.2, Forge 1.7.10. Download from [Releases](https://github.com/Saaoz/xpack-companion/releases) or let [xpack.saaoz.fr/mod](https://xpack.saaoz.fr/mod) pick the right file.
+
+**Install:** drop the jar into your instance's `mods` folder, accept the consent screen at first launch, open the pause menu → ⚙ → “Link my XPack account” (or `/xpack settings`), and enter the code on [xpack.saaoz.fr/link](https://xpack.saaoz.fr/link). Create a new world to collect achievements: in singleplayer, a world started without the mod doesn't count.
+
+**Your data:** nothing is sent before you accept the consent screen. Once linked, the mod sends your progress, statistics, the modpack's identity and advancement list, technical details and integrity signals to `api.xpack.saaoz.fr`. Chat, game logs and your files are never read. You can unlink, export your data or delete your account at any time on the website.
+
+---
 
 Licence : MIT
