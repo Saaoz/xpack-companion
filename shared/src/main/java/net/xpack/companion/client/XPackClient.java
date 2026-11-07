@@ -203,6 +203,8 @@ public final class XPackClient {
 
     // ------------------------------------------------------------------ tick client
 
+    private static boolean creditsSeen;
+
     public static void onClientTick(Minecraft mc) {
         if (core == null) return;
         boolean nowInWorld = mc.level != null && mc.player != null && mc.getConnection() != null;
@@ -217,6 +219,15 @@ public final class XPackClient {
         SmokeTest.tick(mc, inWorld);
         checkSupportKey(mc);
         SpeedrunClient.tick(mc, core, inWorld);
+        // Début des crédits (poème final) : la run classée est terminée, comme sur speedrun.com (#225).
+        if (inWorld && mc.screen instanceof net.minecraft.client.gui.screens.WinScreen) {
+            if (!creditsSeen) {
+                creditsSeen = true;
+                core.onCredits(playtime(mc));
+            }
+        } else {
+            creditsSeen = false;
+        }
         XPackToasts.tick(mc);
         XPackSounds.tick(mc);
         if (inWorld) ItemIcons.tick(mc, core);

@@ -39,14 +39,21 @@ class RankedRunTest {
     }
 
     @Test
-    void laMortDuDragonTermineLaRunEtFigeLesTemps() {
+    void laMortDuDragonEstUneEtapeEtNeTermineplusLaRun() {
         RankedRun r = RankedRun.start(0, 0);
-        RankedRun.Outcome o = r.onAdvancement(RankedRun.FINISH, 24_000, 1_300_000);
+        assertEquals(RankedRun.Kind.SPLIT, r.onAdvancement("minecraft:end/kill_dragon", 22_000, 1_200_000).kind);
+        assertTrue(r.isActive());
+    }
+
+    @Test
+    void leDebutDesCreditsTermineLaRunEtFigeLesTemps() {
+        RankedRun r = RankedRun.start(0, 0);
+        RankedRun.Outcome o = r.onCredits(24_000, 1_300_000);
         assertEquals(RankedRun.Kind.END, o.kind);
         assertEquals(RankedRun.State.FINISHED, r.state);
         assertEquals(24_000, r.igtTicks(99_999));
         assertEquals(1_300_000, r.rtaMs(9_999_999));
-        assertNull(r.onAdvancement(RankedRun.FINISH, 25_000, 1_400_000)); // une seule fin
+        assertNull(r.onCredits(25_000, 1_400_000)); // une seule fin
     }
 
     @Test
@@ -56,14 +63,14 @@ class RankedRunTest {
         assertEquals(RankedRun.State.INVALID, r.state);
         assertEquals("flagged", r.invalidReason);
         assertFalse(r.invalidate("autre", 600, 40_000));
-        assertNull(r.onAdvancement(RankedRun.FINISH, 700, 50_000));
+        assertNull(r.onCredits(700, 50_000));
         assertEquals(500, r.igtTicks(9_999));
     }
 
     @Test
     void uneRunTermineeNePeutPlusEtreInvalidee() {
         RankedRun r = RankedRun.start(0, 0);
-        r.onAdvancement(RankedRun.FINISH, 100, 5_000);
+        r.onCredits(100, 5_000);
         assertFalse(r.invalidate("flagged", 200, 6_000));
         assertEquals(RankedRun.State.FINISHED, r.state);
     }

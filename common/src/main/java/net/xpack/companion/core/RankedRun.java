@@ -7,7 +7,7 @@ import java.util.List;
 
 /**
  * Run de speedrun classée d'un monde (#225) : démarrage automatique à l'apparition du joueur dans un monde neuf,
- * étapes automatiques sur les progrès du parcours, fin à la mort du dragon. Pur Java, sauvegardé dans le fichier
+ * étapes automatiques sur les progrès du parcours, fin au début des crédits. Pur Java, sauvegardé dans le fichier
  * du monde (c'est pourquoi les champs sont publics et simples).
  *
  * <p>Le mod ne fait que constater et envoyer les événements {@code speedrun_start}, {@code speedrun_split} et
@@ -19,14 +19,13 @@ public final class RankedRun {
 
     /** Catégorie par défaut tant que les catégories des modpacks (#53) ne sont pas lues par le mod. */
     public static final String CATEGORY = "any";
-    /** Fin de la run : mort du dragon. */
-    public static final String FINISH = "minecraft:end/kill_dragon";
     /** Étapes intermédiaires envoyées (progrès du parcours « Par progrès »). */
     public static final List<String> SPLITS = Collections.unmodifiableList(Arrays.asList(
             "minecraft:story/enter_the_nether",
             "minecraft:nether/find_fortress",
             "minecraft:story/follow_ender_eye",
-            "minecraft:story/enter_the_end"));
+            "minecraft:story/enter_the_end",
+            "minecraft:end/kill_dragon"));
     /** Un monde neuf : la run ne démarre que si l'âge du monde à la première observation est inférieur à ça (1 min). */
     static final long START_WINDOW_TICKS = 1200;
 
@@ -85,17 +84,23 @@ public final class RankedRun {
         if (state != State.ACTIVE) return null;
         long igt = igtTicks(playtimeTicks);
         long rta = rtaMs(nowMs);
-        if (FINISH.equals(id)) {
-            state = State.FINISHED;
-            endIgtTicks = igt;
-            endRtaMs = rta;
-            return new Outcome(Kind.END, id, igt, rta);
-        }
         if (SPLITS.contains(id) && !splits.contains(id)) {
             splits.add(id);
             return new Outcome(Kind.SPLIT, id, igt, rta);
         }
         return null;
+    }
+
+    /**
+     * Début des crédits (poème final de l'End), comme sur speedrun.com : la run est terminée. Renvoie la fin à envoyer,
+     * ou null si la run n'est pas active.
+     */
+    public Outcome onCredits(long playtimeTicks, long nowMs) {
+        if (state != State.ACTIVE) return null;
+        endIgtTicks = igtTicks(playtimeTicks); // avant de changer d'état : un état terminé renvoie les temps figés
+        endRtaMs = rtaMs(nowMs);
+        state = State.FINISHED;
+        return new Outcome(Kind.END, "credits", endIgtTicks, endRtaMs);
     }
 
     /** Run perdue (monde signalé, triches activées…). Sans effet si elle n'est plus active. Renvoie vrai si elle l'était. */

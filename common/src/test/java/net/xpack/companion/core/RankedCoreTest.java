@@ -100,13 +100,15 @@ class RankedCoreTest {
     }
 
     @Test
-    void lesEtapesPuisLaMortDuDragonSontEnvoyees() {
+    void lesEtapesPuisLeDebutDesCreditsSontEnvoyes() {
         api.reply(201, SESSION);
         core.onJoinWorld(world("world"));
         core.setPlaytime(0);
         core.onAdvancements(List.of("minecraft:story/enter_the_nether"), false, 2_000);
         clock.millis += 60_000;
-        core.onAdvancements(List.of("minecraft:end/kill_dragon"), false, 24_000);
+        core.onAdvancements(List.of("minecraft:end/kill_dragon"), false, 22_000);
+        assertEquals(RankedRun.State.ACTIVE, core.rankedRun().state, "la mort du dragon n'arrête pas la run");
+        core.onCredits(24_000);
         assertEquals(RankedRun.State.FINISHED, core.rankedRun().state);
         assertEquals(24_000, core.rankedIgtTicks());
         assertEquals(60_000, core.rankedRtaMs());
@@ -121,7 +123,8 @@ class RankedCoreTest {
         api.reply(201, SESSION);
         core.onJoinWorld(world("world"));
         core.setPlaytime(0);
-        core.onAdvancements(List.of("minecraft:end/kill_dragon"), true, 10);
+        core.onAdvancements(List.of("minecraft:story/enter_the_nether"), true, 10);
+        assertTrue(core.rankedRun().splits.isEmpty());
         assertEquals(RankedRun.State.ACTIVE, core.rankedRun().state);
     }
 
@@ -134,7 +137,7 @@ class RankedCoreTest {
         assertEquals(RankedRun.State.INVALID, core.rankedRun().state);
         assertEquals("cheats", core.rankedRun().invalidReason);
         assertTrue(ui.notices.contains("xpack.speedrun.ranked.invalid"));
-        core.onAdvancements(List.of("minecraft:end/kill_dragon"), false, 24_000);
+        core.onCredits(24_000);
         flush();
         assertFalse(sentTypes().contains("speedrun_end"), "une run perdue n'envoie plus d'étape");
     }

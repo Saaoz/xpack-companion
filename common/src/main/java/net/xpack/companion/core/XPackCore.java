@@ -1587,10 +1587,19 @@ public final class XPackCore {
         ui.notify("xpack.speedrun.ranked.started");
     }
 
-    /** Un progrès obtenu en jouant : étape du parcours ou mort du dragon. */
+    /** Un progrès obtenu en jouant : étape du parcours. */
     private void rankedAdvancement(String id, long playtimeTicks) {
         if (ranked == null) return;
-        RankedRun.Outcome o = ranked.onAdvancement(id, playtimeTicks, clock.millis());
+        sendRanked(ranked.onAdvancement(id, playtimeTicks, clock.millis()), playtimeTicks);
+    }
+
+    /** Début des crédits (poème final) : fin de la run, comme sur speedrun.com. À appeler une fois, à l'ouverture de l'écran. */
+    public void onCredits(long playtimeTicks) {
+        if (world == null || ranked == null) return;
+        sendRanked(ranked.onCredits(playtimeTicks, clock.millis()), playtimeTicks);
+    }
+
+    private void sendRanked(RankedRun.Outcome o, long playtimeTicks) {
         if (o == null) return;
         JsonObject e = event(o.kind == RankedRun.Kind.END ? "speedrun_end" : "speedrun_split", playtimeTicks);
         e.addProperty("category", RankedRun.CATEGORY);
