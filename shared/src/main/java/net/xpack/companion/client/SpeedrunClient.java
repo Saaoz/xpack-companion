@@ -55,7 +55,15 @@ final class SpeedrunClient {
     static void tick(Minecraft mc, XPackCore core, boolean inWorld) {
         load(core);
         if (!inWorld) return;
-        if (!mc.isPaused()) TIMER.gameTick();
+        if (!mc.isPaused()) {
+            TIMER.gameTick();
+            // Pause du chrono (touche) : le jeu tourne, donc le joueur ne doit pas bouger (#220). Échap en solo fige
+            // la partie : aucun déplacement possible, rien à surveiller.
+            if (mc.player != null && mc.level != null
+                    && TIMER.watchMovement(mc.player.getX(), mc.player.getY(), mc.player.getZ(), mc.level.dimension().location().toString())) {
+                MinecraftUi.say(Texts.tr("xpack.speedrun.lost"));
+            }
+        }
         if (mc.screen != null) {
             java.util.Arrays.fill(HELD, true); // une touche tenue en sortant d'un écran ne déclenche rien
             return;
@@ -65,6 +73,7 @@ final class SpeedrunClient {
             boolean wasIdle = !TIMER.isRunning() && TIMER.state() != SpeedrunTimer.State.PAUSED;
             TIMER.toggle();
             MinecraftUi.say(Texts.tr(wasIdle ? "xpack.speedrun.started" : TIMER.isRunning() ? "xpack.speedrun.resumed" : "xpack.speedrun.paused"));
+            if (mc.player != null && mc.level != null) TIMER.watchMovement(mc.player.getX(), mc.player.getY(), mc.player.getZ(), mc.level.dimension().location().toString()); // point de départ de la pause
         }
         if (pressedOnce(mc, 1, key(c.speedrunSplitKey, InputConstants.KEY_NUMPAD2))) {
             SpeedrunTimer.Split s = TIMER.split();
@@ -73,7 +82,7 @@ final class SpeedrunClient {
                 if (TIMER.state() == SpeedrunTimer.State.FINISHED) finished(core);
             }
         }
-        if (pressedOnce(mc, 2, key(c.speedrunStopKey, InputConstants.KEY_NUMPAD3)) && TIMER.isActive() && TIMER.state() != SpeedrunTimer.State.FINISHED) {
+        if (pressedOnce(mc, 2, key(c.speedrunStopKey, InputConstants.KEY_NUMPAD3)) && (TIMER.isRunning() || TIMER.state() == SpeedrunTimer.State.PAUSED)) {
             TIMER.stop();
             finished(core);
         }
@@ -108,6 +117,10 @@ final class SpeedrunClient {
         y += LINE * 2 + 2;
         if (TIMER.state() == SpeedrunTimer.State.PAUSED) {
             g.drawString(font, Texts.tr("xpack.speedrun.pausedHud").withStyle(ChatFormatting.YELLOW), x, y, WHITE);
+            y += LINE;
+        }
+        if (TIMER.state() == SpeedrunTimer.State.LOST) {
+            g.drawString(font, Texts.tr("xpack.speedrun.lostHud").withStyle(ChatFormatting.RED), x, y, WHITE);
             y += LINE;
         }
         List<SpeedrunTimer.Split> splits = TIMER.splits();

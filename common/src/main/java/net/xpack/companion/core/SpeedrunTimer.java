@@ -15,7 +15,11 @@ import java.util.function.LongSupplier;
  * Un chrono libre n'est jamais vérifié et ne part jamais au classement.
  */
 public final class SpeedrunTimer {
-    public enum State { IDLE, RUNNING, PAUSED, FINISHED }
+    /** LOST : chrono perdu (#220), les temps restent affichés jusqu'à la remise à zéro. */
+    public enum State { IDLE, RUNNING, PAUSED, FINISHED, LOST }
+
+    /** Déplacement toléré pendant la pause du chrono, en blocs : le bruit des flottants, pas un pas. */
+    static final double MOVE_EPSILON = 0.01;
 
     /** Une étape validée : temps cumulés depuis le départ. */
     public static final class Split {
@@ -127,6 +131,7 @@ public final class SpeedrunTimer {
         if (state != State.PAUSED) return;
         rtaStartedAt = clockMs.getAsLong();
         state = State.RUNNING;
+        anchor = null;
     }
 
     /** Arrête le chrono : les temps restent affichés jusqu'à la remise à zéro. */
@@ -141,6 +146,44 @@ public final class SpeedrunTimer {
         igtTicks = 0;
         rtaBaseMs = 0;
         splits.clear();
+        anchor = null;
+    }
+
+    // ------------------------------------------------------------------ pause et déplacement (#220)
+
+    private double[] anchor;
+    private String anchorDimension;
+
+    /**
+     * Garde de la pause : à appeler à chaque tick où le jeu tourne. Tant que le chrono est en pause (touche de
+     * pause), le joueur ne doit pas bouger : le moindre déplacement ou changement de dimension fait perdre le
+     * chrono. La pause du jeu (Échap en solo) fige la partie, elle n'a pas besoin de garde. Renvoie vrai quand
+     * le chrono vient d'être perdu.
+     */
+    public boolean watchMovement(double x, double y, double z, String dimension) {
+        if (state != State.PAUSED) {
+            anchor = null;
+            return false;
+        }
+        if (anchor == null) { // première observation de la pause : le point de départ
+            anchor = new double[] {x, y, z};
+            anchorDimension = dimension;
+            return false;
+        }
+        double dx = x - anchor[0];
+        double dy = y - anchor[1];
+        double dz = z - anchor[2];
+        boolean moved = Math.sqrt(dx * dx + dy * dy + dz * dz) > MOVE_EPSILON || !String.valueOf(dimension).equals(anchorDimension);
+        if (moved) lose();
+        return moved;
+    }
+
+    /** Chrono perdu : les temps sont figés et ne comptent plus pour aucun record. */
+    public void lose() {
+        if (state != State.RUNNING && state != State.PAUSED) return;
+        rtaBaseMs = rtaMs();
+        state = State.LOST;
+        anchor = null;
     }
 
     /** À appeler une fois par tick de jeu (monde chargé, jeu non en pause). */

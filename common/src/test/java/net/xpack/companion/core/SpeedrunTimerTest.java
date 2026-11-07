@@ -1,6 +1,7 @@
 package net.xpack.companion.core;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -125,6 +126,63 @@ class SpeedrunTimerTest {
         play(100, 0);
         timer.split();
         assertEquals(Arrays.asList(90L, 190L), timer.newBest());
+    }
+
+    @Test
+    void immobileEnPauseLeChronoSeReprendSansPerte() {
+        timer.start();
+        play(20, 1_000);
+        timer.pause();
+        assertFalse(timer.watchMovement(10, 64, 10, "minecraft:overworld"));
+        for (int i = 0; i < 100; i++) assertFalse(timer.watchMovement(10.001, 64, 10, "minecraft:overworld"));
+        timer.resume();
+        assertEquals(SpeedrunTimer.State.RUNNING, timer.state());
+    }
+
+    @Test
+    void toutDeplacementEnPauseFaitPerdreLeChrono() {
+        timer.start();
+        play(20, 1_000);
+        timer.pause();
+        timer.watchMovement(10, 64, 10, "minecraft:overworld");
+        assertTrue(timer.watchMovement(10, 64, 10.5, "minecraft:overworld"));
+        assertEquals(SpeedrunTimer.State.LOST, timer.state());
+        play(100, 60_000);
+        assertEquals(1_000, timer.rtaMs()); // temps figés
+        timer.resume();
+        assertEquals(SpeedrunTimer.State.LOST, timer.state());
+        assertNull(timer.newBest());
+    }
+
+    @Test
+    void unChangementDeDimensionEnPauseFaitPerdreLeChrono() {
+        timer.start();
+        timer.pause();
+        timer.watchMovement(0, 64, 0, "minecraft:overworld");
+        assertTrue(timer.watchMovement(0, 64, 0, "minecraft:the_nether"));
+    }
+
+    @Test
+    void lesDeplacementsHorsPauseNeComptentPas() {
+        timer.start();
+        assertFalse(timer.watchMovement(0, 64, 0, "minecraft:overworld"));
+        assertFalse(timer.watchMovement(50, 64, 50, "minecraft:overworld"));
+        assertEquals(SpeedrunTimer.State.RUNNING, timer.state());
+    }
+
+    @Test
+    void uneNouvellePauseRepartDeSaPositionEtUnChronoPerduSeRelance() {
+        timer.start();
+        timer.pause();
+        timer.watchMovement(0, 64, 0, "minecraft:overworld");
+        timer.resume();
+        timer.watchMovement(30, 64, 0, "minecraft:overworld"); // pas en pause : rien
+        timer.pause();
+        assertFalse(timer.watchMovement(30, 64, 0, "minecraft:overworld"));
+        assertTrue(timer.watchMovement(31, 64, 0, "minecraft:overworld"));
+        timer.toggle(); // un chrono perdu repart de zéro
+        assertEquals(SpeedrunTimer.State.RUNNING, timer.state());
+        assertEquals(0, timer.igtTicks());
     }
 
     @Test
