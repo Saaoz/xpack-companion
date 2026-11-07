@@ -29,6 +29,7 @@ public final class SpeedrunScreen extends Screen {
     private final Button[] keyButtons = new Button[4];
     private Button toggleButton;
     private Button presetButton;
+    private Button exportButton;
     private String preset = SpeedrunPresets.CUSTOM;
     /** Vrai pendant le remplissage des cases par un préréglage : ce n'est pas une saisie du joueur. */
     private boolean filling;
@@ -96,6 +97,8 @@ public final class SpeedrunScreen extends Screen {
             stepBoxes.add(addRenderableWidget(box));
             sy += STEP_GAP;
         }
+        exportButton = addRenderableWidget(Button.builder(Texts.tr("xpack.speedrun.export.button"), b -> SpeedrunClient.export(minecraft, core)).bounds(right, 221, 150, 18).build());
+        exportButton.active = timer.state() == SpeedrunTimer.State.FINISHED;
         addRenderableWidget(Button.builder(Component.translatable("gui.done"), b -> onClose()).bounds(width / 2 - 100, height - 28, 200, 20).build());
     }
 
@@ -145,6 +148,7 @@ public final class SpeedrunScreen extends Screen {
     @Override
     public void tick() {
         if (toggleButton != null) toggleButton.setMessage(toggleLabel(SpeedrunClient.timer()));
+        if (exportButton != null) exportButton.active = SpeedrunClient.timer().state() == SpeedrunTimer.State.FINISHED;
     }
 
     @Override

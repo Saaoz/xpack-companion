@@ -39,6 +39,7 @@ public final class SpeedrunTimer {
     private long igtTicks;
     private long rtaBaseMs;
     private long rtaStartedAt;
+    private long startedAtMs;
     private List<String> steps = new ArrayList<>();
     private final List<Split> splits = new ArrayList<>();
     /** Meilleur temps personnel : IGT cumulé (en ticks) à chaque étape. */
@@ -59,6 +60,11 @@ public final class SpeedrunTimer {
     /** Vrai tant qu'un chrono est affiché : en cours, en pause ou terminé (avant la remise à zéro). */
     public boolean isActive() {
         return state != State.IDLE;
+    }
+
+    /** Heure de départ du chrono, lue sur l'horloge fournie (millisecondes depuis 1970 en jeu). */
+    public long startedAtMs() {
+        return startedAtMs;
     }
 
     public long igtTicks() {
@@ -118,6 +124,7 @@ public final class SpeedrunTimer {
     public void start() {
         reset();
         state = State.RUNNING;
+        startedAtMs = clockMs.getAsLong();
         rtaStartedAt = clockMs.getAsLong();
     }
 

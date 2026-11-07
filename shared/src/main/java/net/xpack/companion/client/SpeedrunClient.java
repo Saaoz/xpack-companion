@@ -7,6 +7,8 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.xpack.companion.core.Config;
+import net.xpack.companion.core.SpeedrunExport;
+import net.xpack.companion.core.SpeedrunPresets;
 import net.xpack.companion.core.SpeedrunTimer;
 import net.xpack.companion.core.XPackCore;
 
@@ -139,6 +141,27 @@ final class SpeedrunClient {
         TIMER.setSteps(steps);
         TIMER.setBest(c.speedrunBest);
         core.saveConfig();
+    }
+
+    /** Exporte le chrono terminé (JSON, CSV, LiveSplit, texte) dans le dossier xpack-speedrun et copie le texte pour speedrun.com (#223). */
+    static void export(Minecraft mc, XPackCore core) {
+        String preset = core.config().speedrunPreset;
+        String category = SpeedrunPresets.find(preset) == null ? Texts.tr("xpack.speedrun.preset.custom").getString() : Texts.tr("xpack.speedrun.preset." + preset).getString();
+        SpeedrunExport.Run run = SpeedrunExport.from(TIMER, category, XPackClient.minecraftVersion(), XPackClient.loaderName(), XPackClient.modpackName(), System.currentTimeMillis());
+        if (run == null) {
+            MinecraftUi.say(Texts.tr("xpack.speedrun.export.notFinished"));
+            return;
+        }
+        try {
+            java.nio.file.Path dir = XPackClient.gameDirectory().resolve("xpack-speedrun");
+            SpeedrunExport.write(dir, run);
+            mc.keyboardHandler.setClipboard(SpeedrunExport.text(run));
+            net.minecraft.network.chat.MutableComponent open = Texts.tr("xpack.speedrun.export.open").withStyle(s -> s.withColor(ChatFormatting.AQUA).withUnderlined(true)
+                    .withClickEvent(new net.minecraft.network.chat.ClickEvent(net.minecraft.network.chat.ClickEvent.Action.OPEN_FILE, dir.toAbsolutePath().toString())));
+            MinecraftUi.say(Texts.tr("xpack.speedrun.export.done").append(" ").append(open));
+        } catch (java.io.IOException e) {
+            MinecraftUi.say(Texts.tr("xpack.speedrun.export.failed", e.getMessage()));
+        }
     }
 
     private static void finished(XPackCore core) {

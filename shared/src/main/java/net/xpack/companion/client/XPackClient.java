@@ -105,6 +105,24 @@ public final class XPackClient {
         return core;
     }
 
+    static String minecraftVersion() {
+        return SharedConstants.getCurrentVersion().getName();
+    }
+
+    static String loaderName() {
+        return loader == null ? "" : loader;
+    }
+
+    static Path gameDirectory() {
+        return gameDir;
+    }
+
+    /** Nom du modpack détecté, ou null. */
+    static String modpackName() {
+        ModpackDetector.ModpackInfo m = ModpackDetector.detect(gameDir, modIds);
+        return m == null || m.name() == null || m.name().isEmpty() ? null : m.name();
+    }
+
     // ------------------------------------------------------------------ alerte de triche → support
 
     /** Fin de la fenêtre pendant laquelle la touche du support est active (durée du toast). */
