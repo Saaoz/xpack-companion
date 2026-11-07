@@ -85,7 +85,7 @@ import net.xpack.companion.core.XPackCore;
  * chaque tick du client. Pas de progrès (advancements) en 1.7.10 : les succès XPack sont les achievements.
  */
 public final class Client1710 {
-    private static final String MOD_VERSION = "0.4.1";
+    private static final String MOD_VERSION = "0.5.0";
     /** Fréquence de demande des statistiques au serveur (#36). */
     private static final int STATS_INTERVAL_TICKS = 20 * 60;
     /** Première demande peu après l'entrée dans le monde : elle donne l'état initial des achievements. */
