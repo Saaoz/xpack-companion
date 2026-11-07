@@ -29,7 +29,7 @@ final class SpeedrunClient {
 
     private SpeedrunClient() {}
 
-    private static void load(XPackCore core) {
+    static void load(XPackCore core) {
         if (loaded) return;
         loaded = true;
         TIMER.setSteps(core.config().speedrunSteps == null ? new ArrayList<String>() : core.config().speedrunSteps);
@@ -69,27 +69,71 @@ final class SpeedrunClient {
             return;
         }
         Config c = core.config();
-        if (pressedOnce(mc, 0, key(c.speedrunToggleKey, InputConstants.KEY_NUMPAD1))) {
-            boolean wasIdle = !TIMER.isRunning() && TIMER.state() != SpeedrunTimer.State.PAUSED;
-            TIMER.toggle();
-            MinecraftUi.say(Texts.tr(wasIdle ? "xpack.speedrun.started" : TIMER.isRunning() ? "xpack.speedrun.resumed" : "xpack.speedrun.paused"));
-            if (mc.player != null && mc.level != null) TIMER.watchMovement(mc.player.getX(), mc.player.getY(), mc.player.getZ(), mc.level.dimension().location().toString()); // point de départ de la pause
-        }
-        if (pressedOnce(mc, 1, key(c.speedrunSplitKey, InputConstants.KEY_NUMPAD2))) {
-            SpeedrunTimer.Split s = TIMER.split();
-            if (s != null) {
-                MinecraftUi.say(Texts.tr("xpack.speedrun.split", s.name, SpeedrunTimer.format(s.igtTicks * 50)));
-                if (TIMER.state() == SpeedrunTimer.State.FINISHED) finished(core);
-            }
-        }
-        if (pressedOnce(mc, 2, key(c.speedrunStopKey, InputConstants.KEY_NUMPAD3)) && (TIMER.isRunning() || TIMER.state() == SpeedrunTimer.State.PAUSED)) {
-            TIMER.stop();
-            finished(core);
-        }
-        if (pressedOnce(mc, 3, key(c.speedrunResetKey, InputConstants.KEY_NUMPAD4)) && TIMER.isActive()) {
-            TIMER.reset();
-            MinecraftUi.say(Texts.tr("xpack.speedrun.reset"));
-        }
+        if (pressedOnce(mc, 0, key(c.speedrunToggleKey, InputConstants.KEY_NUMPAD1))) toggle(mc);
+        if (pressedOnce(mc, 1, key(c.speedrunSplitKey, InputConstants.KEY_NUMPAD2))) split(core);
+        if (pressedOnce(mc, 2, key(c.speedrunStopKey, InputConstants.KEY_NUMPAD3))) stop(core);
+        if (pressedOnce(mc, 3, key(c.speedrunResetKey, InputConstants.KEY_NUMPAD4))) reset();
+    }
+
+    // ------------------------------------------------------------------ actions (touches et écran /xpack speedrun)
+
+    static SpeedrunTimer timer() {
+        return TIMER;
+    }
+
+    static void toggle(Minecraft mc) {
+        boolean wasIdle = !TIMER.isRunning() && TIMER.state() != SpeedrunTimer.State.PAUSED;
+        TIMER.toggle();
+        MinecraftUi.say(Texts.tr(wasIdle ? "xpack.speedrun.started" : TIMER.isRunning() ? "xpack.speedrun.resumed" : "xpack.speedrun.paused"));
+        if (mc.player != null && mc.level != null) TIMER.watchMovement(mc.player.getX(), mc.player.getY(), mc.player.getZ(), mc.level.dimension().location().toString()); // point de départ de la pause
+    }
+
+    static void split(XPackCore core) {
+        SpeedrunTimer.Split s = TIMER.split();
+        if (s == null) return;
+        MinecraftUi.say(Texts.tr("xpack.speedrun.split", s.name, SpeedrunTimer.format(s.igtTicks * 50)));
+        if (TIMER.state() == SpeedrunTimer.State.FINISHED) finished(core);
+    }
+
+    static void stop(XPackCore core) {
+        if (!TIMER.isRunning() && TIMER.state() != SpeedrunTimer.State.PAUSED) return;
+        TIMER.stop();
+        finished(core);
+    }
+
+    static void reset() {
+        if (!TIMER.isActive()) return;
+        TIMER.reset();
+        MinecraftUi.say(Texts.tr("xpack.speedrun.reset"));
+    }
+
+    /** Nom de la touche réglée pour une action (0 démarrer, 1 étape, 2 arrêter, 3 remise à zéro), lisible. */
+    static String keyName(Config c, int slot) {
+        return key(keyOf(c, slot), -1).getDisplayName().getString();
+    }
+
+    private static String keyOf(Config c, int slot) {
+        return slot == 0 ? c.speedrunToggleKey : slot == 1 ? c.speedrunSplitKey : slot == 2 ? c.speedrunStopKey : c.speedrunResetKey;
+    }
+
+    static void bindKey(XPackCore core, int slot, String keyName) {
+        Config c = core.config();
+        if (slot == 0) c.speedrunToggleKey = keyName;
+        else if (slot == 1) c.speedrunSplitKey = keyName;
+        else if (slot == 2) c.speedrunStopKey = keyName;
+        else c.speedrunResetKey = keyName;
+        core.saveConfig();
+    }
+
+    /** Nouvelle liste d'étapes : le meilleur temps ne se compare plus qu'à la même liste, il repart donc de zéro si elle change. */
+    static void applySteps(XPackCore core, List<String> steps) {
+        Config c = core.config();
+        if (steps.equals(c.speedrunSteps)) return;
+        c.speedrunSteps = new ArrayList<>(steps);
+        c.speedrunBest = new ArrayList<>();
+        TIMER.setSteps(steps);
+        TIMER.setBest(c.speedrunBest);
+        core.saveConfig();
     }
 
     private static void finished(XPackCore core) {

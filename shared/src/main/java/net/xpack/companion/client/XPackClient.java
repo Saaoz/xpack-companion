@@ -159,6 +159,7 @@ public final class XPackClient {
             case "team", "equipe", "équipe" -> mc.tell(() -> mc.setScreen(new TeamScreen(null)));
             // Différé : le chat se ferme juste après l'envoi de la commande.
             case "support" -> mc.tell(() -> mc.setScreen(new SupportScreen(null)));
+            case "speedrun", "chrono" -> mc.tell(() -> mc.setScreen(new SpeedrunScreen(null)));
             case "settings", "reglages", "réglages" -> mc.tell(() -> mc.setScreen(new SettingsScreen(null)));
             case "toast", "essai", "test" -> core.previewToast(Texts.tr("xpack.toast.preview").getString());
             default -> XPackCommands.help(); // /xpack, /xpack help, ou commande inconnue
