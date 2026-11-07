@@ -539,6 +539,9 @@ public final class XPackCore {
         if (config.usesLocalServer()) ui.notify("xpack.server.local_active");
         cheatsNoticeShown = store.cheatsNoticeShown;
         startedLate = store.startedLate;
+        ranked = store.ranked;
+        rankedMayStart = store.fresh && store.ranked == null && ctx.fingerprint() != null && ctx.fingerprint().has("playtimeClock")
+                && "world".equals(ctx.fingerprint().get("playtimeClock").getAsString()); // solo : l'âge du monde est connu tout de suite
         lateNoticeShown = store.lateNoticeShown;
         difficultyWarned = store.difficultyWarned;
         teamReminderDay = store.teamReminderDay;
@@ -585,6 +588,11 @@ public final class XPackCore {
 
     private boolean linkHintShown;
 
+    // ---- Speedrun classé (#225)
+    private RankedRun ranked;
+    /** Première observation du temps de jeu pas encore faite dans un monde neuf, solo : la run peut encore démarrer. */
+    private boolean rankedMayStart;
+
     private boolean cheatsNoticeShown;
     /** Monde commencé sans le mod (#116), d'après le serveur : il ne compte pas. */
     private boolean startedLate;
@@ -603,6 +611,7 @@ public final class XPackCore {
     public void onCheatsAllowed(boolean allowed) {
         if (world == null || !allowed || world.cheatsAllowed()) return;
         world = world.withCheatsAllowed();
+        invalidateRanked("cheats");
         noticeCheats();
     }
 
@@ -650,6 +659,8 @@ public final class XPackCore {
         practice = false;
         cheatsNoticeShown = false;
         startedLate = false;
+        ranked = null;
+        rankedMayStart = false;
         lateNoticeShown = false;
         difficultyWarned = false;
         lastDifficulty = null;
@@ -774,6 +785,7 @@ public final class XPackCore {
             e.addProperty("key", id);
             if (initialSync) e.addProperty("snapshot", true);
             enqueue(e);
+            if (!initialSync) rankedAdvancement(id, playtimeTicks);
             // Succès obtenu en jouant : le toast dépend de la réponse du serveur, on n'attend pas les 5 s
             // de l'envoi groupé (#210). Sauf pendant un repli après une erreur réseau.
             if (!initialSync && backoffMs == FLUSH_INTERVAL_MS) {
@@ -1531,6 +1543,7 @@ public final class XPackCore {
     private boolean flag(WorldIntegrity.Reason reason, String detail) {
         String at = now();
         boolean first = integrity.flag(reason, at, detail);
+        invalidateRanked("flagged");
         JsonObject e = event("integrity", currentPlaytime);
         e.addProperty("reason", reason.wire);
         if (detail != null) e.addProperty("detail", detail);
@@ -1551,6 +1564,65 @@ public final class XPackCore {
 
     public void setPlaytime(long ticks) {
         currentPlaytime = ticks;
+        maybeStartRanked(ticks);
+    }
+
+    // ------------------------------------------------------------------ speedrun classé (#225)
+
+    /**
+     * Première observation du temps de jeu dans un monde neuf (solo) : si le monde vient d'être créé, la run démarre
+     * à cet instant. Un monde de test, signalé, avec triches activées ou commencé sans le mod ne démarre rien.
+     */
+    private void maybeStartRanked(long worldAgeTicks) {
+        if (!rankedMayStart || world == null) return;
+        rankedMayStart = false; // une seule chance : la première observation
+        if (practice || startedLate || integrity.isFlagged() || world.cheatsAllowed()) return;
+        RankedRun run = RankedRun.start(worldAgeTicks, clock.millis());
+        if (run == null) return;
+        ranked = run;
+        JsonObject e = event("speedrun_start", worldAgeTicks);
+        e.addProperty("category", RankedRun.CATEGORY);
+        e.addProperty("igtTicks", 0);
+        enqueue(e);
+        ui.notify("xpack.speedrun.ranked.started");
+    }
+
+    /** Un progrès obtenu en jouant : étape du parcours ou mort du dragon. */
+    private void rankedAdvancement(String id, long playtimeTicks) {
+        if (ranked == null) return;
+        RankedRun.Outcome o = ranked.onAdvancement(id, playtimeTicks, clock.millis());
+        if (o == null) return;
+        JsonObject e = event(o.kind == RankedRun.Kind.END ? "speedrun_end" : "speedrun_split", playtimeTicks);
+        e.addProperty("category", RankedRun.CATEGORY);
+        if (o.kind == RankedRun.Kind.SPLIT) e.addProperty("split", o.advancement);
+        e.addProperty("igtTicks", o.igtTicks);
+        e.addProperty("rtaMs", o.rtaMs);
+        enqueue(e);
+        if (o.kind == RankedRun.Kind.END) {
+            ui.notify("xpack.speedrun.ranked.finished");
+            flushSoon = true;
+            nextFlushAt = 0;
+        }
+    }
+
+    /** Monde signalé ou triches activées : la run ne compte plus (le serveur le sait par les événements d'intégrité). */
+    private void invalidateRanked(String reason) {
+        if (ranked == null || !ranked.invalidate(reason, currentPlaytime, clock.millis())) return;
+        saveWorld();
+        ui.notify("xpack.speedrun.ranked.invalid");
+    }
+
+    /** Run classée du monde ouvert, ou null (pour l'affichage). */
+    public RankedRun rankedRun() {
+        return ranked;
+    }
+
+    public long rankedIgtTicks() {
+        return ranked == null ? 0 : ranked.igtTicks(currentPlaytime);
+    }
+
+    public long rankedRtaMs() {
+        return ranked == null ? 0 : ranked.rtaMs(clock.millis());
     }
 
     /**
@@ -1804,6 +1876,7 @@ public final class XPackCore {
         s.playtime = playtimeFloor();
         s.questsSavedAt = questsSavedAt;
         s.leftAt = leftAt;
+        s.ranked = ranked;
         worldWriter.write(world.storeFile(), GSON.toJson(s));
     }
 
@@ -1844,6 +1917,8 @@ public final class XPackCore {
         long questsSavedAt;
         /** Sortie du monde (ms) ; 0 si la partie s'est mal terminée (plantage). */
         long leftAt;
+        /** Run de speedrun classée de ce monde (#225), ou null. */
+        RankedRun ranked;
         List<JsonObject> pending = new ArrayList<>();
         /** Premier passage du mod dans ce monde (aucun fichier). Non sauvegardé. */
         transient boolean fresh;

@@ -178,14 +178,27 @@ final class SpeedrunClient {
         }
     }
 
+    /** Run classée du monde (#225) : IGT en direct tant qu'elle est active, figé ensuite. Renvoie le y suivant. */
+    private static int renderRanked(GuiGraphics g, XPackCore core, int x, int y) {
+        var run = core.rankedRun();
+        if (run == null) return y;
+        var font = Minecraft.getInstance().font;
+        int color = run.isActive() ? 0xFFAA00 : run.state == net.xpack.companion.core.RankedRun.State.FINISHED ? GREEN : RED;
+        String time = SpeedrunTimer.format(core.rankedIgtTicks() * 50);
+        g.drawString(font, Texts.tr("xpack.speedrun.ranked.hud").getString() + "  IGT " + time, x, y, color);
+        return y + LINE + 4;
+    }
+
     /** Chrono, puis étapes avec l'écart au meilleur temps. En haut à gauche, les toasts étant à droite. */
     static void render(GuiGraphics g, XPackCore core) {
-        if (core == null || !core.config().speedrunHud || !TIMER.isActive()) return;
+        if (core == null || !core.config().speedrunHud) return;
         Minecraft mc = Minecraft.getInstance();
         if (mc.options.hideGui) return;
         int x = 6;
         int y = 6;
         var font = mc.font;
+        y = renderRanked(g, core, x, y);
+        if (!TIMER.isActive()) return;
         int color = TIMER.state() == SpeedrunTimer.State.PAUSED ? GREY : WHITE;
         g.drawString(font, "IGT " + SpeedrunTimer.format(TIMER.igtMs()), x, y, color);
         g.drawString(font, "RTA " + SpeedrunTimer.format(TIMER.rtaMs()), x, y + LINE, GREY);
