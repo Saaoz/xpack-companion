@@ -117,6 +117,11 @@ public final class XPackClient {
         return gameDir;
     }
 
+    /** Modpack détecté (peut être inconnu : empreinte des mods seule). */
+    static ModpackDetector.ModpackInfo modpackInfo() {
+        return ModpackDetector.detect(gameDir, modIds);
+    }
+
     /** Nom du modpack détecté, ou null. */
     static String modpackName() {
         ModpackDetector.ModpackInfo m = ModpackDetector.detect(gameDir, modIds);

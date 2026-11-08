@@ -6,8 +6,11 @@ import java.util.List;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.network.chat.Component;
 import net.xpack.companion.core.Config;
+import net.xpack.companion.core.SpeedrunCategories;
 import net.xpack.companion.core.SpeedrunExport;
+import net.xpack.companion.core.SpeedrunHud;
 import net.xpack.companion.core.SpeedrunMode;
 import net.xpack.companion.core.SpeedrunPresets;
 import net.xpack.companion.core.SpeedrunTimer;
@@ -233,8 +236,7 @@ final class SpeedrunClient {
 
     /** Exporte le chrono terminé (JSON, CSV, LiveSplit, texte) dans le dossier xpack-speedrun et copie le texte pour speedrun.com (#223). */
     static void export(Minecraft mc, XPackCore core) {
-        String preset = core.config().speedrunPreset;
-        String category = SpeedrunPresets.find(preset) == null ? Texts.tr("xpack.speedrun.preset.custom").getString() : Texts.tr("xpack.speedrun.preset." + preset).getString();
+        String category = presetName(core.config().speedrunPreset);
         SpeedrunExport.Run run = SpeedrunExport.from(TIMER, category, XPackClient.minecraftVersion(), XPackClient.loaderName(), XPackClient.modpackName(), System.currentTimeMillis());
         if (run == null) {
             MinecraftUi.say(Texts.tr("xpack.speedrun.export.notFinished"));
@@ -263,37 +265,60 @@ final class SpeedrunClient {
         }
     }
 
+    /** Une ligne de l'affichage : texte, position dans le cadre (à l'échelle 100 %) et couleur. */
+    private static final class HudLine {
+        final Component text;
+        final int x;
+        final int y;
+        final int color;
+
+        HudLine(Component text, int x, int y, int color) {
+            this.text = text;
+            this.x = x;
+            this.y = y;
+            this.color = color;
+        }
+    }
+
+    /** Les lignes de l'affichage et la taille de leur cadre. */
+    private static final class HudLines {
+        final List<HudLine> lines = new ArrayList<>();
+        int width;
+        int height;
+
+        void add(Component text, int x, int y, int color) {
+            lines.add(new HudLine(text, x, y, color));
+            width = Math.max(width, x + Minecraft.getInstance().font.width(text));
+            height = Math.max(height, y + LINE);
+        }
+    }
+
     /** Run classée du monde (#225) : IGT en direct tant qu'elle est active, figé ensuite. Renvoie le y suivant. */
-    private static int renderRanked(GuiGraphics g, XPackCore core, int x, int y) {
+    private static int rankedLines(HudLines out, XPackCore core, int y) {
         var run = core.rankedRun();
         if (run == null) return y;
-        var font = Minecraft.getInstance().font;
         int color = run.isActive() ? 0xFFAA00 : run.state == net.xpack.companion.core.RankedRun.State.FINISHED ? GREEN : RED;
         String time = SpeedrunTimer.format(core.rankedIgtTicks() * 50);
-        g.drawString(font, Texts.tr("xpack.speedrun.ranked.hud").getString() + "  IGT " + time, x, y, color);
+        out.add(Component.literal(Texts.tr("xpack.speedrun.ranked.hud").getString() + "  IGT " + time), 0, y, color);
         return y + LINE + 4;
     }
 
-    /** Chrono, puis étapes avec l'écart au meilleur temps. En haut à gauche, les toasts étant à droite. */
-    static void render(GuiGraphics g, XPackCore core) {
-        if (core == null || !core.config().speedrunEnabled || !core.config().speedrunHud) return;
-        Minecraft mc = Minecraft.getInstance();
-        if (mc.options.hideGui) return;
-        int x = 6;
-        int y = 6;
-        var font = mc.font;
-        y = renderRanked(g, core, x, y);
-        if (!TIMER.isActive()) return;
+    /** Chrono, puis étapes avec l'écart au meilleur temps. */
+    private static HudLines liveLines(XPackCore core) {
+        HudLines out = new HudLines();
+        var font = Minecraft.getInstance().font;
+        int y = rankedLines(out, core, 0);
+        if (!TIMER.isActive()) return out;
         int color = TIMER.state() == SpeedrunTimer.State.PAUSED ? GREY : WHITE;
-        g.drawString(font, "IGT " + SpeedrunTimer.format(TIMER.igtMs()), x, y, color);
-        g.drawString(font, "RTA " + SpeedrunTimer.format(TIMER.rtaMs()), x, y + LINE, GREY);
+        out.add(Component.literal("IGT " + SpeedrunTimer.format(TIMER.igtMs())), 0, y, color);
+        out.add(Component.literal("RTA " + SpeedrunTimer.format(TIMER.rtaMs())), 0, y + LINE, GREY);
         y += LINE * 2 + 2;
         if (TIMER.state() == SpeedrunTimer.State.PAUSED) {
-            g.drawString(font, Texts.tr("xpack.speedrun.pausedHud").withStyle(ChatFormatting.YELLOW), x, y, WHITE);
+            out.add(Texts.tr("xpack.speedrun.pausedHud").withStyle(ChatFormatting.YELLOW), 0, y, WHITE);
             y += LINE;
         }
         if (TIMER.state() == SpeedrunTimer.State.LOST) {
-            g.drawString(font, Texts.tr("xpack.speedrun.lostHud").withStyle(ChatFormatting.RED), x, y, WHITE);
+            out.add(Texts.tr("xpack.speedrun.lostHud").withStyle(ChatFormatting.RED), 0, y, WHITE);
             y += LINE;
         }
         List<SpeedrunTimer.Split> splits = TIMER.splits();
@@ -302,14 +327,97 @@ final class SpeedrunClient {
             SpeedrunTimer.Split s = splits.get(i);
             String line = s.name + "  " + SpeedrunTimer.format(s.igtTicks * 50);
             Long delta = TIMER.deltaTicks(i);
-            g.drawString(font, line, x, y, GREY);
+            out.add(Component.literal(line), 0, y, GREY);
             if (delta != null) {
                 String d = (delta <= 0 ? "-" : "+") + SpeedrunTimer.format(Math.abs(delta) * 50).replaceFirst("^00:", "");
-                g.drawString(font, d, x + font.width(line) + 6, y, delta <= 0 ? GREEN : RED);
+                out.add(Component.literal(d), font.width(line) + 6, y, delta <= 0 ? GREEN : RED);
             }
             y += LINE;
         }
         String next = TIMER.nextStep();
-        if (next != null && TIMER.state() != SpeedrunTimer.State.FINISHED) g.drawString(font, "> " + next, x, y, WHITE);
+        if (next != null && TIMER.state() != SpeedrunTimer.State.FINISHED) out.add(Component.literal("> " + next), 0, y, WHITE);
+        return out;
+    }
+
+    /** Exemple fixe pour l'écran de placement (#221) : le même dessin que le vrai chrono. */
+    private static HudLines sampleLines() {
+        HudLines out = new HudLines();
+        out.add(Component.literal("IGT 00:12:34.500"), 0, 0, WHITE);
+        out.add(Component.literal("RTA 00:12:40.100"), 0, LINE, GREY);
+        int y = LINE * 2 + 2;
+        out.add(Component.literal("Nether  00:05:10.000"), 0, y, GREY);
+        out.add(Component.literal("-0:03"), Minecraft.getInstance().font.width("Nether  00:05:10.000") + 6, y, GREEN);
+        out.add(Component.literal("> " + Texts.tr("xpack.speedrun.step.end").getString()), 0, y + LINE, WHITE);
+        return out;
+    }
+
+    /** Dessine les lignes dans leur cadre, selon le coin, la taille et le décalage de la configuration. */
+    private static void draw(GuiGraphics g, Config config, HudLines hud) {
+        if (hud.lines.isEmpty()) return;
+        Minecraft mc = Minecraft.getInstance();
+        int scale = SpeedrunHud.scale(config);
+        int[] at = SpeedrunHud.origin(SpeedrunHud.anchor(config), mc.getWindow().getGuiScaledWidth(), mc.getWindow().getGuiScaledHeight(),
+                hud.width, hud.height, scale, SpeedrunHud.offsetX(config), SpeedrunHud.offsetY(config));
+        float s = scale / 100f;
+        g.pose().pushPose();
+        g.pose().translate(at[0], at[1], 0);
+        g.pose().scale(s, s, 1f);
+        for (HudLine l : hud.lines) g.drawString(mc.font, l.text, l.x, l.y, l.color);
+        g.pose().popPose();
+    }
+
+    static void render(GuiGraphics g, XPackCore core) {
+        if (core == null || !core.config().speedrunEnabled || !core.config().speedrunHud) return;
+        if (Minecraft.getInstance().options.hideGui) return;
+        draw(g, core.config(), liveLines(core));
+    }
+
+    /** Aperçu de l'affichage pour l'écran de placement : visible même chronomètre arrêté ou HUD coupé. */
+    static void renderPreview(GuiGraphics g, XPackCore core) {
+        draw(g, core.config(), sampleLines());
+    }
+
+    // ---- Préréglages propres au modpack (#222)
+
+    private static volatile List<SpeedrunCategories.Category> packCategories = new ArrayList<>();
+    private static boolean packFetching;
+    private static boolean packFetched;
+
+    /** Catégories du modpack détecté, vides tant qu'elles ne sont pas lues ou si le pack n'en a pas. */
+    static List<SpeedrunCategories.Category> packCategories() {
+        return packCategories;
+    }
+
+    /**
+     * Lit les catégories une fois par partie du jeu, à l'ouverture de l'écran du speedrun (et seulement s'il est
+     * activé). Une simple lecture : {@code GET /v1/speedrun/categories}, sans jeton ni donnée du joueur. Un échec
+     * (hors ligne) n'est pas définitif : l'ouverture suivante réessaie.
+     */
+    static void fetchPackCategories(XPackCore core, Runnable whenLoaded) {
+        if (packFetched || packFetching) return;
+        // Pas de requête avant l'acceptation de l'écran de consentement, ni si le joueur a coupé l'envoi.
+        if (!core.config().enabled || !Boolean.TRUE.equals(core.config().consented)) return;
+        String id = SpeedrunCategories.modpackId(XPackClient.modpackInfo());
+        if (id == null) {
+            packFetched = true; // pack non identifié : rien à demander
+            return;
+        }
+        packFetching = true;
+        core.api().speedrunCategories().whenComplete((res, err) -> Minecraft.getInstance().execute(() -> {
+            packFetching = false;
+            if (err != null || res == null || !res.ok()) return;
+            packFetched = true;
+            packCategories = SpeedrunCategories.parse(res.body(), id);
+            if (whenLoaded != null) whenLoaded.run();
+        }));
+    }
+
+    /** Nom d'un préréglage tel que l'écran et l'export l'affichent. */
+    static String presetName(String preset) {
+        if (preset == null || SpeedrunPresets.CUSTOM.equals(preset)) return Texts.tr("xpack.speedrun.preset.custom").getString();
+        if (SpeedrunPresets.find(preset) != null) return Texts.tr("xpack.speedrun.preset." + preset).getString();
+        SpeedrunCategories.Category c = SpeedrunCategories.find(packCategories, preset);
+        if (c != null) return c.name;
+        return SpeedrunCategories.isPackPreset(preset) ? Texts.tr("xpack.speedrun.preset.pack").getString() : Texts.tr("xpack.speedrun.preset.custom").getString();
     }
 }

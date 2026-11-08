@@ -10,6 +10,7 @@ import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import net.xpack.companion.core.LssImport;
+import net.xpack.companion.core.SpeedrunCategories;
 import net.xpack.companion.core.SpeedrunMode;
 import net.xpack.companion.core.SpeedrunPresets;
 import net.xpack.companion.core.SpeedrunTimer;
@@ -104,7 +105,9 @@ public final class SpeedrunScreen extends Screen {
         }
 
         // Préréglage, puis étapes : les cases vides sont ignorées, l'ordre est celui de la liste.
-        preset = SpeedrunPresets.ids().contains(core.config().speedrunPreset) ? core.config().speedrunPreset : SpeedrunPresets.CUSTOM;
+        // Un préréglage de modpack reste choisi même si ses catégories ne sont pas (encore) lues : hors ligne, on ne l'efface pas.
+        String saved = core.config().speedrunPreset;
+        preset = SpeedrunPresets.ids().contains(saved) || SpeedrunCategories.isPackPreset(saved) ? saved : SpeedrunPresets.CUSTOM;
         presetButton = addRenderableWidget(Button.builder(presetLabel(), b -> cyclePreset()).bounds(right, 36, 150, 20).build());
         List<String> steps = core.config().speedrunSteps == null ? new ArrayList<String>() : core.config().speedrunSteps;
         stepBoxes.clear();
@@ -125,7 +128,12 @@ public final class SpeedrunScreen extends Screen {
         }
         exportButton = addRenderableWidget(Button.builder(Texts.tr("xpack.speedrun.export.button"), b -> SpeedrunClient.export(minecraft, core)).bounds(right, 221, 150, 18).build());
         exportButton.active = timer.state() == SpeedrunTimer.State.FINISHED;
-        doneButton = addRenderableWidget(Button.builder(Component.translatable("gui.done"), b -> onClose()).bounds(width / 2 - 100, height - 28, 200, 20).build());
+        addRenderableWidget(Button.builder(Texts.tr("xpack.speedrun.hud.open"), b -> {
+            collectSteps(core); // les étapes saisies sont gardées avant de changer d'écran
+            minecraft.setScreen(new SpeedrunHudScreen(this));
+        }).bounds(width / 2 - 100, height - 28, 98, 20).build());
+        doneButton = addRenderableWidget(Button.builder(Component.translatable("gui.done"), b -> onClose()).bounds(width / 2 + 2, height - 28, 98, 20).build());
+        if (enabled) SpeedrunClient.fetchPackCategories(core, null); // catégories du modpack (#222), lecture seule
         // Désactivé : tout est visible mais grisé, sauf le bouton d'activation et « Terminé ».
         if (!enabled) {
             for (net.minecraft.client.gui.components.events.GuiEventListener child : children()) {
@@ -139,18 +147,25 @@ public final class SpeedrunScreen extends Screen {
     }
 
     private Component presetLabel() {
-        Component name = SpeedrunPresets.CUSTOM.equals(preset) ? Texts.tr("xpack.speedrun.preset.custom") : Texts.tr("xpack.speedrun.preset." + preset);
-        return Texts.tr("xpack.speedrun.preset", name);
+        return Texts.tr("xpack.speedrun.preset", SpeedrunClient.presetName(preset));
     }
 
-    /** Préréglage suivant : ses étapes remplissent les cases (le nom reste modifiable ensuite). */
+    /**
+     * Préréglage suivant : ceux du mod, puis les catégories du modpack détecté (#222). Ses étapes remplissent les
+     * cases (le nom reste modifiable ensuite).
+     */
     private void cyclePreset() {
-        List<String> ids = SpeedrunPresets.ids();
+        List<SpeedrunCategories.Category> cats = SpeedrunClient.packCategories();
+        List<String> ids = SpeedrunCategories.presetIds(cats);
         preset = ids.get((ids.indexOf(preset) + 1) % ids.size());
         SpeedrunPresets.Preset p = SpeedrunPresets.find(preset);
-        if (p != null) {
+        SpeedrunCategories.Category cat = SpeedrunCategories.find(cats, preset);
+        List<String> names = new ArrayList<>();
+        if (p != null) for (SpeedrunPresets.Step s : p.steps) names.add(Texts.tr("xpack.speedrun.step." + s.id).getString());
+        else if (cat != null) names.addAll(cat.steps());
+        if (p != null || cat != null) {
             filling = true;
-            for (int i = 0; i < stepBoxes.size(); i++) stepBoxes.get(i).setValue(i < p.steps.size() ? Texts.tr("xpack.speedrun.step." + p.steps.get(i).id).getString() : "");
+            for (int i = 0; i < stepBoxes.size(); i++) stepBoxes.get(i).setValue(i < names.size() ? names.get(i) : "");
             filling = false;
         }
         presetButton.setMessage(presetLabel());
