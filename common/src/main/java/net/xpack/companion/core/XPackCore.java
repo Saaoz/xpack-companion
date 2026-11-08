@@ -1640,6 +1640,11 @@ public final class XPackCore {
     }
 
     /** Run classée du monde ouvert, ou null (pour l'affichage). */
+    /** Client de l'API, pour les lectures sans état (catégories de speedrun, #222). */
+    public ApiClient api() {
+        return api;
+    }
+
     public RankedRun rankedRun() {
         return ranked;
     }

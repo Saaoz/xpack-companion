@@ -93,6 +93,14 @@ public final class Config {
     public String speedrunStartKey = "key.keyboard.keypad.0";
     /** Affichage du chrono et des étapes à l'écran. */
     public boolean speedrunHud = true;
+    /** Coin de l'écran où l'affichage est accroché (voir SpeedrunHud.Anchor) : top_left, top_right, bottom_left ou bottom_right. */
+    public String speedrunHudAnchor = "top_left";
+    /** Taille de l'affichage en pourcentage (50 à 200). */
+    public int speedrunHudScale = 100;
+    /** Décalage horizontal depuis le bord du coin choisi, en pixels. */
+    public int speedrunHudOffsetX = 6;
+    /** Décalage vertical depuis le bord du coin choisi, en pixels. */
+    public int speedrunHudOffsetY = 6;
     /** Préréglage choisi (voir SpeedrunPresets) ; « custom » pour une liste saisie à la main. */
     public String speedrunPreset = "custom";
     /** Étapes du chrono libre, dans l'ordre. Vide : étapes numérotées. */

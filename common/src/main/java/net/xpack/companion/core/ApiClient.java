@@ -119,6 +119,12 @@ public final class ApiClient {
     static JsonObject parse(String s) {
         try {
             JsonElement el = J8.parseJson(s == null || J8.isBlank(s) ? "{}" : s);
+            if (el.isJsonArray()) {
+                // Un tableau à la racine (ex. /v1/speedrun/categories) : rangé sous « items ».
+                JsonObject wrapped = new JsonObject();
+                wrapped.add(SpeedrunCategories.ITEMS, el);
+                return wrapped;
+            }
             return el.isJsonObject() ? el.getAsJsonObject() : new JsonObject();
         } catch (RuntimeException e) {
             return new JsonObject();
@@ -194,6 +200,11 @@ public final class ApiClient {
 
     public CompletableFuture<Response> teamLeave(String teamId, JsonObject body, String token) {
         return transport.send("POST", "/v1/teams/" + teamId + "/leave", body, token);
+    }
+
+    /** {@code GET /v1/speedrun/categories} (#222) : catégories de speedrun des modpacks. Lecture seule, sans jeton ni corps. */
+    public CompletableFuture<Response> speedrunCategories() {
+        return transport.send("GET", "/v1/speedrun/categories", null, null);
     }
 
     public CompletableFuture<Response> unlink(String token) {
