@@ -1,4 +1,6 @@
-# XPack Companion — mod client
+# XPack Companion — développement
+
+> Documentation technique du mod (en français). Le README présente le mod aux joueurs ; ce fichier explique comment il est construit. Les numéros (#34, #80…) renvoient aux issues du dépôt privé du site XPack, d’où vient l’historique de ce code.
 
 Mod **client uniquement** qui envoie en temps réel tes progrès Minecraft à XPack et prévient avant toute triche. Les modpacks n'ont **jamais** à le déclarer comme dépendance :
 - un serveur sans le mod accepte le joueur ;
@@ -52,7 +54,7 @@ neoforge/  Point d'entrée NeoForge.
 forge/     Point d'entrée Forge 1.20.1 (ModDevGradle « legacyforge » : remappage SRG et refmap des mixins).
 ```
 
-Les règles anti-triche viennent de `../spec/integrity-rules.json`, le même fichier que le site et le serveur.
+Les règles anti-triche viennent de `spec/integrity-rules.json`, le même fichier que le site et l’API XPack (copie synchronisée depuis le dépôt du site). `spec/launcher-fixtures/` contient des fichiers réels de lanceurs pour les tests de détection du modpack.
 
 ## Commandes
 
@@ -60,15 +62,14 @@ Les règles anti-triche viennent de `../spec/integrity-rules.json`, le même fic
 ./gradlew :common:test          # tests unitaires du cœur
 ./gradlew build                 # jars Fabric et NeoForge (1.21.1) et Forge (1.20.1)
 ./gradlew :forge:build          # jar Forge 1.20.1 seul (Windows : .\gradlew.bat :forge:build)
-python3 smoke_test.py           # test de bout en bout dans le vrai client (voir ci-dessous)
 ```
 
 > **Attention : `./gradlew build` ne construit pas 1.12.2 ni 1.7.10.** `forge1122/` et `forge1710/` sont des projets Gradle à part (sections plus bas) : sans les reconstruire, leurs jars locaux restent ceux de la version précédente (#209). Pour tester une version, prendre les 5 jars du workflow « Publier le mod » (artefacts) ou de la release GitHub, ou lancer `./gradlew build` dans chacun des deux dossiers.
 
 ### Test de bout en bout
 
-`smoke_test.py` :
-1. démarre l'API (`../server`) ;
+Le test de bout en bout (`smoke_test.py`) vit dans le dépôt du site XPack, car il démarre l’API XPack (privée) :
+1. démarre l’API ;
 2. lie un joueur de test ;
 3. génère un monde avec le serveur officiel ;
 4. lance le client Fabric sans écran (`xvfb-run`, rendu logiciel Mesa) avec `-Dxpack.smoke=true`.

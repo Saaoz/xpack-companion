@@ -42,5 +42,5 @@ sourceSets.main {
     resources.srcDirs += ["${rootDir}/../shared/src/main/resources"]
 }
 processResources {
-    from("${rootDir}/../../spec/integrity-rules.json") { into("xpack") }
+    from("${rootDir}/../spec/integrity-rules.json") { into("xpack") }
 }

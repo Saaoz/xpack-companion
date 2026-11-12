@@ -4,7 +4,7 @@ Le mod compagnon de **[XPack](https://xpack.saaoz.fr)** : chaque progrès que tu
 
 **Mod client uniquement.** Les serveurs n'ont pas besoin du mod, et aucun modpack n'a à le déclarer comme dépendance : un serveur sans le mod t'accepte normalement, et un modpack sans lui fonctionne comme avant.
 
-> Ce dépôt sert à distribuer le mod. Le code source n'est pas public pour l'instant.
+> Le code source du mod est ouvert, sous licence MIT. Pour le compiler ou contribuer : [CONTRIBUTING.md](CONTRIBUTING.md). Le site et l’API XPack restent privés.
 
 ## Ce que fait le mod
 
@@ -76,6 +76,10 @@ Tu peux délier le mod, exporter tes données ou supprimer ton compte à tout mo
 
 Tu peux inclure le mod dans ton pack : la page [/mod](https://xpack.saaoz.fr/mod#creators) donne un texte prêt à copier pour Modrinth et CurseForge. Le mod reste facultatif pour tes joueurs.
 
+## Code source et contributions
+
+Le code du mod est ici, sous [licence MIT](LICENSE) : tu peux le lire, vérifier exactement ce qu’il envoie, le compiler toi-même et proposer des améliorations. Le guide est dans [CONTRIBUTING.md](CONTRIBUTING.md), et la documentation technique dans [DEVELOPPEMENT.md](DEVELOPPEMENT.md). Une faille de sécurité ? Lis [SECURITY.md](SECURITY.md) avant de publier quoi que ce soit.
+
 ## Un problème ?
 
 Écris au support depuis [xpack.saaoz.fr](https://xpack.saaoz.fr), ou directement depuis le jeu avec `/xpack support`.
@@ -100,6 +104,8 @@ Tu peux inclure le mod dans ton pack : la page [/mod](https://xpack.saaoz.fr/mod
 
 **Your data:** nothing is sent before you accept the consent screen. Once linked, the mod sends your progress, statistics, the modpack's identity and advancement list, technical details and integrity signals to `api.xpack.saaoz.fr`. Chat, game logs and your files are never read. You can unlink, export your data or delete your account at any time on the website.
 
+**Source code:** the mod is open source under the [MIT license](LICENSE). You can read exactly what it sends, build it yourself and contribute: see [CONTRIBUTING.md](CONTRIBUTING.md). Security issue? See [SECURITY.md](SECURITY.md). The XPack website and API remain closed source.
+
 ---
 
-Licence : MIT
+Licence : [MIT](LICENSE)

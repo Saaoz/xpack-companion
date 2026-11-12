@@ -16,7 +16,7 @@ sourceSets.main {
 }
 
 processResources {
-    from("${rootDir}/../spec/integrity-rules.json") { into("xpack") }
+    from("${rootDir}/spec/integrity-rules.json") { into("xpack") }
     inputs.property("version", project.version)
     filesMatching("META-INF/neoforge.mods.toml") {
         expand("version": project.version, "minecraft_version": minecraft_version, "neoforge_version": neoforge_version)

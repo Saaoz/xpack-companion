@@ -1,0 +1,41 @@
+{
+  "$comment": "Règles anti-triche partagées entre le site, le serveur et le mod compagnon (#31, #44, #45, #50). Source unique : le mod Java lit ce même fichier. blacklistedMods : identifiants de mods de triche (x-ray, clients de triche, bots) ; un modpack peut en autoriser un via integrity.allowedMods.",
+  "version": 1,
+  "cheatCommands": [
+    "give", "item", "gamemode", "effect", "enchant", "xp", "experience", "advancement",
+    "tp", "teleport", "summon", "setblock", "fill", "clone", "kill", "time", "weather",
+    "difficulty", "gamerule", "attribute", "data", "loot", "spreadplayers", "recipe",
+    "setworldspawn", "spawnpoint", "worldborder", "tick", "damage", "ride", "place",
+    "fillbiome", "clear", "defaultgamemode", "random", "execute", "function", "schedule",
+    "scoreboard", "tag", "team", "trigger-admin", "op", "deop"
+  ],
+  "alwaysAllowedCommands": [
+    "msg", "tell", "w", "me", "help", "list", "seed", "trigger", "teammsg", "tm"
+  ],
+  "blacklistedMods": ["meteor-client", "wurst", "aristois", "inertia", "baritone", "xray", "advanced-xray-fabric", "advancedxray", "xraymod"],
+  "$invulnerabilityIgnoredWithMods": "Invulnérabilité en survie jamais signalée quand un de ces mods est chargé : mod cœur d'un modpack où elle se gagne en jeu ou est donnée par ses mods (dreamcraft = GT: New Horizons, AngerMod et équipements de fin de jeu).",
+  "invulnerabilityIgnoredWithMods": ["dreamcraft"],
+  "dangerousIfAllowed": ["give", "item", "gamemode", "effect", "tp", "teleport", "advancement", "xp", "experience", "summon", "kill"],
+  "$valuableItems": "Journal des objets reçus (#128) : le mod note la provenance de ces objets quand ils arrivent dans l'inventaire. valuableItemPatterns : partie d'identifiant (œufs d'apparition, objets « creative » des mods). Un indice à analyser, jamais une sanction.",
+  "valuableItems": [
+    "minecraft:diamond_block", "minecraft:netherite_block", "minecraft:netherite_ingot", "minecraft:netherite_scrap", "minecraft:ancient_debris",
+    "minecraft:nether_star", "minecraft:beacon", "minecraft:elytra", "minecraft:dragon_egg", "minecraft:enchanted_golden_apple",
+    "minecraft:totem_of_undying", "minecraft:heavy_core", "minecraft:spawner", "minecraft:trial_spawner", "minecraft:vault",
+    "minecraft:command_block", "minecraft:chain_command_block", "minecraft:repeating_command_block", "minecraft:command_block_minecart",
+    "minecraft:barrier", "minecraft:light", "minecraft:structure_block", "minecraft:structure_void", "minecraft:jigsaw", "minecraft:debug_stick",
+    "minecraft:bedrock", "minecraft:end_portal_frame", "minecraft:reinforced_deepslate", "minecraft:budding_amethyst", "minecraft:knowledge_book"
+  ],
+  "valuableItemPatterns": ["_spawn_egg", "creative"],
+  "$mining": "X-ray (#129) : comparé après coup, jamais d'alerte en direct. Minerai : identifiant de bloc finissant par un suffixe de miningOreSuffixes, ou cité dans miningOreIds. miningStone : la roche creusée autour. miningHelperMods : mods qui minent plusieurs blocs d'un coup ou à la place du joueur (minage par veine, marteaux, machines) ; leur présence explique un ratio élevé. xrayPackPatterns : noms de packs de textures à montrer aux modérateurs.",
+  "miningOreSuffixes": ["_ore"],
+  "miningOreIds": ["minecraft:ancient_debris"],
+  "miningStone": [
+    "minecraft:stone", "minecraft:deepslate", "minecraft:tuff", "minecraft:granite", "minecraft:diorite", "minecraft:andesite", "minecraft:calcite",
+    "minecraft:netherrack", "minecraft:basalt", "minecraft:blackstone", "minecraft:end_stone"
+  ],
+  "miningHelperMods": [
+    "ftbultimine", "veinminer", "oreexcavation", "veinmining", "tinkers_construct", "tconstruct", "mekanism", "create", "industrialforegoing",
+    "quarryplus", "buildcraftfactory", "rftoolsbuilder", "thermal_expansion", "mininggadgets", "enderio_machines"
+  ],
+  "xrayPackPatterns": ["xray", "x-ray", "x_ray", "x ray"]
+}

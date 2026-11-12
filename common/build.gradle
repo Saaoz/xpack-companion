@@ -13,7 +13,7 @@ compileJava {
 }
 
 // Les règles anti-triche sont la source unique partagée avec le site (spec/integrity-rules.json).
-sourceSets.main.resources.srcDir("${rootDir}/../spec")
+sourceSets.main.resources.srcDir("${rootDir}/spec")
 processResources {
     include("integrity-rules.json")
     eachFile { path = "xpack/${name}" }
@@ -21,6 +21,6 @@ processResources {
 
 test {
     // Fixtures réelles partagées avec l'API (spec/launcher-fixtures).
-    systemProperty "xpack.spec", "${rootDir}/../spec"
+    systemProperty "xpack.spec", "${rootDir}/spec"
     useJUnitPlatform()
 }
