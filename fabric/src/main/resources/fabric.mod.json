@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "id": "xpack",
+  "version": "${version}",
+  "name": "XPack Companion",
+  "description": "Suit tes succès de modpacks sur XPack. Mod client optionnel : aucun modpack n'a besoin de le déclarer.",
+  "authors": ["XPack"],
+  "license": "MIT",
+  "icon": "assets/xpack/icon.png",
+  "environment": "client",
+  "entrypoints": {
+    "client": ["net.xpack.companion.fabric.XPackFabric"],
+    "modmenu": ["net.xpack.companion.fabric.XPackModMenu"]
+  },
+  "mixins": ["xpack.mixins.json"],
+  "depends": {
+    "fabricloader": ">=${loader_version}",
+    "minecraft": "~${minecraft_version}",
+    "java": ">=21"
+  }
+}

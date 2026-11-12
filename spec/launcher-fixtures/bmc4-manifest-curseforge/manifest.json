@@ -1,0 +1,23 @@
+{
+  "minecraft": {
+    "version": "1.20.1",
+    "modLoaders": [
+      {
+        "id": "forge-47.4.20",
+        "primary": true
+      }
+    ],
+    "recommendedRam": 10112
+  },
+  "manifestType": "minecraftModpack",
+  "manifestVersion": 1,
+  "name": "BMC4",
+  "version": "v62hf",
+  "author": "",
+  "overrides": "overrides",
+  "files": [
+    { "projectID": 551736, "fileID": 6044481, "required": true, "isLocked": false },
+    { "projectID": 220318, "fileID": 6364065, "required": true, "isLocked": false },
+    { "projectID": 1012211, "fileID": 8323152, "required": true, "isLocked": false }
+  ]
+}

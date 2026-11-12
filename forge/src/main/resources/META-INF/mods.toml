@@ -1,0 +1,27 @@
+modLoader = "javafml"
+loaderVersion = "[47,)"
+license = "MIT"
+
+[[mods]]
+modId = "xpack"
+version = "${version}"
+displayName = "XPack Companion"
+logoFile = "assets/xpack/icon.png"
+description = "Suit tes succès de modpacks sur XPack. Mod client optionnel : aucun modpack n'a besoin de le déclarer."
+authors = "XPack"
+# Client uniquement : un serveur sans le mod accepte le joueur, et inversement.
+displayTest = "IGNORE_ALL_VERSION"
+
+[[dependencies.xpack]]
+modId = "forge"
+mandatory = true
+versionRange = "[47,)"
+ordering = "NONE"
+side = "CLIENT"
+
+[[dependencies.xpack]]
+modId = "minecraft"
+mandatory = true
+versionRange = "[1.20.1,1.20.2)"
+ordering = "NONE"
+side = "CLIENT"

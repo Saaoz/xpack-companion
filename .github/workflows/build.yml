@@ -1,0 +1,73 @@
+# Compile le mod et lance les tests du cœur sur chaque PR et chaque push sur main.
+# Dépôt public : les minutes GitHub Actions des runners standard sont gratuites.
+name: Build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  main:
+    name: Fabric / NeoForge 1.21.1, Forge 1.20.1
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: gradle/actions/setup-gradle@v4
+      - run: ./gradlew :common:test build --console=plain
+      - uses: actions/upload-artifact@v4
+        with:
+          name: jars-1.21.1-1.20.1
+          path: |
+            fabric/build/libs/*.jar
+            neoforge/build/libs/*.jar
+            forge/build/libs/*.jar
+
+  forge1122:
+    name: Forge 1.12.2
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: forge1122
+    steps:
+      - uses: actions/checkout@v4
+      # ForgeGradle 2.3 : Gradle 4.10 et Java 8.
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 8
+      - uses: gradle/actions/setup-gradle@v4
+      - run: chmod +x gradlew && ./gradlew build --console=plain
+      - uses: actions/upload-artifact@v4
+        with:
+          name: jar-1.12.2
+          path: forge1122/build/libs/*.jar
+
+  forge1710:
+    name: Forge 1.7.10
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: forge1710
+    steps:
+      - uses: actions/checkout@v4
+      # RetroFuturaGradle : Gradle tourne sous Java 25, le mod se compile avec la chaîne Java 8.
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: |
+            8
+            25
+      - uses: gradle/actions/setup-gradle@v4
+      - run: chmod +x gradlew && ./gradlew build --console=plain -Porg.gradle.java.installations.fromEnv=JAVA_HOME_8_X64
+      - uses: actions/upload-artifact@v4
+        with:
+          name: jar-1.7.10
+          path: forge1710/build/libs/*.jar

@@ -1,0 +1,24 @@
+// Point d'entrée NeoForge. Même code partagé que Fabric ; NeoForge 1.21 tourne en noms Mojang,
+// donc les mixins n'ont pas besoin de refmap.
+apply plugin: "net.neoforged.moddev"
+
+base {
+    archivesName = "xpack-companion-neoforge-${minecraft_version}"
+}
+
+neoForge {
+    version = neoforge_version
+}
+
+sourceSets.main {
+    java.srcDirs += ["${rootDir}/common/src/main/java", "${rootDir}/shared/src/main/java", "${rootDir}/shared/src/mc1211/java"]
+    resources.srcDirs += ["${rootDir}/shared/src/main/resources"]
+}
+
+processResources {
+    from("${rootDir}/spec/integrity-rules.json") { into("xpack") }
+    inputs.property("version", project.version)
+    filesMatching("META-INF/neoforge.mods.toml") {
+        expand("version": project.version, "minecraft_version": minecraft_version, "neoforge_version": neoforge_version)
+    }
+}

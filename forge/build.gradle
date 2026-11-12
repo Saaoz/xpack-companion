@@ -1,0 +1,53 @@
+// Point d'entrée Forge 1.20.1. Même code commun que Fabric et NeoForge ; les appels Minecraft qui
+// diffèrent en 1.20.1 sont dans shared/src/mc1201. Le jar est remappé vers les noms de Forge (SRG),
+// mixins compris (refmap).
+apply plugin: "net.neoforged.moddev.legacyforge"
+
+base {
+    archivesName = "xpack-companion-forge-${forge_minecraft_version}"
+}
+
+// Minecraft 1.20.1 tourne sur Java 17.
+tasks.withType(JavaCompile).configureEach {
+    options.release = 17
+}
+
+repositories {
+    // Processeur d'annotations Mixin (génère le refmap).
+    maven { url = "https://repo.spongepowered.org/repository/maven-public/" }
+}
+
+legacyForge {
+    version = forge_version
+    mods {
+        xpack {
+            sourceSet sourceSets.main
+        }
+    }
+}
+
+mixin {
+    add sourceSets.main, "xpack.refmap.json"
+    config "xpack.mixins.json"
+}
+
+dependencies {
+    annotationProcessor "org.spongepowered:mixin:0.8.5:processor"
+}
+
+sourceSets.main {
+    java.srcDirs += ["${rootDir}/common/src/main/java", "${rootDir}/shared/src/main/java", "${rootDir}/shared/src/mc1201/java"]
+    resources.srcDirs += ["${rootDir}/shared/src/main/resources"]
+}
+
+processResources {
+    from("${rootDir}/spec/integrity-rules.json") { into("xpack") }
+    inputs.property("version", project.version)
+    filesMatching("META-INF/mods.toml") {
+        expand("version": project.version)
+    }
+}
+
+jar {
+    manifest.attributes("MixinConfigs": "xpack.mixins.json")
+}
