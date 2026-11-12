@@ -1,0 +1,9 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "net.xpack.companion.mixin",
+  "compatibilityLevel": "JAVA_17",
+  "refmap": "xpack.refmap.json",
+  "client": ["MinecraftMixin", "ClientAdvancementsMixin", "ClientPacketListenerMixin", "ScreenMixin", "PauseScreenMixin", "CommandTreeMixin", "ToastComponentAccessor", "GameRendererToastsMixin", "MultiPlayerGameModeMixin", "PauseScreenAccessor"],
+  "injectors": { "defaultRequire": 1 }
+}

@@ -1,1 +1,13 @@
+.gradle/
+build/
+*/build/
+run/
+*/run/
+*/run-smoke/
+.idea/
+*.iml
+out/
+.vscode/
+bin/
+*/bin/
 jars/

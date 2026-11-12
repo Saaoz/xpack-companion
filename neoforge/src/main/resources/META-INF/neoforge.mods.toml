@@ -1,0 +1,28 @@
+modLoader = "javafml"
+loaderVersion = "[4,)"
+license = "MIT"
+
+[[mods]]
+modId = "xpack"
+version = "${version}"
+displayName = "XPack Companion"
+logoFile = "assets/xpack/icon.png"
+description = "Suit tes succès de modpacks sur XPack. Mod client optionnel : aucun modpack n'a besoin de le déclarer."
+authors = "XPack"
+
+[[mixins]]
+config = "xpack.mixins.json"
+
+[[dependencies.xpack]]
+modId = "neoforge"
+type = "required"
+versionRange = "[21.1,)"
+ordering = "NONE"
+side = "CLIENT"
+
+[[dependencies.xpack]]
+modId = "minecraft"
+type = "required"
+versionRange = "[${minecraft_version},1.22)"
+ordering = "NONE"
+side = "CLIENT"

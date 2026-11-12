@@ -1,0 +1,44 @@
+// Mod compagnon XPack pour Minecraft 1.7.10 (Forge) : GT: New Horizons et les modpacks de cette époque.
+// Projet Gradle à part, avec RetroFuturaGradle (l'outil de la communauté GTNH pour la 1.7.10).
+plugins {
+    id "java"
+    id "com.gtnewhorizons.retrofuturagradle" version "2.0.6"
+}
+
+version = mod_version
+group = "net.xpack.companion"
+base.archivesName = "xpack-companion-forge-1.7.10"
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(8)
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = "UTF-8"
+}
+
+minecraft {
+    mcVersion = "1.7.10"
+}
+
+repositories {
+    mavenCentral()
+}
+
+processResources {
+    inputs.property "version", project.version
+    filesMatching("mcmod.info") {
+        expand "version": project.version
+    }
+}
+
+// Cœur commun du mod (Java 8, sans Minecraft) et textes, compilés tels quels dans ce jar.
+sourceSets.main {
+    java.srcDirs += ["${rootDir}/../common/src/main/java"]
+    resources.srcDirs += ["${rootDir}/../shared/src/main/resources"]
+}
+processResources {
+    from("${rootDir}/../../spec/integrity-rules.json") { into("xpack") }
+}

@@ -1,0 +1,12 @@
+pluginManagement {
+    repositories {
+        // Miroir de Maven Central (évite les limites de débit de repo.maven.apache.org).
+        maven { url = "https://maven-central.storage-download.googleapis.com/maven2/" }
+        gradlePluginPortal()
+        maven { url = "https://maven.fabricmc.net/" }
+        maven { url = "https://maven.neoforged.net/releases" }
+    }
+}
+
+rootProject.name = "xpack-companion"
+include("common", "fabric", "neoforge", "forge")

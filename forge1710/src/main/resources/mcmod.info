@@ -1,0 +1,9 @@
+[{
+  "modid": "xpack",
+  "name": "XPack Companion",
+  "description": "Envoie tes progrès Minecraft à XPack. Client uniquement.",
+  "version": "${version}",
+  "mcversion": "1.7.10",
+  "url": "https://xpack.saaoz.fr",
+  "authorList": ["XPack"]
+}]
