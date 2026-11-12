@@ -88,11 +88,31 @@ Prérequis : Java 21, Node 20+, `xvfb-run`, Mesa, et `pip install nbtlib`.
 | `enabled` | Coupe tout envoi sans délier le compte |
 | `toasts` | Notifications de succès en jeu |
 | `badge` | Pastille d'état XPack dans le menu pause (comptabilisé / hors-ligne / non comptabilisé) |
+| `eventsApi` | API d'événements locale pour les autres mods (`false` par défaut ; voir « API d'événements » plus bas). Se règle à la main dans le fichier |
 | `sound` | Son des succès : `carillon` (défaut), `cloche`, `fanfare` ou `off` |
 | `soundVolume` | Volume de ce son, de 0 à 100 (défaut 80), en plus du volume général du jeu |
 | `supportKey` | Touche qui ouvre le support pendant une alerte (`key.keyboard.k` par défaut ; J est pris par JourneyMap) |
 
 Ces réglages sont aussi modifiables en jeu : bouton **⚙** du menu pause, bouton **Configurer** de la liste des mods sur NeoForge, ou Mod Menu sur Fabric (facultatif).
+
+### API d'événements (package `net.xpack.companion.api`)
+
+Les autres mods du même jeu peuvent s'abonner à ce que XPack affiche déjà au joueur, sans rien envoyer de plus au serveur : tout reste local. Point d'entrée : `XPackEvents` (`register`, `unregister`, `enabled`) et l'interface `XPackEvents.Listener` (méthodes `default` vides).
+
+| Méthode | Quand | Champs |
+|---|---|---|
+| `onAchievementUnlocked` | une réponse du serveur contient un succès débloqué | `name`, `points`, `rarity`, `item`, `percent`, `difficulty`, `quest` (ceux du toast) |
+| `onMilestone` | palier 25, 50 ou 75 % | `modpackName`, `tier`, `achievements`, `total` |
+| `onModpackCompleted` | 100 % | `modpackName`, `achievements`, `playtimeTicks` |
+| `onWorldTracking` | le suivi du monde change | `tracked`, `reason` : `joined` (entrée), `practice` (monde de test), `flagged` (monde signalé, ne compte plus), `left` (sortie) |
+
+- **Option** : `eventsApi` dans `config/xpack.json`, `false` par défaut. Tant qu'elle est coupée (ou sans écouteur), la diffusion ne fait rien. Le cœur la relit à chaque événement (`XPackEvents.bind`), donc un changement de configuration s'applique tout de suite.
+- **Thread** : le thread du jeu, comme le reste du cœur (`XPackCore`). Les succès, paliers et le 100 % partent dès l'arrivée de la réponse du lot, **même si les toasts sont coupés** et sans le délai des toasts.
+- **Isolation** : chaque appel d'écouteur est protégé par `try/catch` ; l'exception est journalisée une fois (`System.err`, `common` n'a pas de logger) et n'empêche ni les autres écouteurs, ni le toast, ni le jeu.
+- **Rien de personnel** : ni UUID, ni pseudo, ni jeton, ni identifiant de monde ou de session, ni liste de mods, ni rien qui ne soit déjà dans un toast ou un message. Toute nouvelle donnée envoyée au serveur passe par `docs/PUBLICATION-MOD.md` ; cette API n'en ajoute aucune.
+- **Dépendance facultative** : les mods clients déclarent XPack Companion en `compileOnly` et vérifient sa présence avant tout appel.
+- **Stabilité** : on n'enlève et on ne renomme ni classe, ni champ, ni méthode de ce package sans changement de version majeure. On peut ajouter des champs, des événements et des méthodes `default`. Les valeurs de `reason` documentées ne changent pas de sens.
+- `XPackEvents.bind`, `dispatch` et `clearListeners` sont publics parce que le cœur est dans un autre package : ils sont réservés à XPack (la documentation le dit), les autres mods n'ont à utiliser que `register`, `unregister` et `enabled`.
 
 ### Jetons : jamais dans l'instance
 

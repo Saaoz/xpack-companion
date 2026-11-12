@@ -76,6 +76,27 @@ Tu peux délier le mod, exporter tes données ou supprimer ton compte à tout mo
 
 Tu peux inclure le mod dans ton pack : la page [/mod](https://xpack.saaoz.fr/mod#creators) donne un texte prêt à copier pour Modrinth et CurseForge. Le mod reste facultatif pour tes joueurs.
 
+## Pour les développeurs de mods
+
+Ton mod peut réagir à ce que XPack affiche déjà au joueur (succès débloqué, palier de 25, 50 ou 75 %, modpack terminé, monde suivi ou non) grâce à une API d'événements **locale** : rien ne quitte le PC et aucune donnée n'est envoyée au serveur de plus. Les événements ne contiennent ni identifiant du joueur, ni jeton, ni identifiant de monde, ni liste de mods.
+
+```java
+// Dépendance facultative : vérifie d'abord que le mod « xpack » est chargé
+// (Fabric : FabricLoader.getInstance().isModLoaded("xpack") ; NeoForge/Forge : ModList.get().isLoaded("xpack")).
+if (xpackLoaded) {
+    XPackEvents.register(new XPackEvents.Listener() {
+        @Override
+        public void onAchievementUnlocked(XPackEvents.AchievementUnlocked e) {
+            System.out.println(e.name + " (" + e.points + " pts, " + e.rarity + ")");
+        }
+    });
+}
+```
+
+- Le joueur doit activer l'option `eventsApi` (`true`) dans `config/xpack.json` : elle est **désactivée par défaut**, et sans elle aucun écouteur n'est appelé.
+- Déclare XPack Companion en `compileOnly` seulement, jamais en dépendance obligatoire (le mod est facultatif pour les joueurs). Les écouteurs sont appelés sur le thread du jeu.
+- Détails et garanties de stabilité : [DEVELOPPEMENT.md](DEVELOPPEMENT.md).
+
 ## Code source et contributions
 
 Le code du mod est ici, sous [licence MIT](LICENSE) : tu peux le lire, vérifier exactement ce qu’il envoie, le compiler toi-même et proposer des améliorations. Le guide est dans [CONTRIBUTING.md](CONTRIBUTING.md), et la documentation technique dans [DEVELOPPEMENT.md](DEVELOPPEMENT.md). Une faille de sécurité ? Lis [SECURITY.md](SECURITY.md) avant de publier quoi que ce soit.
@@ -103,6 +124,23 @@ Le code du mod est ici, sous [licence MIT](LICENSE) : tu peux le lire, vérifier
 **Install:** drop the jar into your instance's `mods` folder, accept the consent screen at first launch, open the pause menu → ⚙ → “Link my XPack account” (or `/xpack settings`), and enter the code on [xpack.saaoz.fr/link](https://xpack.saaoz.fr/link). Create a new world to collect achievements: in singleplayer, a world started without the mod doesn't count.
 
 **Your data:** nothing is sent before you accept the consent screen. Once linked, the mod sends your progress, statistics, the modpack's identity and advancement list, technical details and integrity signals to `api.xpack.saaoz.fr`. Chat, game logs and your files are never read. You can unlink, export your data or delete your account at any time on the website.
+
+**For mod developers:** your mod can react to what XPack already shows the player (achievement unlocked, 25 / 50 / 75 % tiers, modpack completed, world tracked or not) through a **local** events API. Nothing leaves the PC and no extra data is sent to the server. Events carry no player ID, token, world ID or mod list.
+
+```java
+// Optional dependency: first check that the "xpack" mod is loaded
+// (Fabric: FabricLoader.getInstance().isModLoaded("xpack"); NeoForge/Forge: ModList.get().isLoaded("xpack")).
+if (xpackLoaded) {
+    XPackEvents.register(new XPackEvents.Listener() {
+        @Override
+        public void onAchievementUnlocked(XPackEvents.AchievementUnlocked e) {
+            System.out.println(e.name + " (" + e.points + " pts, " + e.rarity + ")");
+        }
+    });
+}
+```
+
+The player must enable `eventsApi` (`true`) in `config/xpack.json`: it is **off by default**, and nothing is called without it. Depend on XPack Companion as `compileOnly` only, never as a required dependency. Listeners run on the game thread. See [DEVELOPPEMENT.md](DEVELOPPEMENT.md) for details and stability guarantees.
 
 **Source code:** the mod is open source under the [MIT license](LICENSE). You can read exactly what it sends, build it yourself and contribute: see [CONTRIBUTING.md](CONTRIBUTING.md). Security issue? See [SECURITY.md](SECURITY.md). The XPack website and API remain closed source.
 

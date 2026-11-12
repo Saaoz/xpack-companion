@@ -71,6 +71,11 @@ public final class Config {
     /** Badge d'état (comptabilisé / hors-ligne / non comptabilisé) dans le menu pause (#39). */
     public boolean badge = true;
     /**
+     * API d'événements locale pour les autres mods (voir {@code net.xpack.companion.api.XPackEvents}).
+     * Désactivée par défaut : rien n'est diffusé tant que le joueur ne l'a pas activée ici. Rien ne quitte le PC.
+     */
+    public boolean eventsApi = false;
+    /**
      * Touche qui ouvre le support pendant une alerte de triche (~20 s). Nom de touche Minecraft
      * ({@code key.keyboard.k}) ; K par défaut, car J sert déjà à JourneyMap.
      */

@@ -9,7 +9,7 @@ import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 
 /** Client HTTP de l'API XPack (docs/API.md). Asynchrone : n'est jamais appelé depuis le thread de rendu en mode bloquant. */
-public final class ApiClient {
+public final class ApiClient implements Backend {
     /** Réponse brute ; {@code status = 0} signale une erreur réseau. */
     public static final class Response {
         private final int status;
@@ -132,10 +132,12 @@ public final class ApiClient {
     }
 
     /** {@code GET /v1/health} : {@code { ok: true, service: "xpack" }} pour une API XPack. */
+    @Override
     public CompletableFuture<Response> health() {
         return transport.send("GET", "/v1/health", null, null);
     }
 
+    @Override
     public CompletableFuture<Response> linkStart(String minecraftUuid, String minecraftName) {
         JsonObject b = new JsonObject();
         b.addProperty("minecraftUuid", minecraftUuid);
@@ -143,31 +145,37 @@ public final class ApiClient {
         return transport.send("POST", "/v1/link/start", b, null);
     }
 
+    @Override
     public CompletableFuture<Response> linkPoll(String deviceCode) {
         JsonObject b = new JsonObject();
         b.addProperty("deviceCode", deviceCode);
         return transport.send("POST", "/v1/link/poll", b, null);
     }
 
+    @Override
     public CompletableFuture<Response> openSession(JsonObject body, String token) {
         return transport.send("POST", "/v1/sessions", body, token);
     }
 
+    @Override
     public CompletableFuture<Response> postEvents(String sessionId, JsonObject body, String token) {
         return transport.send("POST", "/v1/sessions/" + sessionId + "/events", body, token);
     }
 
     /** Catalogue des progrès du modpack (#80) : ils deviennent les succès XPack. */
+    @Override
     public CompletableFuture<Response> postCatalog(String sessionId, JsonObject body, String token) {
         return transport.send("POST", "/v1/sessions/" + sessionId + "/catalog", body, token);
     }
 
     /** Objets du modpack dont l'import n'a pas pu lire la texture : le jeu peut en dessiner l'icône (#189). */
+    @Override
     public CompletableFuture<Response> iconGaps(String sessionId, String token) {
         return transport.send("GET", "/v1/sessions/" + sessionId + "/icon-gaps", null, token);
     }
 
     /** Icône d'un objet dessinée en jeu (PNG en base64) ; le serveur ne l'accepte que pour un objet demandé. */
+    @Override
     public CompletableFuture<Response> postIcon(String sessionId, String item, String pngBase64, String token) {
         JsonObject b = new JsonObject();
         b.addProperty("item", item);
@@ -176,6 +184,7 @@ public final class ApiClient {
     }
 
     /** Demande au support (contestation d'une détection), envoyée par e-mail à l'équipe. */
+    @Override
     public CompletableFuture<Response> supportReport(JsonObject body, String token) {
         return transport.send("POST", "/v1/support/reports", body, token);
     }
@@ -184,29 +193,35 @@ public final class ApiClient {
      * Présence en multijoueur (#126) : empreintes des autres joueurs de la liste. Sans jeton (compte
      * pas encore lié), {@code body} porte l'empreinte du joueur. La réponse sert à {@code /xpack check}.
      */
+    @Override
     public CompletableFuture<Response> presence(JsonObject body, String token) {
         return transport.send("POST", "/v1/presence", body, token);
     }
 
     /** Équipe XPack (#145) : inviter un joueur détecté sur le serveur ({@code sessionId}, {@code uuidHash}). */
+    @Override
     public CompletableFuture<Response> teamInvite(JsonObject body, String token) {
         return transport.send("POST", "/v1/teams/invite", body, token);
     }
 
     /** Accepter ou refuser une invitation reçue. */
+    @Override
     public CompletableFuture<Response> teamAnswer(String inviteId, boolean accept, JsonObject body, String token) {
         return transport.send("POST", "/v1/teams/invites/" + inviteId + "/" + (accept ? "accept" : "decline"), body, token);
     }
 
+    @Override
     public CompletableFuture<Response> teamLeave(String teamId, JsonObject body, String token) {
         return transport.send("POST", "/v1/teams/" + teamId + "/leave", body, token);
     }
 
     /** {@code GET /v1/speedrun/categories} (#222) : catégories de speedrun des modpacks. Lecture seule, sans jeton ni corps. */
+    @Override
     public CompletableFuture<Response> speedrunCategories() {
         return transport.send("GET", "/v1/speedrun/categories", null, null);
     }
 
+    @Override
     public CompletableFuture<Response> unlink(String token) {
         return transport.send("DELETE", "/v1/link", null, token);
     }

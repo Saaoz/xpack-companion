@@ -5,6 +5,7 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import net.xpack.companion.api.XPackEvents;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -323,7 +324,7 @@ public final class XPackCore {
     private final Config config;
     private final Path configFile;
     private final Credentials credentials;
-    private final ApiClient api;
+    private final Backend api;
     private final Ui ui;
     private final Executor mainThread;
     private final Clock clock;
@@ -372,7 +373,7 @@ public final class XPackCore {
     /** Commande confirmée par le joueur après l'alerte : laissée passer une fois. */
     private String bypassCommand;
 
-    public XPackCore(Config config, Path configFile, Credentials credentials, ApiClient api, Ui ui, Executor mainThread, Clock clock,
+    public XPackCore(Config config, Path configFile, Credentials credentials, Backend api, Ui ui, Executor mainThread, Clock clock,
             IntegrityRules rules) {
         this.config = config;
         this.configFile = configFile;
@@ -382,6 +383,8 @@ public final class XPackCore {
         this.mainThread = mainThread;
         this.clock = clock;
         this.rules = rules;
+        // API d'événements locale : l'option est relue dans la configuration à chaque événement (donc après chaque sauvegarde).
+        XPackEvents.bind(() -> this.config.eventsApi);
         migrateLegacyToken();
     }
 
@@ -425,10 +428,10 @@ public final class XPackCore {
     private volatile boolean localServerFound;
 
     /** Client vers {@link Config#LOCAL_API} ; la détection part au premier tick (le jeu n'existe pas encore à l'init sous NeoForge). */
-    private ApiClient localProbe;
+    private Backend localProbe;
     private boolean localProbed;
 
-    public void setLocalProbe(ApiClient probe) {
+    public void setLocalProbe(Backend probe) {
         this.localProbe = probe;
     }
 
@@ -448,7 +451,7 @@ public final class XPackCore {
      * des parties de test ne doivent pas partir sur le vrai site. Les succès attendent dans le
      * fichier du monde que Docker redémarre.
      */
-    public void detectLocalServer(ApiClient probe) {
+    public void detectLocalServer(Backend probe) {
         probe.health().thenAcceptAsync(res -> {
             boolean was = localServerFound;
             localServerFound = res.ok() && res.body().has("service") && "xpack".equals(text(res.body().get("service")));
@@ -523,6 +526,7 @@ public final class XPackCore {
         sessionId = null;
         saveWorld();
         ui.notify("xpack.practice.manual");
+        XPackEvents.dispatch(l -> l.onWorldTracking(new XPackEvents.WorldTracking(false, "practice")));
     }
 
     private String now() {
@@ -562,6 +566,7 @@ public final class XPackCore {
         if (practice) {
             if (!store.practice) ui.notify("xpack.practice.auto");
             saveWorld();
+            XPackEvents.dispatch(l -> l.onWorldTracking(new XPackEvents.WorldTracking(false, "practice")));
             return;
         }
         integrity.syncFromServer(store.status, store.flaggedAt, null);
@@ -572,9 +577,18 @@ public final class XPackCore {
                 consentShown = true; // une fois par lancement : le joueur peut l'ignorer
                 ui.askConsent(this::setConsent);
             }
+            announceJoin();
             return;
         }
         if (active()) startTracking();
+        announceJoin();
+    }
+
+    /** Entrée dans un monde non « de test » : suivi réel (consentement, envoi activé, monde non signalé), ou signalé déjà. */
+    private void announceJoin() {
+        boolean flagged = integrity.isFlagged();
+        boolean tracked = tracking() && !flagged;
+        XPackEvents.dispatch(l -> l.onWorldTracking(new XPackEvents.WorldTracking(tracked, flagged ? "flagged" : "joined")));
     }
 
     /**
@@ -640,6 +654,7 @@ public final class XPackCore {
 
     public void onLeaveWorld() {
         if (world == null) return;
+        XPackEvents.dispatch(l -> l.onWorldTracking(new XPackEvents.WorldTracking(false, "left")));
         flushNow();
         leftAt = clock.millis(); // fin de partie suivie : les quêtes finies juste avant comptent (onQuests)
         saveWorld();
@@ -1555,6 +1570,7 @@ public final class XPackCore {
         if (detail != null) e.addProperty("detail", detail);
         enqueue(e);
         saveWorld();
+        if (first) XPackEvents.dispatch(l -> l.onWorldTracking(new XPackEvents.WorldTracking(false, "flagged")));
         return first;
     }
 
@@ -1641,7 +1657,7 @@ public final class XPackCore {
 
     /** Run classée du monde ouvert, ou null (pour l'affichage). */
     /** Client de l'API, pour les lectures sans état (catégories de speedrun, #222). */
-    public ApiClient api() {
+    public Backend api() {
         return api;
     }
 
@@ -1757,7 +1773,9 @@ public final class XPackCore {
     private void handleBatchResult(JsonObject b) {
         if (b.has("integrity") && b.get("integrity").isJsonObject()) syncIntegrity(b.getAsJsonObject("integrity"));
         if (b.has("world") && b.get("world").isJsonObject()) syncWorld(b.getAsJsonObject("world"));
-        if (!config.toasts || !b.has("unlocked")) return;
+        if (!b.has("unlocked")) return;
+        // Les toasts peuvent être coupés ; l'API d'événements locale (désactivée par défaut) part quand même, tout de suite.
+        boolean toasts = config.toasts;
         for (JsonElement el : b.getAsJsonArray("unlocked")) {
             JsonObject u = el.getAsJsonObject();
             // Objet, part des joueurs et difficulté : absents d'un ancien serveur.
@@ -1766,17 +1784,28 @@ public final class XPackCore {
                     u.has("percent") && u.get("percent").isJsonPrimitive() ? u.get("percent").getAsDouble() : -1, text(u.get("difficulty")),
                     // Quête : points d'avancement (serveur du 04/11/2026 ; absent avant).
                     u.has("quest") && u.get("quest").isJsonPrimitive() && u.get("quest").getAsBoolean());
-            later(() -> ui.toastUnlocked(unlock));
+            XPackEvents.dispatch(l -> l.onAchievementUnlocked(new XPackEvents.AchievementUnlocked(unlock.name, unlock.points, unlock.rarity, unlock.item,
+                    unlock.percent, unlock.difficulty, unlock.quest)));
+            if (toasts) later(() -> ui.toastUnlocked(unlock));
         }
         // Paliers du modpack (#60) : toast spécial, après ceux des succès du lot. 100 % dans « completed »,
         // 25/50/75 % dans « milestone ».
         String name = world != null ? world.modpack().name() : null;
         if (b.has("completed") && b.get("completed").isJsonObject()) {
             JsonObject c = b.getAsJsonObject("completed");
-            later(() -> ui.toastCompleted(name, c.has("achievements") ? c.get("achievements").getAsInt() : 0, c.has("playtimeTicks") ? c.get("playtimeTicks").getAsLong() : 0));
+            int doneCount = c.has("achievements") ? c.get("achievements").getAsInt() : 0;
+            long donePlaytime = c.has("playtimeTicks") ? c.get("playtimeTicks").getAsLong() : 0;
+            XPackEvents.dispatch(l -> l.onModpackCompleted(new XPackEvents.ModpackCompleted(name, doneCount, donePlaytime)));
+            if (toasts) later(() -> ui.toastCompleted(name, doneCount, donePlaytime));
         } else if (b.has("milestone") && b.get("milestone").isJsonObject()) {
             JsonObject m = b.getAsJsonObject("milestone");
-            if (m.has("tier")) later(() -> ui.toastMilestone(name, m.get("tier").getAsInt(), m.has("achievements") ? m.get("achievements").getAsInt() : 0, m.has("total") ? m.get("total").getAsInt() : 0));
+            if (m.has("tier")) {
+                int tier = m.get("tier").getAsInt();
+                int count = m.has("achievements") ? m.get("achievements").getAsInt() : 0;
+                int total = m.has("total") ? m.get("total").getAsInt() : 0;
+                XPackEvents.dispatch(l -> l.onMilestone(new XPackEvents.Milestone(name, tier, count, total)));
+                if (toasts) later(() -> ui.toastMilestone(name, tier, count, total));
+            }
         }
     }
 
