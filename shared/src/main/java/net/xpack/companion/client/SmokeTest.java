@@ -14,7 +14,12 @@ import org.slf4j.Logger;
  * Chaque étape écrit une ligne « [SMOKE] » dans le journal, vérifiée par le script de test.
  */
 final class SmokeTest {
-    static final boolean ENABLED = Boolean.getBoolean("xpack.smoke");
+    /**
+     * Actif seulement avec {@code -Dxpack.smoke=true} <b>et</b> quand le code tourne depuis un dossier de classes (espace de
+     * travail Gradle : {@code runSmoke}), jamais depuis un jar. Un jar de release (donc un profil de lanceur qui passerait
+     * l'argument JVM) ne peut ainsi pas activer ce scénario, qui accepte le consentement et confirme l'alerte tout seul.
+     */
+    static final boolean ENABLED = Boolean.getBoolean("xpack.smoke") && runsFromClassesDirectory();
     private static final Logger LOG = LogUtils.getLogger();
 
     private enum Step { WAIT_WORLD, SEND_CHEAT, EXPECT_WARNING, GRANT, WAIT_UPLOAD, PAUSE, QUIT, DONE }
@@ -24,6 +29,15 @@ final class SmokeTest {
     private static boolean consentSeen;
 
     private SmokeTest() {}
+
+    private static boolean runsFromClassesDirectory() {
+        try {
+            java.net.URL here = SmokeTest.class.getResource("SmokeTest.class");
+            return here != null && "file".equals(here.getProtocol());
+        } catch (RuntimeException e) {
+            return false;
+        }
+    }
 
     static void log(String message) {
         if (ENABLED) LOG.info("[SMOKE] {}", message);

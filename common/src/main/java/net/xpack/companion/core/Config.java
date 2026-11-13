@@ -20,6 +20,8 @@ public final class Config {
      */
     public static final String LOCAL_API = "http://localhost:8787";
     public static final String LOCAL_LINK = "http://localhost:5173/link";
+    private static final String ONLINE_SITE = "https://xpack.saaoz.fr";
+    private static final String LOCAL_SITE = "http://localhost:5173";
 
     /** Adresse de l'API XPack. */
     public String apiUrl = ONLINE_API;
@@ -28,7 +30,38 @@ public final class Config {
 
     /** Le mod parle au serveur de développement local. */
     public boolean usesLocalServer() {
-        return apiUrl != null && apiUrl.startsWith(LOCAL_API);
+        return LOCAL_API.equals(apiUrl);
+    }
+
+    /**
+     * Adresses d'API acceptées, comparées <b>exactement</b> (pas de {@code startsWith} : {@code http://localhost:8787.evil.com}
+     * doit être refusée). Le dossier {@code config/} voyage avec les modpacks : ce qui y est écrit n'est pas de confiance.
+     */
+    public static boolean isAllowedApi(String url) {
+        return ONLINE_API.equals(url) || LOCAL_API.equals(url);
+    }
+
+    /**
+     * Pages de liaison acceptées : même origine (schéma, hôte, port) que le site XPack en ligne ou que le site de
+     * développement local, sans identifiants dans l'adresse. Le chemin et la requête ne comptent pas.
+     */
+    public static boolean isAllowedLink(String url) {
+        if (url == null) return false;
+        try {
+            java.net.URI u = new java.net.URI(url);
+            if (u.getUserInfo() != null || u.getHost() == null || u.getScheme() == null) return false;
+            String origin = u.getScheme().toLowerCase(java.util.Locale.ROOT) + "://" + u.getHost().toLowerCase(java.util.Locale.ROOT)
+                    + (u.getPort() == -1 ? "" : ":" + u.getPort());
+            return origin.equals(ONLINE_SITE) || origin.equals(LOCAL_SITE);
+        } catch (java.net.URISyntaxException e) {
+            return false;
+        }
+    }
+
+    /** Remet les valeurs par défaut quand {@code apiUrl} ou {@code linkUrl} ne sont pas des adresses XPack connues. */
+    void sanitizeUrls() {
+        if (!isAllowedApi(apiUrl)) apiUrl = ONLINE_API;
+        if (!isAllowedLink(linkUrl)) linkUrl = ONLINE_LINK;
     }
 
     /** Bascule entre le serveur en ligne et le serveur local (adresses de l'API et de la liaison). */
@@ -45,9 +78,11 @@ public final class Config {
     public String tokenUuid;
     /**
      * Réponse du joueur à l'écran de consentement (#40) : {@code null} tant qu'il n'a pas été
-     * affiché. Rien n'est envoyé sans {@code true}.
+     * affiché. Rien n'est envoyé sans {@code true}. <b>Jamais lue ni écrite dans {@code config/xpack.json}</b>
+     * (le champ est {@code transient}) : ce dossier voyage avec les modpacks, qui pourraient pré-cocher l'accord.
+     * La réponse est rangée hors de l'instance, dans {@link Credentials}.
      */
-    public Boolean consented;
+    public transient Boolean consented;
     /** Envoi activé (désactivable sans délier le compte). */
     public boolean enabled = true;
     /** Notifications « Succès débloqué » en jeu (#39). */
@@ -131,7 +166,10 @@ public final class Config {
         try {
             if (Files.isRegularFile(file)) {
                 Config c = GSON.fromJson(J8.readString(file, StandardCharsets.UTF_8), Config.class);
-                if (c != null) return c;
+                if (c != null) {
+                    c.sanitizeUrls();
+                    return c;
+                }
             }
         } catch (IOException | RuntimeException ignored) {
             // configuration illisible : valeurs par défaut

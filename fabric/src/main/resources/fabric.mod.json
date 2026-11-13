@@ -12,7 +12,7 @@
     "client": ["net.xpack.companion.fabric.XPackFabric"],
     "modmenu": ["net.xpack.companion.fabric.XPackModMenu"]
   },
-  "mixins": ["xpack.mixins.json"],
+  "mixins": ["xpack.mixins.json", "xpack.optional.mixins.json"],
   "depends": {
     "fabricloader": ">=${loader_version}",
     "minecraft": "~${minecraft_version}",

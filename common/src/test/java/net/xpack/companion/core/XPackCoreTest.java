@@ -239,7 +239,6 @@ class XPackCoreTest {
     @Test
     void deplaceUnAncienJetonHorsDeLaConfig() {
         Config old = new Config();
-        old.consented = true;
         old.token = "ancien-jeton";
         old.tokenUuid = XPackCore.normalizeUuid(UUID);
         old.save(dir.resolve("old.json"));
@@ -626,7 +625,7 @@ class XPackCoreTest {
         JsonObject integrity = sentEvents().get(0).getAsJsonObject();
         assertEquals("integrity", integrity.get("type").getAsString());
         assertEquals("command", integrity.get("reason").getAsString());
-        assertEquals("/give @s diamond 64", integrity.get("detail").getAsString());
+        assertEquals("/give", integrity.get("detail").getAsString(), "seul le mot de la commande part, jamais les arguments");
         assertEquals(XPackCore.Status.NOT_COUNTED, core.status());
     }
 
@@ -794,7 +793,7 @@ class XPackCoreTest {
         api.reply(201, SESSION);
         ui.consent.accept(true);
         assertNotNull(api.last("/v1/sessions"), "la session s'ouvre dès l'accord");
-        assertEquals(Boolean.TRUE, Config.load(dir.resolve("xpack.json")).consented);
+        assertEquals(Boolean.TRUE, creds.consent());
     }
 
     @Test
@@ -805,7 +804,7 @@ class XPackCoreTest {
         core.onJoinWorld(world());
         core.tick();
         assertEquals(1, ui.consentAsked);
-        assertEquals(Boolean.FALSE, Config.load(dir.resolve("xpack.json")).consented);
+        assertEquals(Boolean.FALSE, creds.consent());
         assertTrue(api.calls.isEmpty());
     }
 
@@ -1292,5 +1291,117 @@ class XPackCoreTest {
         assertFalse(core.teamsAvailable());
         core.inviteToTeam(Presence.hash(ALEX));
         assertNull(api.last("/v1/teams/invite"));
+    }
+    // ------------------------------------------------------------------ #249 / #250 / #5 / #6 : durcissement
+
+    @Test
+    void unConsentementPrecocheDansLaConfigDuModpackNeSuffitPas() throws Exception {
+        Files.writeString(dir.resolve("forged.json"), "{\"consented\":true,\"enabled\":true}");
+        Config loaded = Config.load(dir.resolve("forged.json"));
+        Credentials fresh = new Credentials(dir.resolve("fresh-credentials.json"));
+        XPackCore c = new XPackCore(loaded, dir.resolve("forged.json"), fresh, new ApiClient(api), ui, Runnable::run, clock, IntegrityRules.bundled());
+        assertNull(loaded.consented, "l'ancien champ n'est jamais cru");
+        assertNull(fresh.consent());
+        c.onJoinWorld(world());
+        assertEquals(1, ui.consentAsked, "l'écran de consentement s'affiche");
+    }
+
+    @Test
+    void lesDeuxLancementsDuModpackNeContournentPasLeConsentement() throws Exception {
+        Credentials fresh = new Credentials(dir.resolve("fresh2-credentials.json"));
+        String forged = "{\"consented\":true,\"token\":\"t\",\"tokenUuid\":\"" + XPackCore.normalizeUuid(UUID) + "\"}";
+        // Lancement 1 : le modpack fournit consentement + jeton. Le jeton est rangé hors instance, pas le consentement.
+        Files.writeString(dir.resolve("forged2.json"), forged);
+        Config first = Config.load(dir.resolve("forged2.json"));
+        new XPackCore(first, dir.resolve("forged2.json"), fresh, new ApiClient(api), ui, Runnable::run, clock, IntegrityRules.bundled());
+        assertNull(first.consented);
+        // Lancement 2 : le pack remet consented:true alors qu'un jeton est désormais lié hors instance.
+        Files.writeString(dir.resolve("forged2.json"), "{\"consented\":true}");
+        Config second = Config.load(dir.resolve("forged2.json"));
+        new XPackCore(second, dir.resolve("forged2.json"), fresh, new ApiClient(api), ui, Runnable::run, clock, IntegrityRules.bundled());
+        assertNull(second.consented, "un jeton lié ne suffit pas à croire l'ancien champ");
+        assertNull(fresh.consent());
+    }
+
+    @Test
+    void neLitQueLesAdressesXPackConnuesExactement() throws Exception {
+        for (String bad : new String[] {"http://localhost:8787.evil.com", "http://localhost:8787@evil.com", "http://api.xpack.saaoz.fr", "https://api.xpack.saaoz.fr.evil.com", "https://evil.com"}) {
+            Files.writeString(dir.resolve("u.json"), "{\"apiUrl\":\"" + bad + "\",\"linkUrl\":\"" + bad + "/link\"}");
+            Config c = Config.load(dir.resolve("u.json"));
+            assertEquals(Config.ONLINE_API, c.apiUrl, bad);
+            assertEquals(Config.ONLINE_LINK, c.linkUrl, bad);
+        }
+        Files.writeString(dir.resolve("u.json"), "{\"apiUrl\":\"http://localhost:8787\",\"linkUrl\":\"http://localhost:5173/link\"}");
+        Config local = Config.load(dir.resolve("u.json"));
+        assertTrue(local.usesLocalServer());
+        assertEquals("http://localhost:5173/link", local.linkUrl);
+        assertFalse(Config.isAllowedLink("https://xpack.saaoz.fr.evil.com/link"));
+        assertFalse(Config.isAllowedLink("https://xpack.saaoz.fr@evil.com/link"));
+        assertTrue(Config.isAllowedLink("https://xpack.saaoz.fr/link"));
+    }
+
+    @Test
+    void laLiaisonAfficheLeConsentementAvantDEnvoyerQuoiQueCeSoit() {
+        config.consented = null;
+        core.startLinking(UUID, "Steve");
+        core.tick();
+        assertEquals(1, ui.consentAsked);
+        assertTrue(api.calls.isEmpty(), "ni UUID ni pseudo avant l'accord");
+        api.reply(201, "{\"deviceCode\":\"dc\",\"userCode\":\"K7Q-2MX\",\"expiresIn\":600,\"interval\":5}");
+        ui.consent.accept(true);
+        core.tick();
+        assertNotNull(api.last("/v1/link/start"), "la liaison démarre après l'accord");
+    }
+
+    @Test
+    void unRefusDuConsentementNEnvoieRienPourLaLiaison() {
+        config.consented = null;
+        core.startLinking(UUID, "Steve");
+        ui.consent.accept(false);
+        core.tick();
+        assertTrue(api.calls.isEmpty());
+        assertNull(core.linkState());
+    }
+
+    @Test
+    void uneReponse200MalFormeeALaLiaisonEstUnEchecSansBoucle() {
+        api.reply(200, "{}");
+        core.startLinking(UUID, "Steve");
+        core.tick();
+        assertEquals(1, api.calls.size());
+        assertTrue(core.linkState().failed());
+        for (int i = 0; i < 50; i++) core.tick(); // 50 ticks sans avancer l'horloge : aucune requête de plus
+        assertEquals(1, api.calls.size(), "nextPollAt repoussé");
+    }
+
+    @Test
+    void unJetonAbsentDansLaReponseDeSondageNeBouclePas() {
+        api.reply(201, "{\"deviceCode\":\"dc\",\"userCode\":\"K7Q-2MX\",\"expiresIn\":600,\"interval\":5}")
+                .reply(200, "{}");
+        core.startLinking(UUID, "Steve");
+        core.tick();
+        clock.millis += 5_000;
+        core.tick();
+        assertEquals(2, api.calls.size());
+        for (int i = 0; i < 50; i++) core.tick();
+        assertEquals(2, api.calls.size());
+        assertFalse(core.isLinked(UUID));
+    }
+
+    @Test
+    void uneSessionSansIdentifiantEstUnEchecEtNeFaitPasPlanter() {
+        creds.put(config.apiUrl, UUID, "Steve", "jeton");
+        api.reply(200, "{}");
+        core.onJoinWorld(world());
+        core.tick();
+        assertNotNull(api.last("/v1/sessions"));
+        assertEquals(XPackCore.Status.OFFLINE, core.status());
+    }
+
+    @Test
+    void neGardeQueLeMotDeLaCommandeDeTriche() {
+        assertEquals("give", XPackCore.commandWord("/give Steve diamond 64"));
+        assertEquals("tp", XPackCore.commandWord("tp Alex 10 64 -20"));
+        assertEquals("gamemode", XPackCore.commandWord("  /gamemode creative"));
     }
 }

@@ -83,9 +83,11 @@ public final class ApiClient implements Backend {
             try {
                 String base = baseUrl.get();
                 if (base.endsWith("/")) base = base.substring(0, base.length() - 1);
+                // Défense en profondeur : jamais d'envoi vers une adresse qui n'est pas un serveur XPack connu.
+                if (!Config.isAllowedApi(base)) return new Response(0, new JsonObject());
                 con = (java.net.HttpURLConnection) new java.net.URL(base + path).openConnection();
                 // Serveur local : il répond tout de suite ou pas du tout.
-                con.setConnectTimeout(base.startsWith(Config.LOCAL_API) ? 1_500 : 8_000);
+                con.setConnectTimeout(Config.LOCAL_API.equals(base) ? 1_500 : 8_000);
                 con.setReadTimeout(15_000);
                 con.setRequestMethod(method);
                 con.setRequestProperty("Accept", "application/json");
@@ -109,10 +111,16 @@ public final class ApiClient implements Backend {
         }, IO);
     }
 
+    /** Taille maximale d'une réponse lue (1 Mo) : un serveur ou un proxy défaillant ne doit pas remplir la mémoire. */
+    static final int MAX_RESPONSE_BYTES = 1_048_576;
+
     private static String readAll(java.io.InputStream in) throws java.io.IOException {
         try (java.io.InputStream is = in; java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream()) {
             byte[] buf = new byte[4096];
-            for (int n; (n = is.read(buf)) > 0; ) out.write(buf, 0, n);
+            for (int n; (n = is.read(buf)) > 0; ) {
+                if (out.size() + n > MAX_RESPONSE_BYTES) throw new java.io.IOException("réponse trop grande");
+                out.write(buf, 0, n);
+            }
             return new String(out.toByteArray(), java.nio.charset.StandardCharsets.UTF_8);
         }
     }
