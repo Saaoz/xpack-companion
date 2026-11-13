@@ -68,7 +68,7 @@ Rien n'est envoyé avant que tu acceptes l'écran de consentement. Une fois ton 
 - des signaux d'intégrité contre la triche : mode de jeu, triche autorisée, invulnérabilité hors créatif, commandes de triche confirmées, provenance des objets de valeur reçus, packs de ressources ajoutés, compteurs de minage ;
 - en multijoueur, des empreintes (SHA-256) des identifiants des joueurs pour savoir qui a XPack, jamais les identifiants ni les pseudos.
 
-Le chat, le journal du jeu et tes fichiers ne sont jamais lus. La liste complète des mods n'est envoyée que si tu contactes le support depuis le mod. Ton jeton de liaison est rangé dans le dossier de ton compte système (`%APPDATA%\XPack\` sous Windows), jamais dans l'instance, pour ne pas partir avec un export de modpack.
+Le chat, le journal du jeu et tes fichiers ne sont jamais lus. La liste complète des mods n'est envoyée que si tu contactes le support depuis le mod. Ton jeton de liaison est rangé dans le dossier de ton compte système (`%APPDATA%\XPack\` sous Windows), jamais dans l'instance, pour ne pas partir avec un export de modpack ; l'état multijoueur (identifiant de monde, événements en attente) est rangé au même endroit, dans un sous-dossier `servers`.
 
 Tu peux délier le mod, exporter tes données ou supprimer ton compte à tout moment depuis le site.
 

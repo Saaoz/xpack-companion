@@ -260,7 +260,7 @@ public final class Client1122 {
         } else {
             net.minecraft.client.multiplayer.ServerData data = mc.getCurrentServerData();
             String address = data != null ? data.serverIP : "inconnu";
-            storeFile = configDir.resolve("xpack").resolve("servers").resolve(sha256(address.toLowerCase(Locale.ROOT)).substring(0, 24) + ".json");
+            storeFile = net.xpack.companion.core.ServerStore.fileFor(sha256(address.toLowerCase(Locale.ROOT)).substring(0, 24), configDir);
             kind = "multiplayer";
             cheatsAllowed = mc.player.canUseCommand(2, "");
         }

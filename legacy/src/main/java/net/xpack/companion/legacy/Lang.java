@@ -27,10 +27,17 @@ public final class Lang {
         if (text == null) text = bundled("en_us").get(key);
         if (text == null) return key;
         try {
-            return args.length == 0 ? text : String.format(Locale.ROOT, text, args);
+            return args.length == 0 ? text : String.format(Locale.ROOT, text, plainArgs(args));
         } catch (RuntimeException e) {
             return text;
         }
+    }
+
+    /** Les paramètres texte (pseudos, noms de modpack, texte du serveur) ne sont pas fiables : sans codes « § ». */
+    private static Object[] plainArgs(Object[] args) {
+        Object[] out = new Object[args.length];
+        for (int i = 0; i < args.length; i++) out[i] = args[i] instanceof String ? Fmt.plain((String) args[i]) : args[i];
+        return out;
     }
 
     private static Map<String, String> bundled(String lang) {

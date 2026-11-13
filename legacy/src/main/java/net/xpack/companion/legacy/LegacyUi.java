@@ -23,7 +23,7 @@ public final class LegacyUi implements Ui {
 
     @Override
     public void showCheatWarning(String command, Runnable onContinue) {
-        ask(Lang.tr("xpack.warning.title"), J8.listOf(new PromptScreen.Section(null, Lang.tr("xpack.warning.body")), new PromptScreen.Section(null, Fmt.AQUA + command)),
+        ask(Lang.tr("xpack.warning.title"), J8.listOf(new PromptScreen.Section(null, Lang.tr("xpack.warning.body")), new PromptScreen.Section(null, Fmt.AQUA + Fmt.plain(command))),
                 Lang.tr("xpack.warning.continue"), Lang.tr("xpack.warning.cancel"), true, ok -> {
                     if (ok) onContinue.run();
                 });
@@ -52,17 +52,17 @@ public final class LegacyUi implements Ui {
 
     @Override
     public void toastUnlocked(Ui.Unlock unlock) {
-        Platform.toastUnlocked(unlock);
+        Platform.toastUnlocked(new Ui.Unlock(Fmt.plain(unlock.name), unlock.points, unlock.rarity, unlock.item, unlock.percent, unlock.difficulty, unlock.quest));
     }
 
     @Override
     public void toastCompleted(String modpackName, int achievements, long playtimeTicks) {
-        Platform.toastCompleted(modpackName, achievements, playtimeTicks);
+        Platform.toastCompleted(Fmt.plain(modpackName), achievements, playtimeTicks);
     }
 
     @Override
     public void toastMilestone(String modpackName, int tier, int achievements, int total) {
-        Platform.toastMilestone(modpackName, tier, achievements, total);
+        Platform.toastMilestone(Fmt.plain(modpackName), tier, achievements, total);
     }
 
     @Override
@@ -84,7 +84,7 @@ public final class LegacyUi implements Ui {
         for (Presence.Player p : players) {
             String key = p.status() == Presence.Status.LINKED ? "xpack.check.linked" : p.status() == Presence.Status.INSTALLED ? "xpack.check.installed" : "xpack.check.unknown";
             String color = p.status() == Presence.Status.LINKED ? Fmt.GREEN : p.status() == Presence.Status.INSTALLED ? Fmt.YELLOW : Fmt.RED;
-            line("  " + color + p.name() + " — " + Lang.tr(key));
+            line("  " + color + Fmt.plain(p.name()) + " — " + Lang.tr(key));
         }
     }
 

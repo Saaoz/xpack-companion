@@ -139,6 +139,8 @@ Le jeton de liaison **n'est pas** dans `config/xpack.json`. Le dossier `config/`
 
 Un jeton laissé dans `config/xpack.json` par une ancienne version est déplacé automatiquement au démarrage.
 
+L'état multijoueur (identifiant de monde et événements en attente, un `<empreinte>.json` par serveur) est rangé dans le dossier `servers/` **à côté** de `credentials.json`, pas dans `config/xpack/servers/` (qui voyageait avec les exports). Les anciens fichiers sont déplacés une fois au démarrage (`ServerStore`). `/xpack diagnostic` ne copie des fichiers JSON du lanceur que des listes de champs (`ModpackDetector.WHITELIST` + `Diagnostics.EXTRA_KEYS`).
+
 ## Portage 1.12.2 (Forge) — en cours (#173)
 
 `forge1122/` est un projet Gradle **à part** : ForgeGradle 2.3 impose Gradle 4.10 et Java 8, incompatibles avec le build principal (Gradle 8, Java 21).

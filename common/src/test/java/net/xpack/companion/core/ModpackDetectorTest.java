@@ -163,4 +163,18 @@ class ModpackDetectorTest {
         assertEquals(null, parse.apply("{\"modpack\":{\"recognized\":\"yes\"}}"));
         assertEquals(null, parse.apply("{\"modpack\":\"x\"}"));
     }
+
+    /** #7 : une valeur non primitive (objet, tableau) ne fait pas planter la détection, elle est ignorée. */
+    @Test
+    void valeurNonPrimitiveIgnoreeSansException() throws IOException {
+        Files.writeString(instance.resolve("manifest.json"),
+                "{\"manifestType\":\"minecraftModpack\",\"projectID\":{\"x\":1},\"name\":{},\"version\":[\"1\"]}");
+        var info = ModpackDetector.detect(instance, List.of("a"));
+        assertEquals("curseforge", info.source());
+        assertEquals(null, info.projectId());
+        assertEquals(null, info.name());
+        assertEquals(null, info.version());
+        Files.writeString(instance.resolve("manifest.json"), "{\"name\":{\"a\":1},\"manifestType\":null}");
+        assertEquals("unknown", ModpackDetector.detect(instance, List.of()).source());
+    }
 }
