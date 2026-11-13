@@ -15,7 +15,18 @@ import org.slf4j.Logger;
  */
 final class SmokeTest {
     static final boolean ENABLED = Boolean.getBoolean("xpack.smoke");
+    /**
+     * Test de CI sans API ni compte ({@code -Dxpack.smoke.ci=true}, voir .github/workflows/runtime-test.yml) :
+     * une fois dans le monde local, le mod accorde un progrès via le serveur intégré et écrit {@link #CI_OK}
+     * quand le client le voit passer par le mixin. Sans cette ligne, le workflow échoue.
+     */
+    static final boolean CI = Boolean.getBoolean("xpack.smoke.ci");
+    static final String CI_OK = "XPACK SMOKE OK";
+    private static final String CI_ADVANCEMENT = "minecraft:story/root";
     private static final Logger LOG = LogUtils.getLogger();
+
+    private static int ciWait = 20;
+    private static boolean ciGranted;
 
     private enum Step { WAIT_WORLD, SEND_CHEAT, EXPECT_WARNING, GRANT, WAIT_UPLOAD, PAUSE, QUIT, DONE }
 
@@ -33,7 +44,23 @@ final class SmokeTest {
         Screenshot.grab(mc.gameDirectory, name, mc.getMainRenderTarget(), msg -> log("screenshot " + name));
     }
 
+    /** Appelé pour chaque liste de progrès terminés reçue du serveur (CI uniquement). */
+    static void onAdvancements(java.util.List<String> doneIds) {
+        if (CI && doneIds.contains(CI_ADVANCEMENT)) LOG.info("{}: advancement {} detected", CI_OK, CI_ADVANCEMENT);
+    }
+
+    private static void ciTick(Minecraft mc, boolean inWorld) {
+        if (ciGranted || !inWorld || mc.getSingleplayerServer() == null) return;
+        if (ciWait-- > 0) return; // laisse le client finir de rejoindre le monde
+        ciGranted = true;
+        var server = mc.getSingleplayerServer();
+        LOG.info("XPACK SMOKE: mod loaded, granting {}", CI_ADVANCEMENT);
+        server.execute(() -> server.getCommands().performPrefixedCommand(
+                server.createCommandSourceStack().withSuppressedOutput(), "advancement grant @a only " + CI_ADVANCEMENT));
+    }
+
     static void tick(Minecraft mc, boolean inWorld) {
+        if (CI) ciTick(mc, inWorld);
         if (!ENABLED || step == Step.DONE) return;
         if (wait > 0) {
             wait--;

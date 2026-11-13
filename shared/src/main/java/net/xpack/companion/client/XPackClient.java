@@ -432,6 +432,7 @@ public final class XPackClient {
             inWorld = true;
         }
         SmokeTest.log("advancements done=" + doneIds + " initial=" + initialSync);
+        SmokeTest.onAdvancements(doneIds);
         core.onAdvancements(doneIds, initialSync, playtime(mc));
     }
 
