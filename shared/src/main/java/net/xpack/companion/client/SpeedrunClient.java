@@ -146,6 +146,7 @@ final class SpeedrunClient {
             java.nio.file.Files.createDirectories(file.getParent());
             java.nio.file.Files.writeString(file, TIMER.toJson().toString());
         } catch (java.io.IOException e) {
+            net.xpack.companion.core.XLog.warn("chrono non enregistré", e);
             // Chrono non gardé : il sera simplement remis à zéro au retour.
         }
     }
@@ -165,6 +166,7 @@ final class SpeedrunClient {
             java.nio.file.Path file = worldFile(id);
             if (!java.nio.file.Files.exists(file) || !TIMER.restore(com.google.gson.JsonParser.parseString(java.nio.file.Files.readString(file)).getAsJsonObject())) return;
         } catch (java.io.IOException | RuntimeException e) {
+            net.xpack.companion.core.XLog.warn("chrono sauvegardé illisible, remis à zéro", e);
             TIMER.reset();
             return;
         }

@@ -1988,7 +1988,8 @@ public final class XPackCore {
             WorldStore s = null;
             try {
                 if (Files.isRegularFile(file)) s = GSON.fromJson(J8.readString(file, StandardCharsets.UTF_8), WorldStore.class);
-            } catch (IOException | RuntimeException ignored) {
+            } catch (IOException | RuntimeException e) {
+                XLog.warn("état du monde illisible, état neuf", e);
                 // fichier abîmé : on repart d'un état neuf (le serveur garde le statut d'intégrité)
             }
             if (s == null) s = new WorldStore();
@@ -2020,7 +2021,8 @@ public final class XPackCore {
             try {
                 Files.createDirectories(w.getKey().getParent());
                 J8.writeString(w.getKey(), w.getValue(), StandardCharsets.UTF_8);
-            } catch (IOException ignored) {
+            } catch (IOException e) {
+                XLog.warn("état du monde non enregistré", e);
                 // disque indisponible : les événements restent en mémoire
             }
         }

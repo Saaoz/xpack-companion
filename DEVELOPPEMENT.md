@@ -17,7 +17,7 @@ Mod **client uniquement** qui envoie en temps réel tes progrès Minecraft à XP
 - **Liaison du compte** (#34) : uniquement depuis les réglages (menu pause → ⚙, ou `/xpack settings`, aussi au menu principal). Le code s'y affiche avec **Ouvrir le site** (`/link?code=…` prérempli, le site demande « Lier le compte Minecraft *Steve* ? ») et **Copier le code**. Dans le chat, un seul rappel par lancement (« lie ton compte via ⚙ »), jamais de code ni de lien. Un code expiré n'est pas relancé tout seul.
 - **Mondes de test** : un monde que le mod découvre en créatif (ou en spectateur, ou créé en mode créatif) est un monde de test. Le joueur peut aussi en déclarer un depuis les réglages. Dans ces mondes, **rien n'est envoyé et rien n'est signalé** : ni succès, ni pénalité. C'est définitif pour le monde concerné, et les autres mondes ne changent pas. En revanche, un monde déjà suivi qui passe en créatif reste suivi et devient « signalé ».
 - **Bouton ⚙ dans le menu pause** : réglages, liaison, déliaison, monde de test, contacter le support.
-- **Détection automatique sans blocage** : créatif, spectateur, vol, invulnérabilité, mod interdit. Une notification reste 20 s : « Ce monde n'est plus comptabilisé », avec la raison et **[K] Contacter le support** (touche réglable avec `supportKey`). Le même message s'affiche dans le chat, avec un lien cliquable. Les commandes de triche gardent leur écran de confirmation.
+- **Détection automatique sans blocage** : créatif, spectateur, invulnérabilité (le vol n'est pas détecté), mod interdit. Une notification reste 20 s : « Ce monde n'est plus comptabilisé », avec la raison et **[K] Contacter le support** (touche réglable avec `supportKey`). Le même message s'affiche dans le chat, avec un lien cliquable. Les commandes de triche gardent leur écran de confirmation.
 - **Support** : le joueur voit ce qui part (détections, modpack, versions, liste des mods ; jamais le chat, le journal du jeu ni ses fichiers) et ajoute un message. La demande arrive par e-mail à l'équipe, et la réponse va à l'e-mail du compte XPack. Il faut un compte lié.
 
 ### Commandes (dans le chat, traitées par le mod, jamais envoyées au serveur)
@@ -40,7 +40,7 @@ Mod **client uniquement** qui envoie en temps réel tes progrès Minecraft à XP
   - détection du mode créatif ou spectateur, de l'invulnérabilité et du vol en survie ;
   - un monde signalé le reste, et le serveur fait foi.
 - **Toast** « Succès XPack » (#39) et messages en français et en anglais.
-- **Son des succès** (#59), joué avec le toast. Trois sons au choix (carillon, cloche, fanfare) ou coupé, avec un volume réglable. Plus le succès est rare, plus le son est marqué. Ce sont des sons du jeu : ils marchent aussi sur Fabric sans Fabric API. Le bouton **▶** des réglages fait écouter chaque rareté, de commune à légendaire.
+- **Son des succès** (#59), joué avec le toast. Quatre sons au choix (gourmand, carillon, cloche, fanfare) ou coupé, avec un volume réglable. Plus le succès est rare, plus le son est marqué. Ce sont des sons du jeu : ils marchent aussi sur Fabric sans Fabric API. Le bouton **▶** des réglages fait écouter chaque rareté, de commune à légendaire.
 
 ## Structure
 
@@ -89,11 +89,15 @@ Prérequis : Java 21, Node 20+, `xvfb-run`, Mesa, et `pip install nbtlib`.
 | `toasts` | Notifications de succès en jeu |
 | `badge` | Pastille d'état XPack dans le menu pause (comptabilisé / hors-ligne / non comptabilisé) |
 | `eventsApi` | API d'événements locale pour les autres mods (`false` par défaut ; voir « API d'événements » plus bas). Se règle à la main dans le fichier |
-| `sound` | Son des succès : `carillon` (défaut), `cloche`, `fanfare` ou `off` |
+| `sound` | Son des succès : `gourmand` (défaut), `carillon`, `cloche`, `fanfare` ou `off` |
 | `soundVolume` | Volume de ce son, de 0 à 100 (défaut 80), en plus du volume général du jeu |
 | `supportKey` | Touche qui ouvre le support pendant une alerte (`key.keyboard.k` par défaut ; J est pris par JourneyMap) |
 
 Ces réglages sont aussi modifiables en jeu : bouton **⚙** du menu pause, bouton **Configurer** de la liste des mods sur NeoForge, ou Mod Menu sur Fabric (facultatif).
+
+### Journal
+
+Les échecs sans conséquence pour le joueur (fichier illisible, disque indisponible, API injoignable) laissent une ligne dans le journal du jeu, via `XLog` (`common`, `java.util.logging`, logger `xpack`). Jamais de jeton, de contenu de fichier, de corps de requête ni de dossier personnel : le nom de l'exception et un message court, un même message une fois par minute. Un loader peut rediriger ces lignes avec `XLog.setSink`.
 
 ### API d'événements (package `net.xpack.companion.api`)
 
@@ -108,8 +112,8 @@ Les autres mods du même jeu peuvent s'abonner à ce que XPack affiche déjà au
 
 - **Option** : `eventsApi` dans `config/xpack.json`, `false` par défaut. Tant qu'elle est coupée (ou sans écouteur), la diffusion ne fait rien. Le cœur la relit à chaque événement (`XPackEvents.bind`), donc un changement de configuration s'applique tout de suite.
 - **Thread** : le thread du jeu, comme le reste du cœur (`XPackCore`). Les succès, paliers et le 100 % partent dès l'arrivée de la réponse du lot, **même si les toasts sont coupés** et sans le délai des toasts.
-- **Isolation** : chaque appel d'écouteur est protégé par `try/catch` ; l'exception est journalisée une fois (`System.err`, `common` n'a pas de logger) et n'empêche ni les autres écouteurs, ni le toast, ni le jeu.
-- **Rien de personnel** : ni UUID, ni pseudo, ni jeton, ni identifiant de monde ou de session, ni liste de mods, ni rien qui ne soit déjà dans un toast ou un message. Toute nouvelle donnée envoyée au serveur passe par `docs/PUBLICATION-MOD.md` ; cette API n'en ajoute aucune.
+- **Isolation** : chaque appel d'écouteur est protégé par `try/catch` ; l'exception est journalisée une fois (`System.err`, `common` n'a pas de logger propre) et n'empêche ni les autres écouteurs, ni le toast, ni le jeu.
+- **Rien de personnel** : ni UUID, ni pseudo, ni jeton, ni identifiant de monde ou de session, ni liste de mods, ni rien qui ne soit déjà dans un toast ou un message. Toute nouvelle donnée envoyée au serveur doit d'abord être discutée dans une issue (voir `CONTRIBUTING.md`) ; cette API n'en ajoute aucune.
 - **Dépendance facultative** : les mods clients déclarent XPack Companion en `compileOnly` et vérifient sa présence avant tout appel.
 - **Stabilité** : on n'enlève et on ne renomme ni classe, ni champ, ni méthode de ce package sans changement de version majeure. On peut ajouter des champs, des événements et des méthodes `default`. Les valeurs de `reason` documentées ne changent pas de sens.
 - `XPackEvents.bind`, `dispatch` et `clearListeners` sont publics parce que le cœur est dans un autre package : ils sont réservés à XPack (la documentation le dit), les autres mods n'ont à utiliser que `register`, `unregister` et `enabled`.
