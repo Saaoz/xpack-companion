@@ -60,7 +60,7 @@ Elles sont traitées par le mod et jamais envoyées au serveur. Elles se complè
 
 Rien n'est envoyé avant que tu acceptes l'écran de consentement. Une fois ton compte lié, le mod envoie à l'API XPack (`api.xpack.saaoz.fr`) :
 
-- le nom, la version et la plateforme du modpack, et un identifiant de monde ;
+- l'identité du modpack, lue dans une liste blanche de champs des fichiers du lanceur (nom, version, identifiants du projet et du fichier dans `modrinth.index.json`, `minecraftinstance.json`, `manifest.json`, `instance.cfg` de Prism et `instance.json` d'ATLauncher ; la liste exacte est la constante `ModpackDetector.WHITELIST`), et un identifiant de monde ; le serveur peut répondre si le modpack est reconnu, le mod l'affiche dans le badge de la pause, sans rien envoyer de plus ;
 - tes progrès, tes statistiques et ton temps de jeu ;
 - la liste des progrès du modpack (titres et descriptions du jeu) et quelques icônes d'objets, dessinées par le jeu, pour des objets que la plateforme connaît déjà ;
 - la difficulté du monde et si d'autres joueurs sont connectés (oui ou non seulement) ;
@@ -123,7 +123,7 @@ Le code du mod est ici, sous [licence MIT](LICENSE) : tu peux le lire, vérifier
 
 **Install:** drop the jar into your instance's `mods` folder, accept the consent screen at first launch, open the pause menu → ⚙ → “Link my XPack account” (or `/xpack settings`), and enter the code on [xpack.saaoz.fr/link](https://xpack.saaoz.fr/link). Create a new world to collect achievements: in singleplayer, a world started without the mod doesn't count.
 
-**Your data:** nothing is sent before you accept the consent screen. Once linked, the mod sends your progress, statistics, the modpack's identity and advancement list, technical details and integrity signals to `api.xpack.saaoz.fr`. Chat, game logs and your files are never read. You can unlink, export your data or delete your account at any time on the website.
+**Your data:** nothing is sent before you accept the consent screen. Once linked, the mod sends your progress, statistics, the modpack's identity (a fixed whitelist of fields read from the launcher files, see `ModpackDetector.WHITELIST`; the server may answer whether it recognised the pack, shown in the pause badge) and advancement list, technical details and integrity signals to `api.xpack.saaoz.fr`. Chat, game logs and your files are never read. You can unlink, export your data or delete your account at any time on the website.
 
 **For mod developers:** your mod can react to what XPack already shows the player (achievement unlocked, 25 / 50 / 75 % tiers, modpack completed, world tracked or not) through a **local** events API. Nothing leaves the PC and no extra data is sent to the server. Events carry no player ID, token, world ID or mod list.
 

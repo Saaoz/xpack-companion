@@ -91,4 +91,76 @@ class ModpackDetectorTest {
         assertEquals(a.projectId(), b.projectId());
         assertTrue(a.projectId().startsWith("sha256:"));
     }
+
+    /** Fixture réelle : seuls les champs de la liste blanche sortent du manifest (pas author, files, minecraft…). */
+    @Test
+    void fixtureReelleNeCollecteQueLaListeBlanche() throws IOException {
+        Path fixture = Path.of(System.getProperty("xpack.spec"), "launcher-fixtures", "bmc4-manifest-curseforge");
+        Files.copy(fixture.resolve("manifest.json"), instance.resolve("manifest.json"));
+        var fields = ModpackDetector.collect(instance, "manifest.json").orElseThrow();
+        assertEquals(java.util.Set.of("manifestType", "name", "version"), fields.keySet());
+        assertEquals("BMC4", fields.get("name"));
+    }
+
+    @Test
+    void laListeBlancheEstExplicite() {
+        assertEquals(java.util.Set.of("modrinth.index.json", "profile.json", "minecraftinstance.json", "manifest.json", "instance.cfg", "instance.json"),
+                ModpackDetector.WHITELIST.keySet());
+        assertEquals(List.of("name", "versionId"), ModpackDetector.WHITELIST.get("modrinth.index.json"));
+    }
+
+    @Test
+    void valeurNonPrimitiveIgnoreeSansErreur() throws IOException {
+        Files.writeString(instance.resolve("modrinth.index.json"), "{\"name\":{},\"versionId\":[\"x\"]}");
+        var info = ModpackDetector.detect(instance, List.of());
+        assertEquals("modrinth", info.source());
+        assertEquals(null, info.name());
+        assertEquals(null, info.version());
+        Files.writeString(instance.resolve("modrinth.index.json"), "{\"name\":{},\"versionId\":\"2\"}");
+        assertEquals("2", ModpackDetector.detect(instance, List.of()).version());
+        Files.delete(instance.resolve("modrinth.index.json"));
+        Files.writeString(instance.resolve("minecraftinstance.json"), "{\"name\":{},\"installedModpack\":{\"addonID\":{},\"installedFile\":{\"id\":7,\"displayName\":[]}}}");
+        var cf = ModpackDetector.detect(instance, List.of());
+        assertEquals("curseforge", cf.source());
+        assertEquals(null, cf.projectId());
+        assertEquals("7", cf.versionId());
+        assertEquals(null, cf.name());
+        Files.writeString(instance.resolve("minecraftinstance.json"), "{\"installedModpack\":\"oups\"}");
+        assertEquals("unknown", ModpackDetector.detect(instance, List.of()).source());
+    }
+
+    @Test
+    void litUneInstancePrismGeree() throws IOException {
+        Path game = Files.createDirectories(instance.resolve(".minecraft"));
+        Files.writeString(instance.resolve("instance.cfg"), "[General]\nInstanceType=OneSix\nManagedPack=true\nManagedPackID=ZQs1BP41\nManagedPackName=Cobblemon\nManagedPackType=modrinth\nManagedPackVersionID=SatDFxac\nManagedPackVersionName=1.2\nname=Mon instance\nlastLaunchTime=5\n");
+        var info = ModpackDetector.detect(game, List.of());
+        assertEquals("modrinth", info.source());
+        assertEquals("ZQs1BP41", info.projectId());
+        assertEquals("SatDFxac", info.versionId());
+        assertEquals("Cobblemon", info.name());
+        assertEquals("1.2", info.version());
+        Files.writeString(instance.resolve("instance.cfg"), "ManagedPackType=flame\nManagedPackID=925200\n");
+        assertEquals("curseforge", ModpackDetector.detect(game, List.of()).source());
+        Files.writeString(instance.resolve("instance.cfg"), "name=Instance libre\n");
+        assertEquals("unknown", ModpackDetector.detect(game, List.of()).source());
+    }
+
+    @Test
+    void litUneInstanceATLauncher() throws IOException {
+        Files.writeString(instance.resolve("instance.json"), "{\"id\":\"x\",\"launcher\":{\"pack\":\"All the Mods 9\",\"version\":\"0.2.1\",\"loaderVersion\":{\"a\":1}}}");
+        var info = ModpackDetector.detect(instance, List.of());
+        assertEquals("atlauncher", info.source());
+        assertEquals("All the Mods 9", info.name());
+        assertEquals("0.2.1", info.version());
+    }
+
+    @Test
+    void reponseDuServeurSurLeModpack() {
+        var parse = (java.util.function.Function<String, Boolean>) j -> XPackCore.parseModpackRecognized(com.google.gson.JsonParser.parseString(j).getAsJsonObject());
+        assertEquals(Boolean.TRUE, parse.apply("{\"modpack\":{\"recognized\":true}}"));
+        assertEquals(Boolean.FALSE, parse.apply("{\"modpack\":{\"recognized\":false}}"));
+        assertEquals(null, parse.apply("{}"));
+        assertEquals(null, parse.apply("{\"modpack\":{\"recognized\":\"yes\"}}"));
+        assertEquals(null, parse.apply("{\"modpack\":\"x\"}"));
+    }
 }

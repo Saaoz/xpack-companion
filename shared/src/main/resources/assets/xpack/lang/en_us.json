@@ -180,6 +180,8 @@
   "xpack.badge.not_counted": "not counted (cheating detected)",
   "xpack.badge.disabled": "sending disabled",
   "xpack.badge.practice": "test world, not tracked",
+  "xpack.badge.modpack_recognized": "modpack recognised",
+  "xpack.badge.modpack_unrecognized": "modpack not recognised",
   "xpack.alert.title": "⚠ This world is no longer counted",
   "xpack.alert.support": "[%s] Contact support",
   "xpack.alert.supportLink": "[Contact support]",

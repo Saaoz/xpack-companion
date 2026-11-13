@@ -339,6 +339,12 @@ public final class XPackCore {
     private final Set<String> knownAdvancements = new HashSet<>();
     private final Map<String, Integer> lastStats = new HashMap<>();
     private String sessionId;
+    /**
+     * Le serveur a-t-il reconnu le modpack ? Lu dans la réponse d'ouverture de session
+     * ({@code modpack.recognized}, booléen facultatif) ; {@code null} tant que le serveur ne le dit pas
+     * (ancien serveur, hors ligne) : le mod n'affiche alors rien.
+     */
+    private Boolean modpackRecognized;
     private boolean sessionPending;
     private int nextSeq;
     private List<String> allowedCommands = J8.listOf();
@@ -663,6 +669,7 @@ public final class XPackCore {
         worldId = null;
         invulnerableSince = -1;
         sessionId = null;
+        modpackRecognized = null;
         sessionPending = false;
         pending.clear();
         knownAdvancements.clear();
@@ -752,6 +759,7 @@ public final class XPackCore {
             JsonObject b = res.body();
             sessionId = b.get("sessionId").getAsString();
             nextSeq = 0;
+            modpackRecognized = parseModpackRecognized(b);
             applyRules(b.getAsJsonObject("rules"));
             JsonObject integ = b.getAsJsonObject("integrity");
             if (integ != null) syncIntegrity(integ);
@@ -762,6 +770,18 @@ public final class XPackCore {
             nextFlushAt = 0;
             sendCatalog(); // le catalogue arrivé avant l'ouverture de la session part maintenant
         }, mainThread);
+    }
+
+    /** {@code modpack.recognized} de la réponse de session : {@code null} si absent ou pas un booléen. */
+    static Boolean parseModpackRecognized(JsonObject body) {
+        if (body == null || !body.has("modpack") || !body.get("modpack").isJsonObject()) return null;
+        JsonElement r = body.getAsJsonObject("modpack").get("recognized");
+        return r != null && r.isJsonPrimitive() && r.getAsJsonPrimitive().isBoolean() ? r.getAsBoolean() : null;
+    }
+
+    /** Réponse du serveur sur le modpack de ce monde : vrai (reconnu), faux (non reconnu) ou null (inconnu : rien à afficher). */
+    public Boolean modpackRecognized() {
+        return modpackRecognized;
     }
 
     private void applyRules(JsonObject r) {

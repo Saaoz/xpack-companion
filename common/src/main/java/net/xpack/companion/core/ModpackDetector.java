@@ -10,7 +10,11 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -22,6 +26,29 @@ import java.util.stream.Collectors;
  * dans {@code <instance>/minecraft} ou {@code <instance>/.minecraft}).
  */
 public final class ModpackDetector {
+    /**
+     * LISTE BLANCHE (#4) : les seuls champs lus dans les fichiers du lanceur, par fichier. Un chemin
+     * pointé ({@code installedModpack.addonID}) désigne une valeur simple (texte, nombre, booléen) ;
+     * un objet ou un tableau à cet endroit est ignoré. Rien d'autre n'est lu ni envoyé : toute
+     * extension de cette liste doit mettre à jour la section « Tes données » du README.
+     * Le détecteur ne fait que COLLECTER ; c'est le serveur XPack qui interprète.
+     */
+    public static final Map<String, List<String>> WHITELIST;
+
+    static {
+        Map<String, List<String>> m = new LinkedHashMap<>();
+        m.put("modrinth.index.json", Arrays.asList("name", "versionId"));
+        m.put("profile.json", Arrays.asList("metadata.name", "metadata.linked_data.project_id", "metadata.linked_data.version_id"));
+        m.put("minecraftinstance.json", Arrays.asList("name", "installedModpack.addonID", "installedModpack.installedFile.id", "installedModpack.installedFile.displayName"));
+        m.put("manifest.json", Arrays.asList("manifestType", "projectID", "name", "version"));
+        // Prism / MultiMC : fichier INI, seules ces clés sont lues (les autres lignes sont sautées).
+        m.put("instance.cfg", Arrays.asList("ManagedPackType", "ManagedPackID", "ManagedPackName", "ManagedPackVersionID", "ManagedPackVersionName"));
+        m.put("instance.json", Arrays.asList("launcher.pack", "launcher.version")); // ATLauncher
+        // app.db (Modrinth App) n'est pas du JSON : on n'y cherche que la ligne « instance_links »
+        // du profil (projet et version du pack), voir modrinthApp.
+        WHITELIST = Collections.unmodifiableMap(m);
+    }
+
     public static final class ModpackInfo {
         private final String source;
         private final String projectId;
@@ -86,7 +113,7 @@ public final class ModpackDetector {
     public static ModpackInfo detect(Path gameDir, List<String> loadedModIds) {
         for (Path dir : new Path[] {gameDir, gameDir.getParent()}) {
             if (dir == null) continue;
-            Optional<ModpackInfo> found = J8.or(J8.or(J8.or(modrinth(dir), () -> modrinthApp(dir)), () -> curseforgeApp(dir)), () -> curseforgeManifest(dir));
+            Optional<ModpackInfo> found = J8.or(J8.or(J8.or(J8.or(J8.or(modrinth(dir), () -> modrinthApp(dir)), () -> curseforgeApp(dir)), () -> curseforgeManifest(dir)), () -> prism(dir)), () -> atlauncher(dir));
             if (found.isPresent()) return found.get();
         }
         return ModpackInfo.unknown(modsHash(loadedModIds));
@@ -97,7 +124,7 @@ public final class ModpackDetector {
      * projet : le serveur rapproche par nom et version.
      */
     static Optional<ModpackInfo> modrinth(Path dir) {
-        return read(dir.resolve("modrinth.index.json")).map(j -> new ModpackInfo("modrinth", null, null, str(j, "name"), str(j, "versionId")));
+        return collect(dir, "modrinth.index.json").map(f -> new ModpackInfo("modrinth", null, null, f.get("name"), f.get("versionId")));
     }
 
     /**
@@ -112,11 +139,9 @@ public final class ModpackDetector {
         Path profiles = dir.getParent();
         if (profiles == null || profiles.getFileName() == null || !profiles.getFileName().toString().equals("profiles")) return Optional.empty();
         String folder = dir.getFileName().toString();
-        Optional<ModpackInfo> legacy = read(dir.resolve("profile.json")).flatMap(j -> {
-            JsonObject meta = j.has("metadata") && j.get("metadata").isJsonObject() ? j.getAsJsonObject("metadata") : null;
-            JsonObject linked = meta != null && meta.has("linked_data") && meta.get("linked_data").isJsonObject() ? meta.getAsJsonObject("linked_data") : null;
-            String project = linked == null ? null : str(linked, "project_id");
-            return project == null ? Optional.empty() : Optional.of(new ModpackInfo("modrinth", project, str(linked, "version_id"), str(meta, "name"), null));
+        Optional<ModpackInfo> legacy = collect(dir, "profile.json").flatMap(f -> {
+            String project = f.get("metadata.linked_data.project_id");
+            return project == null ? Optional.empty() : Optional.of(new ModpackInfo("modrinth", project, f.get("metadata.linked_data.version_id"), f.get("metadata.name"), null));
         });
         if (legacy.isPresent()) return legacy;
         Path app = profiles.getParent();
@@ -166,19 +191,78 @@ public final class ModpackDetector {
 
     /** Instance de l'app CurseForge. */
     static Optional<ModpackInfo> curseforgeApp(Path dir) {
-        return read(dir.resolve("minecraftinstance.json")).flatMap(j -> {
-            JsonObject pack = j.has("installedModpack") && j.get("installedModpack").isJsonObject() ? j.getAsJsonObject("installedModpack") : null;
-            if (pack == null) return Optional.empty();
-            String projectId = str(pack, "addonID");
-            JsonObject file = pack.has("installedFile") && pack.get("installedFile").isJsonObject() ? pack.getAsJsonObject("installedFile") : null;
-            return Optional.of(new ModpackInfo("curseforge", projectId, file == null ? null : str(file, "id"), str(j, "name"), file == null ? null : str(file, "displayName")));
+        return collect(dir, "minecraftinstance.json").flatMap(f -> {
+            String projectId = f.get("installedModpack.addonID");
+            if (projectId == null && f.get("installedModpack.installedFile.id") == null) return Optional.empty();
+            return Optional.of(new ModpackInfo("curseforge", projectId, f.get("installedModpack.installedFile.id"), f.get("name"), f.get("installedModpack.installedFile.displayName")));
         });
     }
 
     /** Export CurseForge (manifest.json à la racine d'un pack décompressé). */
     static Optional<ModpackInfo> curseforgeManifest(Path dir) {
-        return read(dir.resolve("manifest.json")).filter(j -> "minecraftModpack".equals(str(j, "manifestType")))
-                .map(j -> new ModpackInfo("curseforge", str(j, "projectID"), null, str(j, "name"), str(j, "version")));
+        return collect(dir, "manifest.json").filter(f -> "minecraftModpack".equals(f.get("manifestType")))
+                .map(f -> new ModpackInfo("curseforge", f.get("projectID"), null, f.get("name"), f.get("version")));
+    }
+
+    /**
+     * Instance Prism / MultiMC : {@code instance.cfg} (INI) porte l'identité du pack géré par le lanceur
+     * (« Managed pack »). {@code modrinth} et {@code flame} (CurseForge) reprennent les sources connues du serveur.
+     */
+    static Optional<ModpackInfo> prism(Path dir) {
+        return collectIni(dir.resolve("instance.cfg"), WHITELIST.get("instance.cfg")).flatMap(f -> {
+            String type = f.get("ManagedPackType"), id = f.get("ManagedPackID");
+            if (type == null || id == null) return Optional.empty();
+            String source = "flame".equals(type) ? "curseforge" : "modrinth".equals(type) ? "modrinth" : null;
+            if (source == null) return Optional.empty();
+            return Optional.of(new ModpackInfo(source, id, f.get("ManagedPackVersionID"), f.get("ManagedPackName"), f.get("ManagedPackVersionName")));
+        });
+    }
+
+    /** Instance ATLauncher : nom et version du pack ({@code instance.json}, section {@code launcher}). */
+    static Optional<ModpackInfo> atlauncher(Path dir) {
+        return collect(dir, "instance.json").flatMap(f -> {
+            String name = f.get("launcher.pack");
+            return name == null ? Optional.empty() : Optional.of(new ModpackInfo("atlauncher", null, null, name, f.get("launcher.version")));
+        });
+    }
+
+    /**
+     * Valeurs de la liste blanche de {@code fileName} dans {@code dir}, par chemin pointé. Une valeur
+     * absente, nulle ou non simple (objet, tableau) est sautée sans erreur.
+     */
+    static Optional<Map<String, String>> collect(Path dir, String fileName) {
+        List<String> paths = WHITELIST.get(fileName);
+        if (paths == null) return Optional.empty();
+        return read(dir.resolve(fileName)).map(j -> extract(j, paths));
+    }
+
+    static Map<String, String> extract(JsonObject root, List<String> paths) {
+        Map<String, String> out = new LinkedHashMap<>();
+        for (String path : paths) {
+            JsonElement e = root;
+            for (String key : path.split("\\.")) {
+                e = e != null && e.isJsonObject() ? e.getAsJsonObject().get(key) : null;
+            }
+            if (e != null && e.isJsonPrimitive()) out.put(path, e.getAsString());
+        }
+        return out;
+    }
+
+    /** Clés {@code cle=valeur} de la liste blanche dans un fichier INI ; les autres lignes ne sont pas conservées. */
+    static Optional<Map<String, String>> collectIni(Path file, List<String> keys) {
+        if (!Files.isRegularFile(file)) return Optional.empty();
+        try {
+            Map<String, String> out = new LinkedHashMap<>();
+            for (String line : Files.readAllLines(file, StandardCharsets.UTF_8)) {
+                int eq = line.indexOf('=');
+                if (eq <= 0) continue;
+                String key = line.substring(0, eq).trim();
+                if (keys.contains(key)) out.put(key, line.substring(eq + 1).trim());
+            }
+            return Optional.of(out);
+        } catch (IOException | RuntimeException e) {
+            return Optional.empty();
+        }
     }
 
     /** Empreinte stable de la liste des mods (ordre indifférent), rapprochée côté serveur. */
@@ -199,10 +283,5 @@ public final class ModpackDetector {
         } catch (IOException | RuntimeException e) {
             return Optional.empty(); // fichier illisible : on tente la source suivante
         }
-    }
-
-    private static String str(JsonObject o, String key) {
-        JsonElement e = o.get(key);
-        return e == null || e.isJsonNull() ? null : e.getAsString();
     }
 }
