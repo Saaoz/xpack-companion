@@ -1,4 +1,4 @@
-package net.xpack.companion.forge1710;
+package net.xpack.companion.legacy;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -12,15 +12,15 @@ import net.minecraft.client.Minecraft;
 import net.xpack.companion.core.J8;
 
 /**
- * Textes du mod : les mêmes fichiers {@code assets/xpack/lang/*.json} que les autres versions, avec
- * {@code %s} comme paramètre. La langue du jeu s'écrit {@code fr_FR} en 1.7.10 : on la met en minuscules.
+ * Textes du mod : les mêmes fichiers {@code assets/xpack/lang/*.json} que les versions récentes
+ * (la 1.12.2 lit des {@code .lang}, on lit donc nos JSON nous-mêmes), avec {@code %s} comme paramètre.
  */
-final class Lang {
+public final class Lang {
     private static final Map<String, Map<String, String>> CACHE = new HashMap<>();
 
     private Lang() {}
 
-    static String tr(String key, Object... args) {
+    public static String tr(String key, Object... args) {
         Minecraft mc = Minecraft.getMinecraft();
         String lang = mc.gameSettings == null || mc.gameSettings.language == null ? "en_us" : mc.gameSettings.language.toLowerCase(Locale.ROOT);
         String text = bundled(lang).get(key);

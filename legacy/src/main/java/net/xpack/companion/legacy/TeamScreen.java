@@ -1,4 +1,4 @@
-package net.xpack.companion.forge1710;
+package net.xpack.companion.legacy;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -7,7 +7,6 @@ import java.util.Map;
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.resources.I18n;
-import net.minecraft.util.EnumChatFormatting;
 import net.xpack.companion.core.Presence;
 import net.xpack.companion.core.Team;
 import net.xpack.companion.core.XPackCore;
@@ -18,7 +17,7 @@ import net.xpack.companion.core.XPackCore;
  * dans leur jeu) et sans le mod (rappel : installe XPack pour faire partie de l'équipe). Sans équipe,
  * tout compte en solo.
  */
-final class TeamScreen1710 extends GuiScreen {
+public final class TeamScreen extends LegacyGuiScreen {
     private static final int ROW = 22;
     private static final int DONE = 1, PREV = 2, NEXT = 3, LEAVE = 4, SETTINGS = 5, ACTIONS = 100;
     private final GuiScreen parent;
@@ -58,19 +57,18 @@ final class TeamScreen1710 extends GuiScreen {
         }
     }
 
-    TeamScreen1710(GuiScreen parent) {
+    public TeamScreen(GuiScreen parent) {
         this.parent = parent;
-        XPackCore core = Client1710.core();
+        XPackCore core = Platform.core();
         if (core != null) core.refreshTeam();
     }
 
     @Override
-    @SuppressWarnings("unchecked")
     public void initGui() {
         buttonList.clear();
         lines.clear();
         actions.clear();
-        final XPackCore core = Client1710.core();
+        final XPackCore core = Platform.core();
         int x = width / 2 - 155;
         int bottom = height - 28;
         if (core == null || !core.teamsAvailable()) {
@@ -88,7 +86,7 @@ final class TeamScreen1710 extends GuiScreen {
         if (team == null) header = Lang.tr("xpack.team.loading");
         else if (!team.inTeam()) header = Lang.tr("xpack.team.none");
         else header = Lang.tr("xpack.team.members", joinPseudos(team));
-        lines.add(new Line(width / 2, 34, EnumChatFormatting.GRAY + fontRendererObj.trimStringToWidth(header, width - 20), true));
+        lines.add(new Line(width / 2, 34, Fmt.GRAY + font().trimStringToWidth(header, width - 20), true));
 
         List<Row> rows = new ArrayList<>();
         if (team != null) for (Team.Invite i : team.invites()) rows.add(new Row(i, null, null));
@@ -111,16 +109,16 @@ final class TeamScreen1710 extends GuiScreen {
         for (Row r : rows.subList(page * perPage, Math.min(rows.size(), (page + 1) * perPage))) {
             if (r.invite != null) {
                 final String inviteId = r.invite.id();
-                lines.add(new Line(x, y + 6, EnumChatFormatting.YELLOW + Lang.tr("xpack.team.inviteFrom", r.invite.from()), false));
+                lines.add(new Line(x, y + 6, Fmt.YELLOW + Lang.tr("xpack.team.inviteFrom", r.invite.from()), false));
                 actions.put(nextId, () -> core.answerTeamInvite(inviteId, true));
                 buttonList.add(new GuiButton(nextId++, x + 170, y, 68, 20, Lang.tr("xpack.team.accept")));
                 actions.put(nextId, () -> core.answerTeamInvite(inviteId, false));
                 buttonList.add(new GuiButton(nextId++, x + 242, y, 68, 20, Lang.tr("xpack.team.decline")));
             } else if (r.heading != null) {
-                lines.add(new Line(x, y + 8, EnumChatFormatting.WHITE.toString() + EnumChatFormatting.BOLD + r.heading, false));
+                lines.add(new Line(x, y + 8, Fmt.WHITE.toString() + Fmt.BOLD + r.heading, false));
             } else if (r.player.status() == Presence.Status.LINKED) {
                 final Team.Candidate p = r.player;
-                lines.add(new Line(x, y + 6, EnumChatFormatting.GREEN + p.name(), false));
+                lines.add(new Line(x, y + 6, Fmt.GREEN + p.name(), false));
                 String label = p.teammate() ? "xpack.team.teammate" : p.invited() ? "xpack.team.invitedLabel" : "xpack.team.invite";
                 GuiButton invite = new GuiButton(nextId, x + 190, y, 120, 20, Lang.tr(label));
                 invite.enabled = !p.teammate() && !p.invited();
@@ -129,7 +127,7 @@ final class TeamScreen1710 extends GuiScreen {
             } else {
                 Team.Candidate p = r.player;
                 String hint = p.status() == Presence.Status.INSTALLED ? "xpack.team.hintUnlinked" : "xpack.team.hintInstall";
-                lines.add(new Line(x, y + 6, EnumChatFormatting.GRAY + p.name() + " — " + EnumChatFormatting.DARK_GRAY + Lang.tr(hint), false));
+                lines.add(new Line(x, y + 6, Fmt.GRAY + p.name() + " — " + Fmt.DARK_GRAY + Lang.tr(hint), false));
             }
             y += ROW;
         }
@@ -140,13 +138,13 @@ final class TeamScreen1710 extends GuiScreen {
             next.enabled = page < pages - 1;
             buttonList.add(prev);
             buttonList.add(next);
-            lines.add(new Line(width / 2, bottom - 20, EnumChatFormatting.GRAY + "" + (page + 1) + " / " + pages, true));
+            lines.add(new Line(width / 2, bottom - 20, Fmt.GRAY + "" + (page + 1) + " / " + pages, true));
         }
 
         if (team != null && team.inTeam()) {
             // Pas de boîte de confirmation ici : un second clic sur le bouton confirme.
             String leave = confirmLeave ? Lang.tr("xpack.team.leaveConfirmTitle") : Lang.tr("xpack.team.leave");
-            buttonList.add(new GuiButton(LEAVE, x, bottom, 150, 20, EnumChatFormatting.RED + leave));
+            buttonList.add(new GuiButton(LEAVE, x, bottom, 150, 20, Fmt.RED + leave));
             buttonList.add(new GuiButton(DONE, x + 160, bottom, 150, 20, I18n.format("gui.done")));
         } else {
             buttonList.add(new GuiButton(DONE, width / 2 - 100, bottom, 200, 20, I18n.format("gui.done")));
@@ -168,19 +166,19 @@ final class TeamScreen1710 extends GuiScreen {
 
     @Override
     public void updateScreen() {
-        XPackCore core = Client1710.core();
+        XPackCore core = Platform.core();
         if (core != null && !state(core).equals(shownState)) initGui();
     }
 
     @Override
     protected void actionPerformed(GuiButton button) {
-        XPackCore core = Client1710.core();
+        XPackCore core = Platform.core();
         switch (button.id) {
             case DONE:
                 mc.displayGuiScreen(parent);
                 return;
             case SETTINGS:
-                mc.displayGuiScreen(new SettingsScreen1710(this));
+                mc.displayGuiScreen(new SettingsScreen(this));
                 return;
             case PREV:
                 page--;
@@ -209,18 +207,18 @@ final class TeamScreen1710 extends GuiScreen {
     @Override
     public void drawScreen(int mouseX, int mouseY, float partialTicks) {
         drawDefaultBackground();
-        drawCenteredString(fontRendererObj, Lang.tr("xpack.team.title"), width / 2, 18, 0xFFFFFF);
+        drawCenteredString(font(), Lang.tr("xpack.team.title"), width / 2, 18, 0xFFFFFF);
         for (Line l : lines) {
-            if (l.centered) drawCenteredString(fontRendererObj, l.text, l.x, l.y, 0xFFFFFF);
-            else drawString(fontRendererObj, l.text, l.x, l.y, 0xFFFFFF);
+            if (l.centered) drawCenteredString(font(), l.text, l.x, l.y, 0xFFFFFF);
+            else drawString(font(), l.text, l.x, l.y, 0xFFFFFF);
         }
-        XPackCore core = Client1710.core();
+        XPackCore core = Platform.core();
         if (core != null && core.teamError() != null) {
-            drawCenteredString(fontRendererObj, EnumChatFormatting.RED + Lang.tr(core.teamError()), width / 2, height - 38, 0xFF5555);
+            drawCenteredString(font(), Fmt.RED + Lang.tr(core.teamError()), width / 2, height - 38, 0xFF5555);
         } else if (confirmLeave) {
-            drawCenteredString(fontRendererObj, EnumChatFormatting.RED + fontRendererObj.trimStringToWidth(Lang.tr("xpack.team.leaveConfirm"), width - 20), width / 2, height - 38, 0xFF5555);
+            drawCenteredString(font(), Fmt.RED + font().trimStringToWidth(Lang.tr("xpack.team.leaveConfirm"), width - 20), width / 2, height - 38, 0xFF5555);
         } else if (core != null && core.teamsAvailable()) {
-            drawCenteredString(fontRendererObj, EnumChatFormatting.DARK_GRAY + fontRendererObj.trimStringToWidth(Lang.tr("xpack.team.footer"), width - 20), width / 2, height - 38, 0x777777);
+            drawCenteredString(font(), Fmt.DARK_GRAY + font().trimStringToWidth(Lang.tr("xpack.team.footer"), width - 20), width / 2, height - 38, 0x777777);
         }
         super.drawScreen(mouseX, mouseY, partialTicks);
     }

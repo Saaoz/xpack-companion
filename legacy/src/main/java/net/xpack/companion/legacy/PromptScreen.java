@@ -1,18 +1,16 @@
-package net.xpack.companion.forge1122;
+package net.xpack.companion.legacy;
 
-import java.io.IOException;
 import java.util.List;
 import java.util.function.Consumer;
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.gui.GuiScreen;
-import net.minecraft.util.text.TextFormatting;
 import org.lwjgl.input.Keyboard;
 
 /**
  * Écran de question à deux boutons, avec un texte long passé à la ligne (le « oui / non » du jeu
  * ne montre qu'une ligne). Sert au consentement, aux alertes de triche et à la difficulté.
  */
-final class PromptScreen1122 extends GuiScreen {
+final class PromptScreen extends LegacyGuiScreen {
     private static final int YES = 1, NO = 2;
 
     /** Un paragraphe : titre facultatif en gras, puis le texte. */
@@ -35,7 +33,7 @@ final class PromptScreen1122 extends GuiScreen {
     private final Consumer<Boolean> answer;
     private boolean answered;
 
-    PromptScreen1122(String title, List<Section> sections, String yes, String no, boolean escapeAnswersNo, Consumer<Boolean> answer) {
+    PromptScreen(String title, List<Section> sections, String yes, String no, boolean escapeAnswersNo, Consumer<Boolean> answer) {
         this.title = title;
         this.sections = sections;
         this.yes = yes;
@@ -49,7 +47,7 @@ final class PromptScreen1122 extends GuiScreen {
         buttonList.clear();
         int y = height - 40;
         buttonList.add(new GuiButton(NO, width / 2 - 155, y, 150, 20, no));
-        buttonList.add(new GuiButton(YES, width / 2 + 5, y, 150, 20, TextFormatting.GREEN + yes));
+        buttonList.add(new GuiButton(YES, width / 2 + 5, y, 150, 20, Fmt.GREEN + yes));
     }
 
     private void choose(boolean value) {
@@ -60,12 +58,12 @@ final class PromptScreen1122 extends GuiScreen {
     }
 
     @Override
-    protected void actionPerformed(GuiButton button) throws IOException {
+    protected void actionPerformed(GuiButton button) {
         choose(button.id == YES);
     }
 
     @Override
-    protected void keyTyped(char typedChar, int keyCode) throws IOException {
+    protected void keyTyped(char typedChar, int keyCode) {
         if (keyCode == Keyboard.KEY_ESCAPE) {
             if (escapeAnswersNo) choose(false);
             else mc.displayGuiScreen(null);
@@ -78,15 +76,15 @@ final class PromptScreen1122 extends GuiScreen {
         int w = Math.min(width - 40, 380);
         int x = width / 2;
         int y = 24;
-        drawCenteredString(fontRenderer, TextFormatting.GREEN + "" + TextFormatting.BOLD + title, x, y, 0xFFFFFF);
+        drawCenteredString(font(), Fmt.GREEN + "" + Fmt.BOLD + title, x, y, 0xFFFFFF);
         y += 20;
         for (Section s : sections) {
             if (s.heading != null) {
-                drawCenteredString(fontRenderer, TextFormatting.WHITE + "" + TextFormatting.BOLD + s.heading, x, y, 0xFFFFFF);
+                drawCenteredString(font(), Fmt.WHITE + "" + Fmt.BOLD + s.heading, x, y, 0xFFFFFF);
                 y += 12;
             }
-            for (Object line : fontRenderer.listFormattedStringToWidth(s.body, w)) {
-                drawCenteredString(fontRenderer, (String) line, x, y, 0xDDDDDD);
+            for (Object line : font().listFormattedStringToWidth(s.body, w)) {
+                drawCenteredString(font(), (String) line, x, y, 0xDDDDDD);
                 y += 10;
             }
             y += 8;

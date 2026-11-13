@@ -1,13 +1,11 @@
-package net.xpack.companion.forge1122;
+package net.xpack.companion.legacy;
 
-import java.io.IOException;
 import java.net.URI;
 import java.util.List;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.resources.I18n;
-import net.minecraft.util.text.TextFormatting;
 import net.xpack.companion.core.Config;
 import net.xpack.companion.core.J8;
 import net.xpack.companion.core.XPackCore;
@@ -17,7 +15,7 @@ import net.xpack.companion.core.XPackCore;
  * badge, son des succès (choix, volume, écoute), liaison du compte Minecraft en cours, « monde de
  * test » et contact du support pour le monde ouvert. Ouvert par le bouton ⚙ du menu pause ou {@code /xpack settings}.
  */
-public final class SettingsScreen1122 extends GuiScreen {
+public final class SettingsScreen extends LegacyGuiScreen {
     private static final int ROW = 22;
     private static final List<Integer> VOLUMES = J8.listOf(0, 20, 40, 60, 80, 100);
     private static final int SENDING = 1, TOASTS = 2, BADGE = 3, SOUND = 4, VOLUME = 5, LISTEN = 6, LINK = 7, OPEN_SITE = 8, COPY = 9, CANCEL = 10, PRACTICE = 11, SUPPORT = 12, DONE = 13, PREVIEW = 14, POSITION = 15, DELAY = 16, SERVER = 17;
@@ -28,15 +26,15 @@ public final class SettingsScreen1122 extends GuiScreen {
     private String shownState = "";
     private int codeY = -1;
 
-    public SettingsScreen1122(GuiScreen parent) {
+    public SettingsScreen(GuiScreen parent) {
         this.parent = parent;
         // Docker local a pu démarrer depuis le lancement du jeu.
-        XPackCore core = Client1122.core();
+        XPackCore core = Platform.core();
         if (core != null) core.refreshLocalServer();
     }
 
     private static String uuid() {
-        return Minecraft.getMinecraft().getSession().getProfile().getId().toString();
+        return Platform.profileId();
     }
 
     private static String name() {
@@ -45,7 +43,7 @@ public final class SettingsScreen1122 extends GuiScreen {
 
     /** Coupe le texte d'un bouton pour qu'il ne déborde pas (petits écrans, grandes polices). */
     private String fit(String text, int buttonWidth) {
-        return fontRenderer.getStringWidth(text) <= buttonWidth - 6 ? text : fontRenderer.trimStringToWidth(text, buttonWidth - 6 - fontRenderer.getStringWidth("…")) + "…";
+        return font().getStringWidth(text) <= buttonWidth - 6 ? text : font().trimStringToWidth(text, buttonWidth - 6 - font().getStringWidth("…")) + "…";
     }
 
     private static String onOff(boolean on) {
@@ -53,13 +51,13 @@ public final class SettingsScreen1122 extends GuiScreen {
     }
 
     private static String listenLabel() {
-        return Lang.tr("xpack.settings.listen", Lang.tr("xpack.rarity." + Sounds1122.RARITIES.get(listened)));
+        return Lang.tr("xpack.settings.listen", Lang.tr("xpack.rarity." + Platform.RARITIES.get(listened)));
     }
 
     @Override
     public void initGui() {
         buttonList.clear();
-        XPackCore core = Client1122.core();
+        XPackCore core = Platform.core();
         if (core == null) {
             buttonList.add(new GuiButton(DONE, width / 2 - 100, height / 2, 200, 20, I18n.format("gui.done")));
             return;
@@ -77,7 +75,7 @@ public final class SettingsScreen1122 extends GuiScreen {
 
         // Son des succès (#59) : choix du son, volume, et écoute d'une rareté à chaque clic.
         y += ROW;
-        String sound = Sounds1122.PRESETS.contains(c.sound) ? c.sound : "carillon";
+        String sound = Platform.PRESETS.contains(c.sound) ? c.sound : "carillon";
         int volume = VOLUMES.contains(c.soundVolume) ? c.soundVolume : 80;
         buttonList.add(new GuiButton(SOUND, x, y, 120, 20, fit(Lang.tr("xpack.settings.sound") + ": " + Lang.tr("xpack.settings.sound." + sound), 120)));
         buttonList.add(new GuiButton(VOLUME, x + 130, y, 85, 20, fit(Lang.tr("xpack.settings.volume") + ": " + volume + " %", 85)));
@@ -85,7 +83,7 @@ public final class SettingsScreen1122 extends GuiScreen {
 
         // Toasts de succès : coin de l'écran et délai avant l'apparition (le bouton « Essai » les montre).
         y += ROW;
-        buttonList.add(new GuiButton(POSITION, x, y, 150, 20, Lang.tr("xpack.settings.position") + ": " + Lang.tr("xpack.settings.position." + c.toastPosition("top_right"))));
+        buttonList.add(new GuiButton(POSITION, x, y, 150, 20, Lang.tr("xpack.settings.position") + ": " + Lang.tr("xpack.settings.position." + c.toastPosition(Platform.DEFAULT_TOAST_POSITION))));
         buttonList.add(new GuiButton(DELAY, x + 160, y, 150, 20, Lang.tr("xpack.settings.delay") + ": " + Lang.tr("xpack.settings.delay.value", c.toastDelay)));
 
         // Serveur de développement sur ce PC (Docker local) : proposé seulement s'il répond.
@@ -101,7 +99,7 @@ public final class SettingsScreen1122 extends GuiScreen {
         XPackCore.LinkState link = core.linkState();
         codeY = -1;
         if (core.isLinked(uuid())) {
-            buttonList.add(new GuiButton(LINK, x, y, 310, 20, TextFormatting.RED + Lang.tr("xpack.settings.unlink", name())));
+            buttonList.add(new GuiButton(LINK, x, y, 310, 20, Fmt.RED + Lang.tr("xpack.settings.unlink", name())));
         } else if (link != null && link.userCode() != null) {
             buttonList.add(new GuiButton(OPEN_SITE, x, y, 150, 20, Lang.tr("xpack.settings.openSite")));
             buttonList.add(new GuiButton(COPY, x + 160, y, 150, 20, Lang.tr("xpack.settings.copyCode")));
@@ -136,13 +134,13 @@ public final class SettingsScreen1122 extends GuiScreen {
 
     @Override
     public void updateScreen() {
-        XPackCore core = Client1122.core();
+        XPackCore core = Platform.core();
         if (core != null && !state(core).equals(shownState)) initGui();
     }
 
     @Override
-    protected void actionPerformed(GuiButton button) throws IOException {
-        XPackCore core = Client1122.core();
+    protected void actionPerformed(GuiButton button) {
+        XPackCore core = Platform.core();
         if (core == null || button.id == DONE) {
             mc.displayGuiScreen(parent);
             return;
@@ -168,7 +166,7 @@ public final class SettingsScreen1122 extends GuiScreen {
                 core.saveConfig();
                 break;
             case SOUND:
-                c.sound = Sounds1122.PRESETS.get((Math.max(0, Sounds1122.PRESETS.indexOf(c.sound)) + 1) % Sounds1122.PRESETS.size());
+                c.sound = Platform.PRESETS.get((Math.max(0, Platform.PRESETS.indexOf(c.sound)) + 1) % Platform.PRESETS.size());
                 core.saveConfig();
                 break;
             case VOLUME:
@@ -176,7 +174,7 @@ public final class SettingsScreen1122 extends GuiScreen {
                 core.saveConfig();
                 break;
             case POSITION:
-                c.toastPosition = Config.TOAST_POSITIONS.get((Config.TOAST_POSITIONS.indexOf(c.toastPosition("top_right")) + 1) % Config.TOAST_POSITIONS.size());
+                c.toastPosition = Config.TOAST_POSITIONS.get((Config.TOAST_POSITIONS.indexOf(c.toastPosition(Platform.DEFAULT_TOAST_POSITION)) + 1) % Config.TOAST_POSITIONS.size());
                 core.saveConfig();
                 break;
             case DELAY:
@@ -184,9 +182,9 @@ public final class SettingsScreen1122 extends GuiScreen {
                 core.saveConfig();
                 break;
             case LISTEN:
-                Sounds1122.resetCombo();
-                Sounds1122.play(c, Sounds1122.RARITIES.get(listened));
-                listened = (listened + 1) % Sounds1122.RARITIES.size();
+                Platform.resetCombo();
+                Platform.playSound(c, Platform.RARITIES.get(listened));
+                listened = (listened + 1) % Platform.RARITIES.size();
                 break;
             case LINK:
                 if (core.isLinked(uuid())) core.unlink(uuid());
@@ -209,7 +207,7 @@ public final class SettingsScreen1122 extends GuiScreen {
                 initGui();
                 return;
             case SUPPORT:
-                mc.displayGuiScreen(new SupportScreen1122(this));
+                mc.displayGuiScreen(new SupportScreen(this));
                 return;
             default:
                 break;
@@ -231,17 +229,17 @@ public final class SettingsScreen1122 extends GuiScreen {
     @Override
     public void drawScreen(int mouseX, int mouseY, float partialTicks) {
         drawDefaultBackground();
-        drawCenteredString(fontRenderer, Lang.tr("xpack.settings.title"), width / 2, 20, 0xFFFFFF);
-        XPackCore core = Client1122.core();
+        drawCenteredString(font(), Lang.tr("xpack.settings.title"), width / 2, 20, 0xFFFFFF);
+        XPackCore core = Platform.core();
         if (core != null) {
             String linked = Lang.tr(core.isLinked(uuid()) ? "xpack.settings.linked" : "xpack.settings.unlinked", name());
-            drawCenteredString(fontRenderer, TextFormatting.GRAY + linked, width / 2, 34, 0xAAAAAA);
+            drawCenteredString(font(), Fmt.GRAY + linked, width / 2, 34, 0xAAAAAA);
             XPackCore.LinkState link = core.linkState();
             if (codeY >= 0 && link != null && link.userCode() != null) {
-                drawCenteredString(fontRenderer, TextFormatting.GREEN + "" + TextFormatting.BOLD + Lang.tr("xpack.settings.code", link.userCode()), width / 2, codeY, 0xFFFFFF);
+                drawCenteredString(font(), Fmt.GREEN + "" + Fmt.BOLD + Lang.tr("xpack.settings.code", link.userCode()), width / 2, codeY, 0xFFFFFF);
             }
-            drawCenteredString(fontRenderer, TextFormatting.GRAY + Lang.tr("xpack.badge." + core.status().name().toLowerCase(java.util.Locale.ROOT)), width / 2, height - 58, 0xAAAAAA);
-            drawCenteredString(fontRenderer, TextFormatting.DARK_GRAY + Lang.tr("xpack.settings.privacy"), width / 2, height - 44, 0x777777);
+            drawCenteredString(font(), Fmt.GRAY + Lang.tr("xpack.badge." + core.status().name().toLowerCase(java.util.Locale.ROOT)), width / 2, height - 58, 0xAAAAAA);
+            drawCenteredString(font(), Fmt.DARK_GRAY + Lang.tr("xpack.settings.privacy"), width / 2, height - 44, 0x777777);
         }
         super.drawScreen(mouseX, mouseY, partialTicks);
     }

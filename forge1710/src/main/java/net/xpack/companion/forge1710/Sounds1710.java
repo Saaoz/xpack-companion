@@ -16,10 +16,10 @@ import net.xpack.companion.core.J8;
  * La 1.7.10 n'a ni les « notes de bloc » cloche et carillon, ni la fanfare de défi : on prend les
  * notes harpe et pling, et la montée de niveau.
  */
-final class Sounds1710 {
+public final class Sounds1710 {
     /** Sons proposés dans les réglages, dans l'ordre du bouton. */
-    static final List<String> PRESETS = J8.listOf("gourmand", "carillon", "cloche", "fanfare", "off");
-    static final List<String> RARITIES = J8.listOf("commun", "peu_commun", "rare", "epique", "legendaire");
+    public static final List<String> PRESETS = J8.listOf("gourmand", "carillon", "cloche", "fanfare", "off");
+    public static final List<String> RARITIES = J8.listOf("commun", "peu_commun", "rare", "epique", "legendaire");
 
     private static final String PLING = "note.pling";
     private static final String HARP = "note.harp";
@@ -58,12 +58,12 @@ final class Sounds1710 {
 
     private Sounds1710() {}
 
-    static void play(Config c, String rarity) {
+    public static void play(Config c, String rarity) {
         play(c.sound, c.soundVolume, rarity);
     }
 
     /** Réglages : l'écoute d'un aperçu ne doit pas compter comme un succès enchaîné. */
-    static void resetCombo() {
+    public static void resetCombo() {
         combo = 0;
         lastUnlockAt = 0;
     }
