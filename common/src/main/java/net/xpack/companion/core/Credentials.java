@@ -33,6 +33,8 @@ public final class Credentials {
     private static final class FileData {
         /** apiUrl → (UUID Minecraft sans tirets → liaison). */
         Map<String, Map<String, Entry>> servers = new LinkedHashMap<>();
+        /** Réponse à l'écran de consentement (#40) : {@code null} = pas encore répondu. Valable pour tout le PC. */
+        Boolean consent;
     }
 
     private final Path file;
@@ -49,11 +51,13 @@ public final class Credentials {
 
     /**
      * Emplacement par défaut, propre à l'utilisateur et non à l'instance. Surcharge possible avec
-     * {@code -Dxpack.credentials=<fichier>} (tests, installations portables).
+     * {@code -Dxpack.credentials=<fichier>} (tests, espace de travail Gradle) <b>seulement si le code tourne depuis un dossier de
+     * classes</b>, jamais depuis un jar : un profil de lanceur pourrait sinon pointer vers un fichier fourni (consentement, jeton
+     * d'attaquant), comme avec {@code -Dxpack.smoke}.
      */
     public static Path defaultLocation() {
         String override = System.getProperty("xpack.credentials");
-        if (override != null && !J8.isBlank(override)) return java.nio.file.Paths.get(override);
+        if (override != null && !J8.isBlank(override) && runsFromClassesDirectory()) return java.nio.file.Paths.get(override);
         String os = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
         String home = System.getProperty("user.home");
         Path dir;
@@ -62,6 +66,28 @@ public final class Credentials {
         else if (System.getenv("XDG_CONFIG_HOME") != null) dir = java.nio.file.Paths.get(System.getenv("XDG_CONFIG_HOME"), "xpack");
         else dir = java.nio.file.Paths.get(home, ".config", "xpack");
         return dir.resolve("credentials.json");
+    }
+
+    /**
+     * Réponse du joueur à l'écran de consentement, rangée ici (hors de l'instance) pour qu'un modpack ne puisse pas
+     * la pré-cocher via {@code config/xpack.json}. {@code null} : pas encore répondu.
+     */
+    public synchronized Boolean consent() {
+        return data.consent;
+    }
+
+    public synchronized void setConsent(boolean accepted) {
+        data.consent = accepted;
+        save();
+    }
+
+    private static boolean runsFromClassesDirectory() {
+        try {
+            java.net.URL here = Credentials.class.getResource("Credentials.class");
+            return here != null && "file".equals(here.getProtocol());
+        } catch (RuntimeException e) {
+            return false;
+        }
     }
 
     public synchronized String token(String apiUrl, String minecraftUuid) {

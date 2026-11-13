@@ -1,0 +1,9 @@
+{
+  "required": false,
+  "minVersion": "0.8",
+  "package": "net.xpack.companion.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "refmap": "xpack.refmap.json",
+  "client": ["ScreenMixin", "PauseScreenMixin", "CommandTreeMixin", "ToastComponentAccessor", "GameRendererToastsMixin", "MultiPlayerGameModeMixin"],
+  "injectors": { "defaultRequire": 0 }
+}

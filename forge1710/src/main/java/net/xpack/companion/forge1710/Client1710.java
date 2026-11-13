@@ -172,7 +172,7 @@ public final class Client1710 {
         try {
             if (pipeline.get(PacketSpy.IN) == null) pipeline.addBefore("packet_handler", PacketSpy.IN, new PacketSpy.Inbound());
             if (pipeline.get(PacketSpy.OUT) == null) pipeline.addBefore("packet_handler", PacketSpy.OUT, new PacketSpy.Outbound());
-        } catch (RuntimeException e) {
+        } catch (RuntimeException | LinkageError e) {
             // Pipeline inattendu (autre mod) : jamais couper la connexion, on se passe des espions.
             FMLLog.warning("[XPack] espions de paquets non installés : %s", e);
         }

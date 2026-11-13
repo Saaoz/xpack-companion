@@ -147,7 +147,12 @@ public final class Client1122 {
     @SubscribeEvent
     public void onConnected(FMLNetworkEvent.ClientConnectedToServerEvent event) {
         NetworkManager manager = event.getManager();
-        if (manager.channel().pipeline().get(PacketSpy.NAME) == null) manager.channel().pipeline().addBefore("packet_handler", PacketSpy.NAME, new PacketSpy());
+        try {
+            if (manager.channel().pipeline().get(PacketSpy.NAME) == null) manager.channel().pipeline().addBefore("packet_handler", PacketSpy.NAME, new PacketSpy());
+        } catch (RuntimeException | LinkageError e) {
+            // Pipeline inattendu (un autre mod a renommé « packet_handler ») : jamais couper la connexion, on se passe de l'espion.
+            org.apache.logging.log4j.LogManager.getLogger("xpack").warn("[XPack] espion de paquets non installé : {}", e.toString());
+        }
     }
 
     // ------------------------------------------------------------------ tick client

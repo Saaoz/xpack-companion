@@ -20,7 +20,7 @@ final class PacketSpy extends ChannelInboundHandlerAdapter {
             if (msg instanceof SPacketAdvancementInfo) Client1122.onAdvancementPacket((SPacketAdvancementInfo) msg);
             else if (msg instanceof SPacketStatistics) Client1122.onStatsPacket((SPacketStatistics) msg);
             else if (msg instanceof SPacketCollectItem) Client1122.onCollectItemPacket((SPacketCollectItem) msg);
-        } catch (RuntimeException e) {
+        } catch (RuntimeException | LinkageError e) {
             // Jamais gêner le jeu : au pire, ce paquet n'est pas compté.
         }
         ctx.fireChannelRead(msg);

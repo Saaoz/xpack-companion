@@ -385,7 +385,19 @@ public final class XPackCore {
         this.rules = rules;
         // API d'événements locale : l'option est relue dans la configuration à chaque événement (donc après chaque sauvegarde).
         XPackEvents.bind(() -> this.config.eventsApi);
+        loadConsent();
         migrateLegacyToken();
+    }
+
+    /**
+     * Le consentement vit hors de l'instance ({@link Credentials}), pas dans {@code config/xpack.json} : un modpack peut y
+     * pré-cocher {@code "consented": true}. L'ancien champ n'est donc jamais cru (même avec un jeton lié : un modpack peut
+     * fournir le jeton au premier lancement puis le consentement au second). Les joueurs des anciennes versions revoient
+     * l'écran une fois.
+     */
+    private void loadConsent() {
+        Boolean stored = credentials.consent();
+        if (stored != null) config.consented = stored;
     }
 
     /** Anciennes versions : jeton rangé dans config/xpack.json, exporté avec les modpacks. On le déplace. */
@@ -404,7 +416,7 @@ public final class XPackCore {
     /** Choix du joueur sur l'écran de consentement (aussi utilisable depuis un écran de réglages). */
     public void setConsent(boolean accepted) {
         config.consented = accepted;
-        config.save(configFile);
+        credentials.setConsent(accepted);
         if (accepted && world != null && !practice) startTracking();
     }
 
@@ -750,10 +762,15 @@ public final class XPackCore {
                 return;
             }
             JsonObject b = res.body();
-            sessionId = b.get("sessionId").getAsString();
+            String newSession = text(b, "sessionId");
+            if (newSession == null) {
+                lastSendFailed = true; // 200 mal formé : échec, le prochain essai suit le délai normal (nextFlushAt)
+                return;
+            }
+            sessionId = newSession;
             nextSeq = 0;
-            applyRules(b.getAsJsonObject("rules"));
-            JsonObject integ = b.getAsJsonObject("integrity");
+            applyRules(b.has("rules") && b.get("rules").isJsonObject() ? b.getAsJsonObject("rules") : null);
+            JsonObject integ = b.has("integrity") && b.get("integrity").isJsonObject() ? b.getAsJsonObject("integrity") : null;
             if (integ != null) syncIntegrity(integ);
             // Liste à jour du serveur, propre à ce modpack (sinon : liste embarquée).
             if (b.has("blacklist") && b.get("blacklist").isJsonObject()) applyBlacklist(b.getAsJsonObject("blacklist"));
@@ -783,6 +800,21 @@ public final class XPackCore {
         JsonElement c = integ.get("clearedAt");
         integrity.syncFromServer(text(s), text(f), text(c));
         saveWorld();
+    }
+
+    /** Champ texte obligatoire d'une réponse du serveur, ou null s'il manque ou n'est pas une chaîne non vide. */
+    private static String text(JsonObject o, String key) {
+        JsonElement e = o == null ? null : o.get(key);
+        if (e == null || !e.isJsonPrimitive() || !e.getAsJsonPrimitive().isString()) return null;
+        String v = e.getAsString();
+        return v.isEmpty() ? null : v;
+    }
+
+    /** Champ entier d'une réponse du serveur, ou -1 s'il manque ou n'est pas un nombre. */
+    private static long number(JsonObject o, String key) {
+        JsonElement e = o == null ? null : o.get(key);
+        if (e == null || !e.isJsonPrimitive() || !e.getAsJsonPrimitive().isNumber()) return -1;
+        return e.getAsLong();
     }
 
     private static String text(JsonElement e) {
@@ -1050,7 +1082,8 @@ public final class XPackCore {
         if (!tracking() || token == null || integrity.isFlagged()) return true;
         if (rules.classify(command, allowedCommands) != IntegrityRules.Verdict.CHEAT) return true;
         ui.showCheatWarning(command, () -> {
-            flag(WorldIntegrity.Reason.COMMAND, "/" + stripSlash(command));
+            // Seul le mot de la commande est envoyé : les arguments peuvent contenir pseudos tiers et coordonnées.
+            flag(WorldIntegrity.Reason.COMMAND, "/" + commandWord(command));
             bypassCommand = command;
             resend.accept(command);
         });
@@ -1830,6 +1863,14 @@ public final class XPackCore {
      * menu principal compris. Sans effet si elle est déjà en cours pour ce compte.
      */
     public void startLinking(String minecraftUuid, String minecraftName) {
+        // Rien ne part vers l'API (UUID + pseudo) sans accord : on affiche d'abord l'écran de consentement.
+        if (!Boolean.TRUE.equals(config.consented)) {
+            ui.askConsent(accepted -> {
+                setConsent(accepted);
+                if (accepted) startLinking(minecraftUuid, minecraftName);
+            });
+            return;
+        }
         String uuid = normalizeUuid(minecraftUuid);
         if (uuid.equals(linkUuid) && !linkFailed) return;
         cancelLinking();
@@ -1860,21 +1901,26 @@ public final class XPackCore {
 
     private void tickLinking(long t) {
         if (linkUuid == null || linkInFlight || t < nextPollAt) return;
+        if (!Boolean.TRUE.equals(config.consented)) return; // consentement retiré entre-temps : plus rien ne part
         String uuid = linkUuid;
         linkInFlight = true;
         if (deviceCode == null) {
             api.linkStart(uuid, linkName).thenAcceptAsync(res -> {
                 if (!uuid.equals(linkUuid)) return; // liaison annulée ou relancée entre-temps
                 linkInFlight = false;
-                if (!res.ok()) {
-                    linkFailed = true; // API injoignable : nouvel essai un peu plus tard
-                    nextPollAt = clock.millis() + LINK_RETRY_MS;
+                // Toujours repousser le prochain essai, quel que soit le chemin (sinon : une requête par tick, 20 par seconde).
+                nextPollAt = clock.millis() + LINK_RETRY_MS;
+                String dc = res.ok() ? text(res.body(), "deviceCode") : null;
+                String uc = res.ok() ? text(res.body(), "userCode") : null;
+                long interval = res.ok() ? number(res.body(), "interval") : -1;
+                if (dc == null || uc == null || interval <= 0) {
+                    linkFailed = true; // API injoignable ou réponse mal formée (portail captif, proxy) : nouvel essai plus tard
                     return;
                 }
                 linkFailed = false;
-                deviceCode = res.body().get("deviceCode").getAsString();
-                userCode = res.body().get("userCode").getAsString();
-                pollIntervalMs = res.body().get("interval").getAsLong() * 1000;
+                deviceCode = dc;
+                userCode = uc;
+                pollIntervalMs = Math.max(1, Math.min(interval, 60)) * 1000;
                 nextPollAt = clock.millis() + pollIntervalMs;
             }, mainThread);
             return;
@@ -1882,8 +1928,15 @@ public final class XPackCore {
         api.linkPoll(deviceCode).thenAcceptAsync(res -> {
             if (!uuid.equals(linkUuid)) return;
             linkInFlight = false;
+            nextPollAt = clock.millis() + pollIntervalMs; // posé sur tous les chemins ; les cas ci-dessous le remplacent si besoin
             if (res.status() == 200) {
-                String newToken = res.body().get("token").getAsString();
+                String newToken = text(res.body(), "token");
+                if (newToken == null) {
+                    // 200 sans jeton (portail captif, proxy, ancienne API) : échec, on ne boucle pas.
+                    linkFailed = true;
+                    nextPollAt = clock.millis() + LINK_RETRY_MS;
+                    return;
+                }
                 credentials.put(config.apiUrl, uuid, linkName, newToken);
                 cancelLinking();
                 ui.notify("xpack.link.done");
@@ -2034,6 +2087,14 @@ public final class XPackCore {
 
     private static String stripSlash(String c) {
         return c.startsWith("/") ? c.substring(1) : c;
+    }
+
+    /** Premier mot d'une commande, sans le slash : 'give' pour '/give Steve diamond'. */
+    static String commandWord(String c) {
+        String s = stripSlash(c.trim());
+        int end = 0;
+        while (end < s.length() && !Character.isWhitespace(s.charAt(end))) end++;
+        return s.substring(0, end);
     }
 
     static String shortHash(String s) {

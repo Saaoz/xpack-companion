@@ -38,8 +38,9 @@ public abstract class ClientPacketListenerMixin {
         if (!XPackClient.beforeCommand(command, self::sendUnsignedCommand)) cir.setReturnValue(false);
     }
 
+    // Statistiques et ramassages : utiles aux succès, pas à l'anti-triche (require = 0 : si le point d'injection a changé, le jeu démarre quand même).
     /** Atteint uniquement sur le thread client (le premier passage relance la méthode sur ce thread). */
-    @Inject(method = "handleAwardStats", at = @At("TAIL"))
+    @Inject(method = "handleAwardStats", at = @At("TAIL"), require = 0)
     private void xpack$afterStats(ClientboundAwardStatsPacket packet, CallbackInfo ci) {
         Map<Stat<?>, Integer> stats = new HashMap<>();
         packet.getStats().forEach(stats::put);
@@ -47,7 +48,7 @@ public abstract class ClientPacketListenerMixin {
     }
 
     /** Ramassage d'un objet (#128). Au premier passage (thread réseau), la méthode se relance sur le thread client : on attend celui-là. */
-    @Inject(method = "handleTakeItemEntity", at = @At("HEAD"))
+    @Inject(method = "handleTakeItemEntity", at = @At("HEAD"), require = 0)
     private void xpack$beforeTakeItem(ClientboundTakeItemEntityPacket packet, CallbackInfo ci) {
         if (Minecraft.getInstance().isSameThread()) XPackClient.onTakeItem(packet.getItemId(), packet.getPlayerId(), packet.getAmount());
     }

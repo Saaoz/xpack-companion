@@ -29,6 +29,7 @@ legacyForge {
 mixin {
     add sourceSets.main, "xpack.refmap.json"
     config "xpack.mixins.json"
+    config "xpack.optional.mixins.json"
 }
 
 dependencies {
@@ -49,5 +50,5 @@ processResources {
 }
 
 jar {
-    manifest.attributes("MixinConfigs": "xpack.mixins.json")
+    manifest.attributes("MixinConfigs": "xpack.mixins.json,xpack.optional.mixins.json")
 }
