@@ -16,7 +16,7 @@ import java.util.stream.Collectors;
 /**
  * Commande {@code /xpack diagnostic} : copie, anonymisés, les fichiers que les lanceurs laissent
  * dans l'instance et qui décrivent le modpack. Sert à préparer la détection des modpacks sur de
- * vraies installations (docs/DETECTION-MODPACK.md) : le joueur voit ce qui a été trouvé et peut
+ * vraies installations (voir {@link ModpackDetector}) : le joueur voit ce qui a été trouvé et peut
  * envoyer le dossier produit.
  */
 public final class Diagnostics {

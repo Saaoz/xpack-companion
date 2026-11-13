@@ -104,7 +104,8 @@ public final class Credentials {
                 FileData d = GSON.fromJson(J8.readString(file, StandardCharsets.UTF_8), FileData.class);
                 if (d != null && d.servers != null) return d;
             }
-        } catch (IOException | RuntimeException ignored) {
+        } catch (IOException | RuntimeException e) {
+            XLog.warn("fichier de liaison illisible", e);
             // fichier illisible : on repart sans liaison (le joueur reliera son compte)
         }
         return new FileData();
@@ -118,7 +119,8 @@ public final class Credentials {
             J8.writeString(tmp, GSON.toJson(data), StandardCharsets.UTF_8);
             restrictToOwner(tmp);
             Files.move(tmp, file, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
-        } catch (IOException ignored) {
+        } catch (IOException e) {
+            XLog.warn("liaison du compte non enregistrée", e);
             // disque indisponible : la liaison reste valable pour cette session
         }
     }
