@@ -59,10 +59,10 @@ public final class SupportScreen extends LegacyGuiScreen {
         for (JsonElement d : r.getAsJsonArray("detections")) {
             JsonObject o = d.getAsJsonObject();
             String detail = o.has("detail") ? " (" + o.get("detail").getAsString() + ")" : "";
-            lines.add(Fmt.WHITE + "• " + o.get("reason").getAsString() + detail);
+            lines.add(Fmt.WHITE + "• " + Fmt.plain(o.get("reason").getAsString() + detail));
         }
         JsonObject m = r.has("modpack") ? r.getAsJsonObject("modpack") : new JsonObject();
-        String pack = m.has("name") ? m.get("name").getAsString() : m.has("source") ? m.get("source").getAsString() : "?";
+        String pack = Fmt.plain(m.has("name") ? m.get("name").getAsString() : m.has("source") ? m.get("source").getAsString() : "?");
         lines.add(Fmt.DARK_GRAY + Lang.tr("xpack.support.context", pack, r.getAsJsonArray("mods").size()));
         return lines;
     }

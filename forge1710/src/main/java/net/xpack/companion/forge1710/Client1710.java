@@ -287,7 +287,7 @@ public final class Client1710 {
         } else {
             ServerData data = mc.func_147104_D();
             String address = data != null ? data.serverIP : "inconnu";
-            storeFile = configDir.resolve("xpack").resolve("servers").resolve(sha256(address.toLowerCase(Locale.ROOT)).substring(0, 24) + ".json");
+            storeFile = net.xpack.companion.core.ServerStore.fileFor(sha256(address.toLowerCase(Locale.ROOT)).substring(0, 24), configDir);
             kind = "multiplayer";
             cheatsAllowed = mc.thePlayer.canCommandSenderUseCommand(2, "");
         }

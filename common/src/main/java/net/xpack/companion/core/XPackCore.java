@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.regex.Pattern;
 import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
@@ -2014,9 +2015,43 @@ public final class XPackCore {
             }
             if (s == null) s = new WorldStore();
             s.fresh = !Files.isRegularFile(file);
-            if (s.worldId == null) s.worldId = UUID.randomUUID().toString();
-            if (s.pending == null) s.pending = new ArrayList<>();
+            s.sanitize();
             return s;
+        }
+
+        /** Plafond d'événements en attente relus d'un fichier (un fichier forgé ne doit pas gonfler la file). */
+        static final int MAX_PENDING = 2000;
+        /** Taille maximale (caractères) d'un événement en attente, sérialisé. */
+        static final int MAX_EVENT_CHARS = 8192;
+        private static final Pattern PLAUSIBLE_ID = Pattern.compile("[0-9A-Za-z_-]{8,64}");
+
+        /**
+         * Contrôles de vraisemblance sur un fichier lu du disque : un monde téléchargé peut embarquer un
+         * {@code xpack.json} forgé. Ce n'est PAS une protection suffisante : le serveur doit de toute façon
+         * valider chaque événement reçu ; on évite seulement d'envoyer n'importe quoi sous le jeton du joueur.
+         */
+        void sanitize() {
+            if (worldId == null || !PLAUSIBLE_ID.matcher(worldId).matches()) worldId = UUID.randomUUID().toString();
+            List<JsonObject> kept = new ArrayList<>();
+            if (pending != null) {
+                for (JsonObject e : pending) {
+                    if (kept.size() >= MAX_PENDING) break;
+                    if (e == null) continue;
+                    try {
+                        if (e.toString().length() <= MAX_EVENT_CHARS) kept.add(e);
+                    } catch (RuntimeException ignored) {
+                        // événement illisible : écarté
+                    }
+                }
+            }
+            pending = kept;
+            if (firstSeen != null && firstSeen.length() > 64) firstSeen = null;
+            if (flaggedAt != null && flaggedAt.length() > 64) flaggedAt = null;
+            if (teamReminderDay != null && teamReminderDay.length() > 16) teamReminderDay = null;
+            if (status != null && !status.equals("propre") && !status.equals("signale")) status = null;
+            if (playtime < 0) playtime = 0;
+            if (questsSavedAt < 0) questsSavedAt = 0;
+            if (leftAt < 0) leftAt = 0;
         }
 
     }

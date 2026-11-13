@@ -16,4 +16,9 @@ public final class Fmt {
     public static final String RESET = "§r";
 
     private Fmt() {}
+
+    /** Retire les codes « § » d'un texte non fiable (nom de modpack, pseudo, texte du serveur) avant affichage. */
+    public static String plain(String untrusted) {
+        return net.xpack.companion.core.Sanitize.stripFormatting(untrusted);
+    }
 }

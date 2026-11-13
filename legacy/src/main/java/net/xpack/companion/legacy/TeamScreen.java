@@ -118,7 +118,7 @@ public final class TeamScreen extends LegacyGuiScreen {
                 lines.add(new Line(x, y + 8, Fmt.WHITE.toString() + Fmt.BOLD + r.heading, false));
             } else if (r.player.status() == Presence.Status.LINKED) {
                 final Team.Candidate p = r.player;
-                lines.add(new Line(x, y + 6, Fmt.GREEN + p.name(), false));
+                lines.add(new Line(x, y + 6, Fmt.GREEN + Fmt.plain(p.name()), false));
                 String label = p.teammate() ? "xpack.team.teammate" : p.invited() ? "xpack.team.invitedLabel" : "xpack.team.invite";
                 GuiButton invite = new GuiButton(nextId, x + 190, y, 120, 20, Lang.tr(label));
                 invite.enabled = !p.teammate() && !p.invited();
@@ -127,7 +127,7 @@ public final class TeamScreen extends LegacyGuiScreen {
             } else {
                 Team.Candidate p = r.player;
                 String hint = p.status() == Presence.Status.INSTALLED ? "xpack.team.hintUnlinked" : "xpack.team.hintInstall";
-                lines.add(new Line(x, y + 6, Fmt.GRAY + p.name() + " — " + Fmt.DARK_GRAY + Lang.tr(hint), false));
+                lines.add(new Line(x, y + 6, Fmt.GRAY + Fmt.plain(p.name()) + " — " + Fmt.DARK_GRAY + Lang.tr(hint), false));
             }
             y += ROW;
         }

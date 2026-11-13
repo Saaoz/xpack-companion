@@ -400,7 +400,7 @@ public final class XPackClient {
         } else {
             ServerData data = mc.getCurrentServer();
             String address = data != null ? data.ip : "inconnu";
-            storeFile = configDir.resolve("xpack").resolve("servers").resolve(sha256(address.toLowerCase()).substring(0, 24) + ".json");
+            storeFile = net.xpack.companion.core.ServerStore.fileFor(sha256(address.toLowerCase()).substring(0, 24), configDir);
             kind = "multiplayer";
             cheatsAllowed = mc.player.hasPermissions(2);
         }
