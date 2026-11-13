@@ -52,6 +52,10 @@ shared/    Code Minecraft vanilla (noms Mojang) commun à tous les loaders : mix
 fabric/    Point d'entrée Fabric (+ run « smoke » pour le test de bout en bout).
 neoforge/  Point d'entrée NeoForge.
 forge/     Point d'entrée Forge 1.20.1 (ModDevGradle « legacyforge » : remappage SRG et refmap des mixins).
+legacy/    Code commun des ports 1.12.2 et 1.7.10 (Java 8, package net.xpack.companion.legacy) : écrans, textes, affichage, suggestions du chat.
+           Compilé par chacun des deux projets (srcDir dans leur build.gradle). Ce qui dépend de l'API du jeu passe par deux classes
+           qui existent sous le même nom dans chaque port : `Platform` (pont vers Client/Sounds/Toasts) et `LegacyGuiScreen` (base des écrans).
+           Une correction d'un écran ou d'un texte se fait donc une seule fois ici ; `Client*`, `Toasts*`, `Sounds*`, `PacketSpy`, `XPackCommand` restent par version.
 ```
 
 Les règles anti-triche viennent de `spec/integrity-rules.json`, le même fichier que le site et l’API XPack (copie synchronisée depuis le dépôt du site). `spec/launcher-fixtures/` contient des fichiers réels de lanceurs pour les tests de détection du modpack.

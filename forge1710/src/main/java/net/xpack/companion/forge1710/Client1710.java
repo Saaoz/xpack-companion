@@ -1,5 +1,10 @@
 package net.xpack.companion.forge1710;
 
+import net.xpack.companion.legacy.Lang;
+import net.xpack.companion.legacy.LegacyUi;
+import net.xpack.companion.legacy.SettingsScreen;
+import net.xpack.companion.legacy.SupportScreen;
+import net.xpack.companion.legacy.TeamScreen;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
@@ -96,7 +101,7 @@ public final class Client1710 {
     private static final int ITEMS_INTERVAL_TICKS = 20;
     private static final int PAUSE_BUTTON_ID = 7_300;
     private static final String PLAY_TIME = "minecraft:custom/minecraft:play_time";
-    static final List<String> SUBCOMMANDS = J8.listOf("settings", "toast", "team", "check", "diagnostic", "support", "help");
+    public static final List<String> SUBCOMMANDS = J8.listOf("settings", "toast", "team", "check", "diagnostic", "support", "help");
 
     private static XPackCore core;
     private static Path configDir;
@@ -118,7 +123,7 @@ public final class Client1710 {
     /** Actions à jouer au prochain tick sans écran : le chat se ferme juste après l'envoi d'une commande. */
     private static final Queue<Runnable> DEFERRED = new ConcurrentLinkedQueue<>();
 
-    static void defer(Runnable action) {
+    public static void defer(Runnable action) {
         DEFERRED.add(action);
     }
 
@@ -143,7 +148,7 @@ public final class Client1710 {
         config.save(configFile); // écrit les valeurs par défaut au premier lancement
         String userAgent = "XPackCompanion/" + MOD_VERSION + " (forge 1.7.10)";
         ApiClient api = new ApiClient(ApiClient.http(() -> config.apiUrl, userAgent));
-        core = new XPackCore(config, configFile, new Credentials(Credentials.defaultLocation()), api, new Ui1710(), r -> mc.func_152344_a(r), Clock.systemUTC(), IntegrityRules.bundled());
+        core = new XPackCore(config, configFile, new Credentials(Credentials.defaultLocation()), api, new LegacyUi(), r -> mc.func_152344_a(r), Clock.systemUTC(), IntegrityRules.bundled());
         core.setLoadedMods(modIds);
         core.setLocalProbe(new ApiClient(ApiClient.http(Config.LOCAL_API, userAgent)));
         // Fichier du monde écrit hors du thread de jeu (#74), et une dernière fois à la fermeture.
@@ -511,7 +516,7 @@ public final class Client1710 {
     }
 
     /** Commandes du mod, traitées dans le client et jamais envoyées au serveur. Vrai si la commande est à nous. */
-    static boolean handleLocalCommand(String command) {
+    public static boolean handleLocalCommand(String command) {
         String c = command.trim();
         if (core == null || !(c.equalsIgnoreCase("xpack") || c.toLowerCase(Locale.ROOT).startsWith("xpack "))) return false;
         String sub = c.length() > 5 ? c.substring(5).trim().toLowerCase(Locale.ROOT) : "";
@@ -528,7 +533,7 @@ public final class Client1710 {
             case "settings":
             case "reglages":
             case "réglages":
-                defer(() -> Minecraft.getMinecraft().displayGuiScreen(new SettingsScreen1710(null)));
+                defer(() -> Minecraft.getMinecraft().displayGuiScreen(new SettingsScreen(null)));
                 break;
             case "toast":
             case "essai":
@@ -536,12 +541,12 @@ public final class Client1710 {
                 core.previewToast(Lang.tr("xpack.toast.preview"));
                 break;
             case "support":
-                defer(() -> Minecraft.getMinecraft().displayGuiScreen(new SupportScreen1710(null)));
+                defer(() -> Minecraft.getMinecraft().displayGuiScreen(new SupportScreen(null)));
                 break;
             case "team":
             case "equipe":
             case "équipe":
-                defer(() -> Minecraft.getMinecraft().displayGuiScreen(new TeamScreen1710(null)));
+                defer(() -> Minecraft.getMinecraft().displayGuiScreen(new TeamScreen(null)));
                 break;
             default:
                 help();
@@ -550,9 +555,9 @@ public final class Client1710 {
     }
 
     private static void help() {
-        Ui1710.say(Lang.tr("xpack.command.help.title"));
+        LegacyUi.say(Lang.tr("xpack.command.help.title"));
         for (String sub : SUBCOMMANDS) {
-            Ui1710.line("  " + net.minecraft.util.EnumChatFormatting.AQUA + "/xpack " + sub + net.minecraft.util.EnumChatFormatting.DARK_GRAY + " — " + net.minecraft.util.EnumChatFormatting.GRAY + Lang.tr("xpack.command." + sub));
+            LegacyUi.line("  " + net.minecraft.util.EnumChatFormatting.AQUA + "/xpack " + sub + net.minecraft.util.EnumChatFormatting.DARK_GRAY + " — " + net.minecraft.util.EnumChatFormatting.GRAY + Lang.tr("xpack.command." + sub));
         }
     }
 
@@ -562,9 +567,9 @@ public final class Client1710 {
         String summary = "XPack Companion " + MOD_VERSION + " (forge 1.7.10), Minecraft 1.7.10\nModpack détecté : " + Diagnostics.describe(detected) + "\nMods chargés : " + modIds.size();
         try {
             Diagnostics.Result r = Diagnostics.write(gameDir, gameDir.resolve("xpack-diagnostic"), summary, modIds, Clock.systemUTC());
-            Ui1710.say(Lang.tr("xpack.diagnostic.done", Diagnostics.describe(detected), r.found().isEmpty() ? "-" : String.join(", ", r.found())) + " " + r.folder().toAbsolutePath());
+            LegacyUi.say(Lang.tr("xpack.diagnostic.done", Diagnostics.describe(detected), r.found().isEmpty() ? "-" : String.join(", ", r.found())) + " " + r.folder().toAbsolutePath());
         } catch (IOException e) {
-            Ui1710.say(Lang.tr("xpack.diagnostic.failed", e.getMessage()));
+            LegacyUi.say(Lang.tr("xpack.diagnostic.failed", e.getMessage()));
         }
     }
 
@@ -608,7 +613,7 @@ public final class Client1710 {
     @SubscribeEvent
     public void onPauseMenuAction(GuiScreenEvent.ActionPerformedEvent.Post event) {
         if (event.gui instanceof GuiIngameMenu && event.button.id == PAUSE_BUTTON_ID) {
-            Minecraft.getMinecraft().displayGuiScreen(new SettingsScreen1710(event.gui));
+            Minecraft.getMinecraft().displayGuiScreen(new SettingsScreen(event.gui));
         }
     }
 
