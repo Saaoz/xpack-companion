@@ -65,6 +65,9 @@ jobs:
           cp "$jar" run/mods/
       - name: Lancer le client sans écran
         uses: headlesshq/mc-runtime-test@5.0.0
+        env:
+          # Second verrou du mode CI de SmokeTest (avec -Dxpack.smoke.ci=true) : un profil de lanceur ne le pose pas.
+          XPACK_SMOKE_CI: "1"
         with:
           mc: ${{ matrix.mc }}
           modloader: ${{ matrix.modloader }}
