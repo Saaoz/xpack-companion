@@ -211,6 +211,7 @@ public final class SpeedrunTimer {
             exitPaused = state == State.PAUSED;
             return true;
         } catch (RuntimeException e) {
+            XLog.warn("chrono sauvegardé illisible, remis à zéro", e);
             reset();
             return false;
         }

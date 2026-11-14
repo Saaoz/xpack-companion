@@ -180,6 +180,8 @@
   "xpack.badge.not_counted": "non comptabilisé (triche détectée)",
   "xpack.badge.disabled": "envoi désactivé",
   "xpack.badge.practice": "monde de test, non suivi",
+  "xpack.badge.modpack_recognized": "modpack reconnu",
+  "xpack.badge.modpack_unrecognized": "modpack non reconnu",
   "xpack.alert.title": "⚠ Ce monde n'est plus comptabilisé",
   "xpack.alert.support": "[%s] Contacter le support",
   "xpack.alert.supportLink": "[Contacter le support]",

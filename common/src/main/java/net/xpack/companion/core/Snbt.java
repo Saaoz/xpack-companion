@@ -10,7 +10,7 @@ import java.util.regex.Pattern;
 /**
  * NBT en texte (SNBT) tel que FTB Quests l'écrit (04/11/2026) : clés sans guillemets (avec des
  * points), séparateurs virgule ou retour à la ligne, nombres suffixés (10L, 0.5d, 1b), tableaux
- * typés ([I; 1, 2]). Rendu sous forme d'arbre Gson ; même lecture que server/src/ftbQuests.ts.
+ * typés ([I; 1, 2]). Rendu sous forme d'arbre Gson ; même lecture que celle du serveur XPack (non inclus dans ce dépôt).
  */
 public final class Snbt {
     private static final Pattern NUMBER = Pattern.compile("([+-]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][+-]?\\d+)?)([bslfdBSLFD]?)");

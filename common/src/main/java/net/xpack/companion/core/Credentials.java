@@ -4,6 +4,8 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.AccessDeniedException;
+import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
@@ -104,31 +106,52 @@ public final class Credentials {
                 FileData d = GSON.fromJson(J8.readString(file, StandardCharsets.UTF_8), FileData.class);
                 if (d != null && d.servers != null) return d;
             }
-        } catch (IOException | RuntimeException ignored) {
+        } catch (IOException | RuntimeException e) {
+            XLog.warn("fichier de liaison illisible", e);
             // fichier illisible : on repart sans liaison (le joueur reliera son compte)
         }
         return new FileData();
     }
 
     private void save() {
+        Path tmp = null;
         try {
             Files.createDirectories(file.getParent());
             // Écriture atomique : un plantage ne laisse jamais un fichier à moitié écrit.
-            Path tmp = file.resolveSibling(file.getFileName() + ".tmp");
-            J8.writeString(tmp, GSON.toJson(data), StandardCharsets.UTF_8);
-            restrictToOwner(tmp);
-            Files.move(tmp, file, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
-        } catch (IOException ignored) {
+            tmp = file.resolveSibling(file.getFileName() + ".tmp");
+            createPrivate(tmp);
+            Files.write(tmp, GSON.toJson(data).getBytes(StandardCharsets.UTF_8));
+            try {
+                Files.move(tmp, file, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+            } catch (AtomicMoveNotSupportedException | AccessDeniedException e) {
+                // Système de fichiers sans déplacement atomique : repli non atomique.
+                XLog.warn("déplacement atomique du fichier de liaison impossible, repli", e);
+                Files.move(tmp, file, StandardCopyOption.REPLACE_EXISTING);
+            }
+        } catch (IOException | RuntimeException e) {
+            XLog.warn("liaison du compte non enregistrée", e);
             // disque indisponible : la liaison reste valable pour cette session
+            if (tmp != null) {
+                try {
+                    Files.deleteIfExists(tmp);
+                } catch (IOException ignored) {
+                    // rien de plus à faire
+                }
+            }
         }
     }
 
-    /** Lecture réservée à l'utilisateur sur Linux et macOS (sous Windows, %APPDATA% l'est déjà). */
-    private static void restrictToOwner(Path p) {
+    /**
+     * Crée le fichier temporaire réservé à l'utilisateur dès sa création (Linux, macOS) : aucune
+     * fenêtre où le jeton serait lisible par les autres comptes. Sans permissions POSIX (Windows,
+     * où %APPDATA% est déjà privé), création ordinaire.
+     */
+    private static void createPrivate(Path tmp) throws IOException {
+        Files.deleteIfExists(tmp); // reste d'une écriture interrompue
         try {
-            Files.setPosixFilePermissions(p, PosixFilePermissions.fromString("rw-------"));
-        } catch (UnsupportedOperationException | IOException ignored) {
-            // système de fichiers sans permissions POSIX
+            Files.createFile(tmp, PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rw-------")));
+        } catch (UnsupportedOperationException e) {
+            Files.createFile(tmp);
         }
     }
 }

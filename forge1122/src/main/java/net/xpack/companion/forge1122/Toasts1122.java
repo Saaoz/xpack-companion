@@ -1,5 +1,6 @@
 package net.xpack.companion.forge1122;
 
+import net.xpack.companion.legacy.Lang;
 import java.lang.reflect.Field;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -48,20 +49,20 @@ public final class Toasts1122 {
     /** Instance abonnée aux événements de dessin (coin choisi hors haut à droite). */
     Toasts1122() {}
 
-    static void unlocked(Ui.Unlock unlock) {
+    public static void unlocked(Ui.Unlock unlock) {
         unlocks.add(unlock);
     }
 
-    static void alert(String reason) {
+    public static void alert(String reason) {
         alerts.add(new AlertToast(reason));
     }
 
-    static void completed(String modpackName, int achievements, long playtimeTicks) {
+    public static void completed(String modpackName, int achievements, long playtimeTicks) {
         long hours = Math.max(1, Math.round(playtimeTicks / 72_000.0));
         completions.add(new CompletionToast(100, GOLD, Lang.tr("xpack.toast.completed"), modpackName, Lang.tr("xpack.toast.completedDetail", achievements, hours)));
     }
 
-    static void milestone(String modpackName, int tier, int achievements, int total) {
+    public static void milestone(String modpackName, int tier, int achievements, int total) {
         int color = tier >= 75 ? GOLD : tier >= 50 ? SILVER : BRONZE;
         completions.add(new CompletionToast(tier, color, Lang.tr("xpack.toast.milestone", tier), modpackName, Lang.tr("xpack.toast.milestoneDetail", achievements, total)));
     }

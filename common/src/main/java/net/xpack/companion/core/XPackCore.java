@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.regex.Pattern;
 import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
@@ -339,6 +340,12 @@ public final class XPackCore {
     private final Set<String> knownAdvancements = new HashSet<>();
     private final Map<String, Integer> lastStats = new HashMap<>();
     private String sessionId;
+    /**
+     * Le serveur a-t-il reconnu le modpack ? Lu dans la réponse d'ouverture de session
+     * ({@code modpack.recognized}, booléen facultatif) ; {@code null} tant que le serveur ne le dit pas
+     * (ancien serveur, hors ligne) : le mod n'affiche alors rien.
+     */
+    private Boolean modpackRecognized;
     private boolean sessionPending;
     private int nextSeq;
     private List<String> allowedCommands = J8.listOf();
@@ -663,6 +670,7 @@ public final class XPackCore {
         worldId = null;
         invulnerableSince = -1;
         sessionId = null;
+        modpackRecognized = null;
         sessionPending = false;
         pending.clear();
         knownAdvancements.clear();
@@ -752,6 +760,7 @@ public final class XPackCore {
             JsonObject b = res.body();
             sessionId = b.get("sessionId").getAsString();
             nextSeq = 0;
+            modpackRecognized = parseModpackRecognized(b);
             applyRules(b.getAsJsonObject("rules"));
             JsonObject integ = b.getAsJsonObject("integrity");
             if (integ != null) syncIntegrity(integ);
@@ -762,6 +771,18 @@ public final class XPackCore {
             nextFlushAt = 0;
             sendCatalog(); // le catalogue arrivé avant l'ouverture de la session part maintenant
         }, mainThread);
+    }
+
+    /** {@code modpack.recognized} de la réponse de session : {@code null} si absent ou pas un booléen. */
+    static Boolean parseModpackRecognized(JsonObject body) {
+        if (body == null || !body.has("modpack") || !body.get("modpack").isJsonObject()) return null;
+        JsonElement r = body.getAsJsonObject("modpack").get("recognized");
+        return r != null && r.isJsonPrimitive() && r.getAsJsonPrimitive().isBoolean() ? r.getAsBoolean() : null;
+    }
+
+    /** Réponse du serveur sur le modpack de ce monde : vrai (reconnu), faux (non reconnu) ou null (inconnu : rien à afficher). */
+    public Boolean modpackRecognized() {
+        return modpackRecognized;
     }
 
     private void applyRules(JsonObject r) {
@@ -1988,14 +2009,49 @@ public final class XPackCore {
             WorldStore s = null;
             try {
                 if (Files.isRegularFile(file)) s = GSON.fromJson(J8.readString(file, StandardCharsets.UTF_8), WorldStore.class);
-            } catch (IOException | RuntimeException ignored) {
+            } catch (IOException | RuntimeException e) {
+                XLog.warn("état du monde illisible, état neuf", e);
                 // fichier abîmé : on repart d'un état neuf (le serveur garde le statut d'intégrité)
             }
             if (s == null) s = new WorldStore();
             s.fresh = !Files.isRegularFile(file);
-            if (s.worldId == null) s.worldId = UUID.randomUUID().toString();
-            if (s.pending == null) s.pending = new ArrayList<>();
+            s.sanitize();
             return s;
+        }
+
+        /** Plafond d'événements en attente relus d'un fichier (un fichier forgé ne doit pas gonfler la file). */
+        static final int MAX_PENDING = 2000;
+        /** Taille maximale (caractères) d'un événement en attente, sérialisé. */
+        static final int MAX_EVENT_CHARS = 8192;
+        private static final Pattern PLAUSIBLE_ID = Pattern.compile("[0-9A-Za-z_-]{8,64}");
+
+        /**
+         * Contrôles de vraisemblance sur un fichier lu du disque : un monde téléchargé peut embarquer un
+         * {@code xpack.json} forgé. Ce n'est PAS une protection suffisante : le serveur doit de toute façon
+         * valider chaque événement reçu ; on évite seulement d'envoyer n'importe quoi sous le jeton du joueur.
+         */
+        void sanitize() {
+            if (worldId == null || !PLAUSIBLE_ID.matcher(worldId).matches()) worldId = UUID.randomUUID().toString();
+            List<JsonObject> kept = new ArrayList<>();
+            if (pending != null) {
+                for (JsonObject e : pending) {
+                    if (kept.size() >= MAX_PENDING) break;
+                    if (e == null) continue;
+                    try {
+                        if (e.toString().length() <= MAX_EVENT_CHARS) kept.add(e);
+                    } catch (RuntimeException ignored) {
+                        // événement illisible : écarté
+                    }
+                }
+            }
+            pending = kept;
+            if (firstSeen != null && firstSeen.length() > 64) firstSeen = null;
+            if (flaggedAt != null && flaggedAt.length() > 64) flaggedAt = null;
+            if (teamReminderDay != null && teamReminderDay.length() > 16) teamReminderDay = null;
+            if (status != null && !status.equals("propre") && !status.equals("signale")) status = null;
+            if (playtime < 0) playtime = 0;
+            if (questsSavedAt < 0) questsSavedAt = 0;
+            if (leftAt < 0) leftAt = 0;
         }
 
     }
@@ -2020,7 +2076,8 @@ public final class XPackCore {
             try {
                 Files.createDirectories(w.getKey().getParent());
                 J8.writeString(w.getKey(), w.getValue(), StandardCharsets.UTF_8);
-            } catch (IOException ignored) {
+            } catch (IOException e) {
+                XLog.warn("état du monde non enregistré", e);
                 // disque indisponible : les événements restent en mémoire
             }
         }

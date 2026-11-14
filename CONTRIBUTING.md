@@ -30,7 +30,7 @@ These rules protect players (many of them are young) and keep the mod acceptable
 ## Pull requests
 
 1. Fork, create a branch, keep changes focused.
-2. Run `./gradlew :common:test build` (and the 1.12.2 / 1.7.10 builds if you touched `common/`, `forge1122/` or `forge1710/`).
+2. Run `./gradlew :common:test build` (and the 1.12.2 / 1.7.10 builds if you touched `common/`, `legacy/`, `forge1122/` or `forge1710/`).
 3. Describe what you tested, and on which loader and Minecraft version.
 
 Security issues: do not open a public issue, see [SECURITY.md](SECURITY.md).
@@ -69,7 +69,7 @@ Elles protègent les joueurs (dont beaucoup sont jeunes) et gardent le mod accep
 ## Pull requests
 
 1. Fork, crée une branche, garde des changements ciblés.
-2. Lance `./gradlew :common:test build` (et les builds 1.12.2 / 1.7.10 si tu as touché `common/`, `forge1122/` ou `forge1710/`).
+2. Lance `./gradlew :common:test build` (et les builds 1.12.2 / 1.7.10 si tu as touché `common/`, `legacy/`, `forge1122/` ou `forge1710/`).
 3. Décris ce que tu as testé, avec quel loader et quelle version de Minecraft.
 
 Faille de sécurité : pas d'issue publique, voir [SECURITY.md](SECURITY.md).
