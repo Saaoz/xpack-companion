@@ -40,6 +40,11 @@ final class SmokeTest {
         if (ENABLED) LOG.info("[SMOKE] {}", message);
     }
 
+    /** Trace écrite aussi en CI : le workflow relit les lignes « xpack » du journal quand il échoue. */
+    static void ciLog(String message) {
+        if (ENABLED || CI) LOG.info("[SMOKE] {}", message);
+    }
+
     private static void shot(Minecraft mc, String name) {
         Screenshot.grab(mc.gameDirectory, name, mc.getMainRenderTarget(), msg -> log("screenshot " + name));
     }
