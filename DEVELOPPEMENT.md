@@ -115,7 +115,7 @@ Prérequis : Java 21, Node 20+, `xvfb-run`, Mesa, et `pip install nbtlib`.
 
 ### Test en jeu en CI (sans écran, hors ligne)
 
-Le workflow `.github/workflows/runtime-test.yml` ([MC-Runtime-Test](https://github.com/headlesshq/mc-runtime-test) 5.0.0 + HeadlessMC) lance le vrai client avec le jar du mod, pour Fabric 1.21.1, NeoForge 1.21.1 et Forge 1.20.1. Il n'a besoin ni de compte ni de l'API XPack. Le client rejoint un monde solo, puis avec `-Dxpack.smoke.ci=true` le mod accorde `minecraft:story/root` via le serveur intégré et écrit `XPACK SMOKE OK` dans `run/logs/latest.log` quand le mixin le détecte (code dans `SmokeTest`, inactif sans la propriété). Le workflow échoue si le jeu plante ou si cette ligne manque ; les journaux sont publiés en artefact. 1.12.2 et 1.7.10 ne sont pas couverts.
+Le workflow `.github/workflows/runtime-test.yml` ([MC-Runtime-Test](https://github.com/headlesshq/mc-runtime-test) 5.0.0 + HeadlessMC) lance le vrai client avec le jar du mod, pour Fabric 1.21.1, NeoForge 1.21.1 et Forge 1.20.1. Il n'a besoin ni de compte ni de l'API XPack. Le client rejoint un monde solo, puis, avec `-Dxpack.smoke.ci=true` **et** la variable d'environnement `XPACK_SMOKE_CI=1` (posée par le workflow sur l'étape qui lance le jeu), le mod accorde `minecraft:story/root` via le serveur intégré et écrit `XPACK SMOKE OK` dans `run/logs/latest.log` quand le mixin le détecte (code dans `SmokeTest`, inactif sans les deux : un argument JVM seul, facile à glisser dans un profil de lanceur ou un modpack, ne suffit pas sur un jar de release). Le workflow échoue si le jeu plante ou si cette ligne manque ; les journaux sont publiés en artefact. 1.12.2 et 1.7.10 ne sont pas couverts.
 
 ## Configuration (`config/xpack.json`)
 

@@ -1,6 +1,6 @@
 # Lance le mod dans un vrai client Minecraft sans écran (HeadlessMC + MC-Runtime-Test) pour attraper
 # une régression de mixin ou de loader avant une version. Hors ligne : aucun compte, aucune API XPack.
-# Le client rejoint un monde solo ; avec -Dxpack.smoke.ci=true le mod y accorde un progrès et écrit
+# Le client rejoint un monde solo ; avec -Dxpack.smoke.ci=true et XPACK_SMOKE_CI=1 le mod y accorde un progrès et écrit
 # « XPACK SMOKE OK » dans le journal quand il le détecte. Le workflow échoue sans cette ligne.
 # Pas couvert : 1.12.2 et 1.7.10 (MC-Runtime-Test les gère, mais ces ports n'ont pas ce scénario).
 name: Runtime test
@@ -65,6 +65,9 @@ jobs:
           cp "$jar" run/mods/
       - name: Lancer le client sans écran
         uses: headlesshq/mc-runtime-test@5.0.0
+        env:
+          # Second verrou du mode CI de SmokeTest (avec -Dxpack.smoke.ci=true) : un profil de lanceur ne le pose pas.
+          XPACK_SMOKE_CI: "1"
         with:
           mc: ${{ matrix.mc }}
           modloader: ${{ matrix.modloader }}
