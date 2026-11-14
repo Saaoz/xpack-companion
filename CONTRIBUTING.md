@@ -15,6 +15,8 @@ Thanks for your interest! This repository holds the source code of the XPack Com
 
 `./gradlew build` does **not** rebuild the 1.12.2 and 1.7.10 jars: they are separate Gradle projects. Details are in [DEVELOPPEMENT.md](DEVELOPPEMENT.md) (French).
 
+`scripts/test-local.sh` runs all of the above in one go, plus checks that catch what a build does not: missing translation keys (a button would show `xpack.settings.x` as its label), mixin classes named in a `mixins.json` but missing (the game will not start), and leftover merge markers. Add `--jeu` to launch the real client and watch it for a crash, an error, a freeze or an option that cannot be used. On Windows, run it from Git Bash.
+
 ## Ground rules
 
 These rules protect players (many of them are young) and keep the mod acceptable on Modrinth and CurseForge. A pull request that breaks one of them will not be merged.
@@ -30,7 +32,7 @@ These rules protect players (many of them are young) and keep the mod acceptable
 ## Pull requests
 
 1. Fork, create a branch, keep changes focused.
-2. Run `./gradlew :common:test build` (and the 1.12.2 / 1.7.10 builds if you touched `common/`, `legacy/`, `forge1122/` or `forge1710/`).
+2. Run `scripts/test-local.sh` (it covers `./gradlew :common:test build` and the 1.12.2 / 1.7.10 builds when the matching JDKs are installed).
 3. Describe what you tested, and on which loader and Minecraft version.
 
 Security issues: do not open a public issue, see [SECURITY.md](SECURITY.md).
@@ -54,6 +56,8 @@ Merci de ton intérêt ! Ce dépôt contient le code source du mod client XPack 
 
 `./gradlew build` ne reconstruit **pas** les jars 1.12.2 et 1.7.10 : ce sont des projets Gradle à part. Tous les détails sont dans [DEVELOPPEMENT.md](DEVELOPPEMENT.md).
 
+`scripts/test-local.sh` enchaîne tout ce qui précède, plus ce qu'une compilation ne voit pas : clés de langue manquantes (le bouton afficherait `xpack.settings.x` au lieu de son libellé), classe de mixin citée par un `mixins.json` mais inexistante (le jeu ne démarre pas), marqueurs de fusion oubliés. Avec `--jeu`, il lance le vrai client et le surveille : crash, erreur, gel, option inutilisable. Sous Windows, le lancer depuis Git Bash.
+
 ## Règles
 
 Elles protègent les joueurs (dont beaucoup sont jeunes) et gardent le mod acceptable sur Modrinth et CurseForge. Une PR qui en enfreint une ne sera pas fusionnée.
@@ -69,7 +73,7 @@ Elles protègent les joueurs (dont beaucoup sont jeunes) et gardent le mod accep
 ## Pull requests
 
 1. Fork, crée une branche, garde des changements ciblés.
-2. Lance `./gradlew :common:test build` (et les builds 1.12.2 / 1.7.10 si tu as touché `common/`, `legacy/`, `forge1122/` ou `forge1710/`).
+2. Lance `scripts/test-local.sh` (il couvre `./gradlew :common:test build` et les builds 1.12.2 / 1.7.10 si les JDK voulus sont installés).
 3. Décris ce que tu as testé, avec quel loader et quelle version de Minecraft.
 
 Faille de sécurité : pas d'issue publique, voir [SECURITY.md](SECURITY.md).

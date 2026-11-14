@@ -74,6 +74,31 @@ Les règles anti-triche viennent de `spec/integrity-rules.json`, le même fichie
 
 > **Attention : `./gradlew build` ne construit pas 1.12.2 ni 1.7.10.** `forge1122/` et `forge1710/` sont des projets Gradle à part (sections plus bas) : sans les reconstruire, leurs jars locaux restent ceux de la version précédente (#209). Pour tester une version, prendre les 5 jars du workflow « Publier le mod » (artefacts) ou de la release GitHub, ou lancer `./gradlew build` dans chacun des deux dossiers.
 
+### Série de tests locale
+
+`scripts/test-local.sh` regroupe les vérifications à passer avant d'ouvrir une PR. Elle ne demande ni compte, ni API XPack, ni dépôt privé.
+
+```bash
+scripts/test-local.sh            # rapide et hors ligne (défaut), ~1 min
+scripts/test-local.sh --jeu      # en plus : lance le vrai client et le surveille
+scripts/test-local.sh --jeu-seul # uniquement la partie en jeu
+```
+
+Sous Windows, la lancer depuis Git Bash.
+
+La passe rapide cherche les **erreurs** avant qu'elles n'arrivent en jeu : marqueurs de fusion oubliés, clés de langue absentes d'une des deux langues ou citées par le code sans traduction (le bouton afficherait `xpack.settings.x` au lieu de son libellé), classes de mixin citées par un `mixins.json` mais inexistantes (le jeu ne démarre pas), tests unitaires du cœur, puis compilation des cinq cibles. Les portages 1.12.2 et 1.7.10 sont ignorés avec un avertissement si les JDK qu'ils exigent (8 et 25) sont absents de la machine.
+
+La passe `--jeu` lance `:fabric:runSmoke` et surveille le journal :
+
+| Cherche | Comment |
+|---|---|
+| **Crash** | rapport dans `fabric/run-smoke/crash-reports/`, ou code de sortie non nul |
+| **Erreur** | exception citant `xpack` dans le journal, ou ligne `[SMOKE] FAIL` écrite par le scénario |
+| **Gel** | plus aucune ligne de journal pendant `XPACK_GEL_S` secondes (150 par défaut), ou durée totale au-delà de `XPACK_LIMITE_S` (900) ; en plus, `SmokeTest` abandonne de lui-même une étape qui n'aboutit pas en 2 minutes, en disant laquelle |
+| **Option inutilisable** | à la fin du scénario, `SmokeTest` ouvre les écrans réglages, support, équipe et speedrun et vérifie chaque option : libellé traduit, taille non nulle, position dans l'écran, et, pour les boutons à valeurs, que les presser ne lève pas d'exception. Les boutons simples ne sont pas pressés : certains délient le compte ou ouvrent le navigateur |
+
+Le premier lancement a besoin du réseau (le jeu télécharge ses ressources). Tout est écrit dans `scripts/.sortie/`, ignoré par git.
+
 ### Test de bout en bout
 
 Le test de bout en bout (`smoke_test.py`) vit dans le dépôt du site XPack, car il démarre l’API XPack (privée) :
