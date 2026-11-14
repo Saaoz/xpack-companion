@@ -24,14 +24,17 @@ final class SmokeTest {
      */
     static final boolean ENABLED = Boolean.getBoolean("xpack.smoke") && runsFromClassesDirectory();
     /**
-     * Test de CI sans API ni compte ({@code -Dxpack.smoke.ci=true}, voir .github/workflows/runtime-test.yml) :
-     * une fois dans le monde local, le mod accorde un progrès via le serveur intégré et écrit {@link #CI_OK}
-     * quand le client le voit passer par le mixin. Sans cette ligne, le workflow échoue.
+     * Test de CI sans API ni compte, voir .github/workflows/runtime-test.yml : une fois dans le monde local, le mod
+     * accorde un progrès via le serveur intégré et écrit {@link #CI_OK} quand le client le voit passer par le mixin.
+     * Sans cette ligne, le workflow échoue.
      * Pas de garde « dossier de classes » ici, contrairement à {@link #ENABLED} : le workflow installe le jar
-     * construit et le lance avec cet argument. Ce mode n'accepte aucun consentement et ne fait qu'accorder
-     * {@link #CI_ADVANCEMENT} dans le monde local.
+     * construit. À la place, il faut <b>deux</b> signaux : {@code -Dxpack.smoke.ci=true} <b>et</b> la variable
+     * d'environnement {@code XPACK_SMOKE_CI=1}, posée par le workflow. Un modpack ou un profil de lanceur embarque
+     * facilement des arguments JVM, très difficilement une variable d'environnement : l'argument seul sur un jar de
+     * release ne fait donc plus rien. Ce mode n'accepte aucun consentement et ne fait qu'accorder {@link #CI_ADVANCEMENT}
+     * dans le monde local.
      */
-    static final boolean CI = Boolean.getBoolean("xpack.smoke.ci");
+    static final boolean CI = Boolean.getBoolean("xpack.smoke.ci") && "1".equals(System.getenv("XPACK_SMOKE_CI"));
     static final String CI_OK = "XPACK SMOKE OK";
     private static final String CI_ADVANCEMENT = "minecraft:story/root";
     private static final Logger LOG = LogUtils.getLogger();
