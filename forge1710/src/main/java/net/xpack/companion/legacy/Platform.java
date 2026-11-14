@@ -19,11 +19,25 @@ import net.xpack.companion.forge1710.Toasts1710;
 public final class Platform {
     /** Coin des toasts tant que le joueur n'a pas choisi. */
     public static final String DEFAULT_TOAST_POSITION = Toasts1710.DEFAULT_POSITION;
-    public static final List<String> SUBCOMMANDS = Client1710.SUBCOMMANDS;
+    public static final List<String> SUBCOMMANDS = LocalCommand.SUBCOMMANDS;
     public static final List<String> PRESETS = Sounds1710.PRESETS;
     public static final List<String> RARITIES = Sounds1710.RARITIES;
 
+    public static final String MC_VERSION = "1.7.10";
+
     private Platform() {}
+
+    public static java.nio.file.Path gameDir() {
+        return Client1710.gameDir();
+    }
+
+    public static List<String> modIds() {
+        return Client1710.modIds();
+    }
+
+    public static String modVersion() {
+        return Client1710.modVersion();
+    }
 
     public static XPackCore core() {
         return Client1710.core();

@@ -1,6 +1,7 @@
 package net.xpack.companion.forge1710;
 
 import net.xpack.companion.legacy.Lang;
+import net.xpack.companion.legacy.LocalCommand;
 import net.xpack.companion.legacy.LegacyUi;
 import net.xpack.companion.legacy.SettingsScreen;
 import net.xpack.companion.legacy.SupportScreen;
@@ -515,63 +516,21 @@ public final class Client1710 {
         return core.onCommand(command, resend);
     }
 
-    /** Commandes du mod, traitées dans le client et jamais envoyées au serveur. Vrai si la commande est à nous. */
+    /** Commandes du mod, traitées dans le client et jamais envoyées au serveur (voir {@link LocalCommand}). */
     public static boolean handleLocalCommand(String command) {
-        String c = command.trim();
-        if (core == null || !(c.equalsIgnoreCase("xpack") || c.toLowerCase(Locale.ROOT).startsWith("xpack "))) return false;
-        String sub = c.length() > 5 ? c.substring(5).trim().toLowerCase(Locale.ROOT) : "";
-        switch (sub) {
-            case "diagnostic":
-            case "diag":
-                runDiagnostic();
-                break;
-            case "check":
-            case "verifier":
-            case "vérifier":
-                core.checkPresence();
-                break;
-            case "settings":
-            case "reglages":
-            case "réglages":
-                defer(() -> Minecraft.getMinecraft().displayGuiScreen(new SettingsScreen(null)));
-                break;
-            case "toast":
-            case "essai":
-            case "test":
-                core.previewToast(Lang.tr("xpack.toast.preview"));
-                break;
-            case "support":
-                defer(() -> Minecraft.getMinecraft().displayGuiScreen(new SupportScreen(null)));
-                break;
-            case "team":
-            case "equipe":
-            case "équipe":
-                defer(() -> Minecraft.getMinecraft().displayGuiScreen(new TeamScreen(null)));
-                break;
-            default:
-                help();
-        }
-        return true;
+        return LocalCommand.handle(command);
     }
 
-    private static void help() {
-        LegacyUi.say(Lang.tr("xpack.command.help.title"));
-        for (String sub : SUBCOMMANDS) {
-            LegacyUi.line("  " + net.minecraft.util.EnumChatFormatting.AQUA + "/xpack " + sub + net.minecraft.util.EnumChatFormatting.DARK_GRAY + " — " + net.minecraft.util.EnumChatFormatting.GRAY + Lang.tr("xpack.command." + sub));
-        }
+    public static Path gameDir() {
+        return gameDir;
     }
 
-    /** /xpack diagnostic : fichiers du lanceur (anonymisés) + modpack détecté, dans un dossier à envoyer. */
-    private static void runDiagnostic() {
-        ModpackDetector.ModpackInfo detected = ModpackDetector.detect(gameDir, modIds);
-        String summary = "XPack Companion " + MOD_VERSION + " (forge 1.7.10), Minecraft 1.7.10\nModpack détecté : " + Diagnostics.describe(detected) + "\nMods chargés : " + modIds.size();
-        try {
-            Diagnostics.Result r = Diagnostics.write(gameDir, gameDir.resolve("xpack-diagnostic"), summary, modIds, Clock.systemUTC());
-            LegacyUi.say(Lang.tr("xpack.diagnostic.done", Diagnostics.describe(detected), r.found().isEmpty() ? "-" : String.join(", ", r.found())) + " " + r.folder().toAbsolutePath());
-        } catch (IOException e) {
-            net.xpack.companion.core.XLog.warn("diagnostic non écrit", e);
-            LegacyUi.say(Lang.tr("xpack.diagnostic.failed", e.getMessage()));
-        }
+    public static List<String> modIds() {
+        return modIds;
+    }
+
+    public static String modVersion() {
+        return MOD_VERSION;
     }
 
     // ------------------------------------------------------------------ bouton ⚙ et badge du menu pause

@@ -20,11 +20,25 @@ import net.xpack.companion.forge1122.Toasts1122;
 public final class Platform {
     /** Coin des toasts tant que le joueur n'a pas choisi. */
     public static final String DEFAULT_TOAST_POSITION = "top_right";
-    public static final List<String> SUBCOMMANDS = Client1122.SUBCOMMANDS;
+    public static final List<String> SUBCOMMANDS = LocalCommand.SUBCOMMANDS;
     public static final List<String> PRESETS = Sounds1122.PRESETS;
     public static final List<String> RARITIES = Sounds1122.RARITIES;
 
+    public static final String MC_VERSION = "1.12.2";
+
     private Platform() {}
+
+    public static java.nio.file.Path gameDir() {
+        return Client1122.gameDir();
+    }
+
+    public static List<String> modIds() {
+        return Client1122.modIds();
+    }
+
+    public static String modVersion() {
+        return Client1122.modVersion();
+    }
 
     public static XPackCore core() {
         return Client1122.core();

@@ -2,6 +2,7 @@ package net.xpack.companion.forge1710;
 
 import java.util.Collections;
 import java.util.List;
+import net.xpack.companion.legacy.LocalCommand;
 import net.minecraft.command.CommandBase;
 import net.minecraft.command.ICommandSender;
 
@@ -17,7 +18,7 @@ final class XPackCommand extends CommandBase {
 
     @Override
     public String getCommandUsage(ICommandSender sender) {
-        return "/xpack <" + String.join("|", Client1710.SUBCOMMANDS) + ">";
+        return "/xpack <" + String.join("|", LocalCommand.SUBCOMMANDS) + ">";
     }
 
     /** Disponible pour tous : le mod ne donne aucun pouvoir sur le monde. */
@@ -38,6 +39,6 @@ final class XPackCommand extends CommandBase {
 
     @Override
     public List addTabCompletionOptions(ICommandSender sender, String[] args) {
-        return args.length == 1 ? getListOfStringsMatchingLastWord(args, Client1710.SUBCOMMANDS.toArray(new String[0])) : Collections.emptyList();
+        return args.length == 1 ? getListOfStringsMatchingLastWord(args, LocalCommand.SUBCOMMANDS.toArray(new String[0])) : Collections.emptyList();
     }
 }
