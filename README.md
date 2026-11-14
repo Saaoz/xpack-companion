@@ -41,7 +41,7 @@ Le plus simple : la page **[xpack.saaoz.fr/mod](https://xpack.saaoz.fr/mod)** ch
 
 **Crée un nouveau monde** pour collectionner tes succès : en solo, un monde commencé sans le mod ne compte pas (sur un serveur, il compte toujours).
 
-> Dans l'app CurseForge, le bouton « Ajouter à un modpack » ne propose que les profils où « Autoriser la gestion du contenu de ce profil » est activé dans les options du profil. L'app ne vérifie pas le loader : choisis un profil du même loader et de la même version que le fichier.
+> Dans l'app CurseForge, le bouton « Ajouter à un modpack » ne propose que les profils où « Autoriser la gestion du contenu de ce profil » est activé dans les options du profil. L'app ne vérifie pas le loader : choisis un profil du même loader et de la même version que le fichier. Une fois XPack ajouté, repasse le profil en non modifiable (mêmes options, décoche la même case) : l’option de mise à jour du modpack revient. Mettre à jour ton modpack n’enlève pas XPack.
 
 ## Commandes
 
