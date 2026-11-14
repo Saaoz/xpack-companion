@@ -252,6 +252,7 @@ final class SpeedrunClient {
                     .withClickEvent(new net.minecraft.network.chat.ClickEvent(net.minecraft.network.chat.ClickEvent.Action.OPEN_FILE, dir.toAbsolutePath().toString())));
             MinecraftUi.say(Texts.tr("xpack.speedrun.export.done").append(" ").append(open));
         } catch (java.io.IOException e) {
+            net.xpack.companion.core.XLog.warn("export du chrono non écrit", e);
             MinecraftUi.say(Texts.tr("xpack.speedrun.export.failed", e.getMessage()));
         }
     }

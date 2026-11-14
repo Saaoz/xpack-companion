@@ -202,6 +202,7 @@ public final class XPackClient {
                     .withClickEvent(new ClickEvent(ClickEvent.Action.OPEN_FILE, r.folder().toAbsolutePath().toString())));
             MinecraftUi.say(Texts.tr("xpack.diagnostic.done", Diagnostics.describe(detected), files).append(" ").append(open));
         } catch (java.io.IOException e) {
+            net.xpack.companion.core.XLog.warn("diagnostic non écrit", e);
             MinecraftUi.say(Texts.tr("xpack.diagnostic.failed", e.getMessage()));
         }
     }

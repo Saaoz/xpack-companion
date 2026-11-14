@@ -185,7 +185,8 @@ public final class ModpackDetector {
             if (!Files.isRegularFile(file) || Files.size(file) > MAX_APP_DB_BYTES) return null;
             return new String(Files.readAllBytes(file), StandardCharsets.ISO_8859_1);
         } catch (IOException | RuntimeException e) {
-            return null; // base verrouillée ou illisible : modpack non identifié, rien de plus
+            XLog.warn("base du lanceur illisible, modpack non identifié", e);
+            return null;
         }
     }
 
@@ -261,6 +262,7 @@ public final class ModpackDetector {
             }
             return Optional.of(out);
         } catch (IOException | RuntimeException e) {
+            XLog.warn("fichier d'instance illisible", e);
             return Optional.empty();
         }
     }
@@ -281,7 +283,8 @@ public final class ModpackDetector {
             JsonElement el = J8.parseJson(r);
             return el.isJsonObject() ? Optional.of(el.getAsJsonObject()) : Optional.empty();
         } catch (IOException | RuntimeException e) {
-            return Optional.empty(); // fichier illisible : on tente la source suivante
+            XLog.warn("fichier du modpack illisible, source suivante", e);
+            return Optional.empty();
         }
     }
 }

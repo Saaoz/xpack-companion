@@ -569,6 +569,7 @@ public final class Client1710 {
             Diagnostics.Result r = Diagnostics.write(gameDir, gameDir.resolve("xpack-diagnostic"), summary, modIds, Clock.systemUTC());
             LegacyUi.say(Lang.tr("xpack.diagnostic.done", Diagnostics.describe(detected), r.found().isEmpty() ? "-" : String.join(", ", r.found())) + " " + r.folder().toAbsolutePath());
         } catch (IOException e) {
+            net.xpack.companion.core.XLog.warn("diagnostic non écrit", e);
             LegacyUi.say(Lang.tr("xpack.diagnostic.failed", e.getMessage()));
         }
     }

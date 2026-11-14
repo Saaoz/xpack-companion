@@ -10,7 +10,7 @@ loom {
         defaultRefmapName = "xpack.refmap.json"
     }
     runs {
-        // Test de bout en bout dans le vrai client : voir DEVELOPPEMENT.md (le script vit dans le dépôt du site XPack).
+        // Test de bout en bout dans le vrai client (le script de pilotage n'est pas dans ce dépôt).
         smoke {
             client()
             name = "Smoke test"

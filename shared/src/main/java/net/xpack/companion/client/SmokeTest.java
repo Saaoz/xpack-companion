@@ -9,7 +9,7 @@ import org.slf4j.Logger;
 
 /**
  * Scénario de bout en bout exécuté dans le vrai client, uniquement avec {@code -Dxpack.smoke=true}
- * (tâche Gradle {@code runSmoke}, voir mod/README.md). Il rejoue ce que ferait un joueur :
+ * (tâche Gradle {@code runSmoke}). Il rejoue ce que ferait un joueur :
  * commande de triche → alerte → confirmation → progrès accordés → envoi au serveur, puis quitte le jeu.
  * Chaque étape écrit une ligne « [SMOKE] » dans le journal, vérifiée par le script de test.
  */
