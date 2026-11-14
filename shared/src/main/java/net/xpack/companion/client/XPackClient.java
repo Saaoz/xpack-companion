@@ -210,6 +210,7 @@ public final class XPackClient {
                     .withClickEvent(new ClickEvent(ClickEvent.Action.OPEN_FILE, r.folder().toAbsolutePath().toString())));
             MinecraftUi.say(Texts.tr("xpack.diagnostic.done", Diagnostics.describe(detected), files).append(" ").append(open));
         } catch (java.io.IOException e) {
+            net.xpack.companion.core.XLog.warn("diagnostic non écrit", e);
             MinecraftUi.say(Texts.tr("xpack.diagnostic.failed", e.getMessage()));
         }
     }
@@ -408,7 +409,7 @@ public final class XPackClient {
         } else {
             ServerData data = mc.getCurrentServer();
             String address = data != null ? data.ip : "inconnu";
-            storeFile = configDir.resolve("xpack").resolve("servers").resolve(sha256(address.toLowerCase()).substring(0, 24) + ".json");
+            storeFile = net.xpack.companion.core.ServerStore.fileFor(sha256(address.toLowerCase()).substring(0, 24), configDir);
             kind = "multiplayer";
             cheatsAllowed = mc.player.hasPermissions(2);
         }
@@ -440,6 +441,7 @@ public final class XPackClient {
             inWorld = true;
         }
         SmokeTest.log("advancements done=" + doneIds + " initial=" + initialSync);
+        SmokeTest.onAdvancements(doneIds);
         core.onAdvancements(doneIds, initialSync, playtime(mc));
     }
 

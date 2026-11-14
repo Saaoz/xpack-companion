@@ -36,6 +36,7 @@ public final class QuestRewards {
             try (Stream<Path> files = Files.walk(dir)) {
                 files.filter(p -> p.toString().endsWith(".snbt") || p.toString().endsWith(".json")).limit(MAX_FILES).forEach(p -> read(p, items));
             } catch (IOException | RuntimeException e) {
+                XLog.warn("dossier de quêtes illisible", e);
                 // Dossier illisible : pas d'explication par les quêtes, rien de plus.
             }
         }
@@ -47,6 +48,7 @@ public final class QuestRewards {
             if (Files.size(file) > MAX_FILE_BYTES) return;
             items.addAll(rewardItems(J8.readString(file, StandardCharsets.UTF_8)));
         } catch (IOException | RuntimeException e) {
+            XLog.warn("fichier de quête illisible", e);
             // Fichier illisible : ignoré.
         }
     }

@@ -52,7 +52,7 @@ public final class SpeedrunCategories {
     private SpeedrunCategories() {}
 
     /**
-     * Identifiant de modpack côté serveur ({@code resolveModpackId}, server/src/app.ts) calculé depuis ce que le
+     * Identifiant de modpack côté serveur ({@code resolveModpackId}, non inclus dans ce dépôt) calculé depuis ce que le
      * mod a détecté : {@code mr-<projet>}, {@code cf-<projet>}, sinon {@code pack-<nom>}. Null si le pack n'est pas
      * identifiable (les packs {@code hash-…} n'ont pas de catégories).
      */

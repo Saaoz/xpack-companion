@@ -29,7 +29,7 @@ import java.util.function.Function;
  *       {@code completed} : identifiant hexadécimal → date de fin en ms), réécrite par FTB Quests à
  *       chaque sauvegarde du monde.</li>
  * </ul>
- * Même lecture que {@code server/src/ftbQuests.ts}.
+ * Même lecture que celle du serveur XPack (non inclus dans ce dépôt).
  */
 public final class FtbQuests {
     /** Préfixe des identifiants XPack : « ftbquests:quest/27F62C4B42B16015 ». */
@@ -104,6 +104,7 @@ public final class FtbQuests {
                 chapters.add(c);
             }
         } catch (IOException | RuntimeException e) {
+            XLog.warn("dossier de chapitres FTB Quests illisible", e);
             return Collections.emptyList();
         }
         // Ordre du livre : sans groupe, puis groupe par groupe, puis order_index, puis le nom du fichier.
@@ -212,6 +213,7 @@ public final class FtbQuests {
             try (DirectoryStream<Path> files = Files.newDirectoryStream(dir, "*.snbt")) {
                 for (Path p : files) all.add(p);
             } catch (IOException | RuntimeException e) {
+                XLog.warn("dossier d'équipes FTB Quests illisible", e);
                 return own;
             }
         }
@@ -335,6 +337,7 @@ public final class FtbQuests {
             JsonElement e = Snbt.parse(new String(Files.readAllBytes(file), StandardCharsets.UTF_8));
             return e.isJsonObject() ? e.getAsJsonObject() : null;
         } catch (IOException | RuntimeException e) {
+            XLog.warn("fichier FTB Quests illisible", e);
             return null; // fichier en cours d'écriture ou abîmé : ignoré
         }
     }

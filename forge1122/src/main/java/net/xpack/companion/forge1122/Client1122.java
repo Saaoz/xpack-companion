@@ -1,5 +1,11 @@
 package net.xpack.companion.forge1122;
 
+import net.xpack.companion.legacy.Lang;
+import net.xpack.companion.legacy.LocalCommand;
+import net.xpack.companion.legacy.LegacyUi;
+import net.xpack.companion.legacy.SettingsScreen;
+import net.xpack.companion.legacy.SupportScreen;
+import net.xpack.companion.legacy.TeamScreen;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import java.io.File;
@@ -100,7 +106,7 @@ public final class Client1122 {
     /** Actions à jouer au prochain tick : le chat se ferme juste après l'envoi d'une commande et refermerait un écran ouvert tout de suite. */
     private static final java.util.Queue<Runnable> DEFERRED = new java.util.concurrent.ConcurrentLinkedQueue<>();
 
-    static void defer(Runnable action) {
+    public static void defer(Runnable action) {
         DEFERRED.add(action);
     }
 
@@ -125,7 +131,7 @@ public final class Client1122 {
         config.save(configFile); // écrit les valeurs par défaut au premier lancement
         String userAgent = "XPackCompanion/" + MOD_VERSION + " (forge 1.12.2)";
         ApiClient api = new ApiClient(ApiClient.http(() -> config.apiUrl, userAgent));
-        core = new XPackCore(config, configFile, new Credentials(Credentials.defaultLocation()), api, new Ui1122(), mc::addScheduledTask, Clock.systemUTC(), IntegrityRules.bundled());
+        core = new XPackCore(config, configFile, new Credentials(Credentials.defaultLocation()), api, new LegacyUi(), mc::addScheduledTask, Clock.systemUTC(), IntegrityRules.bundled());
         core.setLoadedMods(modIds);
         core.setLocalProbe(new ApiClient(ApiClient.http(Config.LOCAL_API, userAgent)));
         // Fichier du monde écrit hors du thread de jeu (#74), et une dernière fois à la fermeture.
@@ -260,7 +266,7 @@ public final class Client1122 {
         } else {
             net.minecraft.client.multiplayer.ServerData data = mc.getCurrentServerData();
             String address = data != null ? data.serverIP : "inconnu";
-            storeFile = configDir.resolve("xpack").resolve("servers").resolve(sha256(address.toLowerCase(Locale.ROOT)).substring(0, 24) + ".json");
+            storeFile = net.xpack.companion.core.ServerStore.fileFor(sha256(address.toLowerCase(Locale.ROOT)).substring(0, 24), configDir);
             kind = "multiplayer";
             cheatsAllowed = mc.player.canUseCommand(2, "");
         }
@@ -437,64 +443,21 @@ public final class Client1122 {
         if (!core.onCommand(command, resend)) event.setCanceled(true);
     }
 
-    /** Commandes du mod, traitées dans le client et jamais envoyées au serveur. Vrai si la commande est à nous. */
-    static boolean handleLocalCommand(String command) {
-        String c = command.trim();
-        if (core == null || !(c.equalsIgnoreCase("xpack") || c.toLowerCase(Locale.ROOT).startsWith("xpack "))) return false;
-        String sub = c.length() > 5 ? c.substring(5).trim().toLowerCase(Locale.ROOT) : "";
-        Minecraft mc = Minecraft.getMinecraft();
-        switch (sub) {
-            case "diagnostic":
-            case "diag":
-                runDiagnostic();
-                break;
-            case "check":
-            case "verifier":
-            case "vérifier":
-                core.checkPresence();
-                break;
-            case "settings":
-            case "reglages":
-            case "réglages":
-                defer(() -> mc.displayGuiScreen(new SettingsScreen1122(null)));
-                break;
-            case "toast":
-            case "essai":
-            case "test":
-                core.previewToast(Lang.tr("xpack.toast.preview"));
-                break;
-            case "support":
-                defer(() -> mc.displayGuiScreen(new SupportScreen1122(null)));
-                break;
-            case "team":
-            case "equipe":
-            case "équipe":
-                defer(() -> Minecraft.getMinecraft().displayGuiScreen(new TeamScreen1122(null)));
-                break;
-            default:
-                help();
-        }
-        return true;
+    /** Commandes du mod, traitées dans le client et jamais envoyées au serveur (voir {@link LocalCommand}). */
+    public static boolean handleLocalCommand(String command) {
+        return LocalCommand.handle(command);
     }
 
-    /** Sous-commandes, dans l'ordre de l'aide. Leur description est la clé {@code xpack.command.<nom>}. */
-    static final List<String> SUBCOMMANDS = J8.listOf("settings", "toast", "team", "check", "diagnostic", "support", "help");
-
-    private static void help() {
-        Ui1122.say(Lang.tr("xpack.command.help.title"));
-        for (String sub : SUBCOMMANDS) Ui1122.line("  " + net.minecraft.util.text.TextFormatting.AQUA + "/xpack " + sub + net.minecraft.util.text.TextFormatting.DARK_GRAY + " — " + net.minecraft.util.text.TextFormatting.GRAY + Lang.tr("xpack.command." + sub));
+    public static Path gameDir() {
+        return gameDir;
     }
 
-    /** /xpack diagnostic : fichiers du lanceur (anonymisés) + modpack détecté, dans un dossier à envoyer. */
-    private static void runDiagnostic() {
-        ModpackDetector.ModpackInfo detected = ModpackDetector.detect(gameDir, modIds);
-        String summary = "XPack Companion " + MOD_VERSION + " (forge 1.12.2), Minecraft 1.12.2\nModpack détecté : " + Diagnostics.describe(detected) + "\nMods chargés : " + modIds.size();
-        try {
-            Diagnostics.Result r = Diagnostics.write(gameDir, gameDir.resolve("xpack-diagnostic"), summary, modIds, Clock.systemUTC());
-            Ui1122.say(Lang.tr("xpack.diagnostic.done", Diagnostics.describe(detected), r.found().isEmpty() ? "-" : String.join(", ", r.found())) + " " + r.folder().toAbsolutePath());
-        } catch (IOException e) {
-            Ui1122.say(Lang.tr("xpack.diagnostic.failed", e.getMessage()));
-        }
+    public static List<String> modIds() {
+        return modIds;
+    }
+
+    public static String modVersion() {
+        return MOD_VERSION;
     }
 
     // ------------------------------------------------------------------ bouton XPack du menu pause
@@ -536,7 +499,7 @@ public final class Client1122 {
     @SubscribeEvent
     public void onPauseMenuAction(GuiScreenEvent.ActionPerformedEvent.Post event) {
         if (event.getGui() instanceof GuiIngameMenu && event.getButton().id == PAUSE_BUTTON_ID) {
-            Minecraft.getMinecraft().displayGuiScreen(new SettingsScreen1122(event.getGui()));
+            Minecraft.getMinecraft().displayGuiScreen(new SettingsScreen(event.getGui()));
         }
     }
 

@@ -14,10 +14,10 @@ import net.xpack.companion.core.J8;
  * Son d'un succès XPack (#59), joué avec son toast, comme dans les autres versions : uniquement des
  * sons du jeu. Plus le succès est rare, plus il y a de notes ; un légendaire termine par un accord.
  */
-final class Sounds1122 {
+public final class Sounds1122 {
     /** Sons proposés dans les réglages, dans l'ordre du bouton. */
-    static final List<String> PRESETS = J8.listOf("gourmand", "carillon", "cloche", "fanfare", "off");
-    static final List<String> RARITIES = J8.listOf("commun", "peu_commun", "rare", "epique", "legendaire");
+    public static final List<String> PRESETS = J8.listOf("gourmand", "carillon", "cloche", "fanfare", "off");
+    public static final List<String> RARITIES = J8.listOf("commun", "peu_commun", "rare", "epique", "legendaire");
 
     private static final class Note {
         final long tick;
@@ -50,12 +50,12 @@ final class Sounds1122 {
 
     private Sounds1122() {}
 
-    static void play(Config c, String rarity) {
+    public static void play(Config c, String rarity) {
         play(c.sound, c.soundVolume, rarity);
     }
 
     /** Réglages : l'écoute d'un aperçu ne doit pas compter comme un succès enchaîné. */
-    static void resetCombo() {
+    public static void resetCombo() {
         combo = 0;
         lastUnlockAt = 0;
     }

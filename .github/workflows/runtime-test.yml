@@ -1,0 +1,93 @@
+# Lance le mod dans un vrai client Minecraft sans écran (HeadlessMC + MC-Runtime-Test) pour attraper
+# une régression de mixin ou de loader avant une version. Hors ligne : aucun compte, aucune API XPack.
+# Le client rejoint un monde solo ; avec -Dxpack.smoke.ci=true le mod y accorde un progrès et écrit
+# « XPACK SMOKE OK » dans le journal quand il le détecte. Le workflow échoue sans cette ligne.
+# Pas couvert : 1.12.2 et 1.7.10 (MC-Runtime-Test les gère, mais ces ports n'ont pas ce scénario).
+name: Runtime test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Construire les jars
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: gradle/actions/setup-gradle@v4
+      - run: ./gradlew build -x test --console=plain
+      - uses: actions/upload-artifact@v4
+        with:
+          name: runtime-jars
+          path: |
+            fabric/build/libs/*.jar
+            neoforge/build/libs/*.jar
+            forge/build/libs/*.jar
+          if-no-files-found: error
+
+  run:
+    name: ${{ matrix.name }}
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: Fabric 1.21.1, modloader: fabric, mc: 1.21.1, java: 21, jar: fabric }
+          - { name: NeoForge 1.21.1, modloader: neoforge, mc: 1.21.1, java: 21, jar: neoforge }
+          - { name: Forge 1.20.1, modloader: forge, mc: 1.20.1, java: 17, jar: forge }
+    steps:
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ matrix.java }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: runtime-jars
+          path: jars
+      - name: Installer le jar du mod
+        run: |
+          mkdir -p run/mods
+          jar=$(find "jars/${{ matrix.jar }}/build/libs" -name '*.jar' ! -name '*-sources*' ! -name '*-dev*' | head -n 1)
+          test -n "$jar" || { echo "Jar ${{ matrix.jar }} introuvable"; find jars; exit 1; }
+          echo "Mod : $jar"
+          cp "$jar" run/mods/
+      - name: Lancer le client sans écran
+        uses: headlesshq/mc-runtime-test@5.0.0
+        with:
+          mc: ${{ matrix.mc }}
+          modloader: ${{ matrix.modloader }}
+          mc-runtime-test: ${{ matrix.modloader }}
+          mc-runtime-test-version: 5.0.0
+          java: ${{ matrix.java }}
+          headlessmc-command: --jvm "-Djava.awt.headless=true -Dxpack.smoke.ci=true"
+      - name: Vérifier le scénario du mod
+        run: |
+          log=run/logs/latest.log
+          test -f "$log" || { echo "Journal introuvable : $log"; exit 1; }
+          if grep -q "XPACK SMOKE OK" "$log"; then
+            grep "XPACK SMOKE" "$log"
+          else
+            echo "::error::Le mod n'a pas détecté le progrès accordé (ligne « XPACK SMOKE OK » absente)."
+            grep -i "xpack" "$log" | tail -n 50 || true
+            exit 1
+          fi
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: logs-${{ matrix.modloader }}-${{ matrix.mc }}
+          path: |
+            run/logs/
+            run/crash-reports/
+          if-no-files-found: ignore

@@ -1,5 +1,6 @@
 package net.xpack.companion.forge1710;
 
+import net.xpack.companion.legacy.Lang;
 import cpw.mods.fml.common.eventhandler.SubscribeEvent;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -83,20 +84,20 @@ public final class Toasts1710 {
     private static final Deque<Toast> completions = new ArrayDeque<>();
     private static final List<Toast> active = new ArrayList<>();
 
-    static void unlocked(Ui.Unlock unlock) {
+    public static void unlocked(Ui.Unlock unlock) {
         unlocks.add(unlock);
     }
 
-    static void alert(String reason) {
+    public static void alert(String reason) {
         alerts.add(new Toast(Toast.ALERT, 220, 20_000, Lang.tr("xpack.alert.title"), reason, 0xFFB347, 0));
     }
 
-    static void completed(String modpackName, int achievements, long playtimeTicks) {
+    public static void completed(String modpackName, int achievements, long playtimeTicks) {
         long hours = Math.max(1, Math.round(playtimeTicks / 72_000.0));
         completions.add(completion(Lang.tr("xpack.toast.completed"), modpackName, Lang.tr("xpack.toast.completedDetail", achievements, hours), GOLD, 100));
     }
 
-    static void milestone(String modpackName, int tier, int achievements, int total) {
+    public static void milestone(String modpackName, int tier, int achievements, int total) {
         int color = tier >= 75 ? GOLD : tier >= 50 ? SILVER : BRONZE;
         completions.add(completion(Lang.tr("xpack.toast.milestone", tier), modpackName, Lang.tr("xpack.toast.milestoneDetail", achievements, total), color, tier));
     }
@@ -250,7 +251,7 @@ public final class Toasts1710 {
     }
 
     /** Coin par défaut en 1.7.10 : le haut à droite est la place de la fenêtre d'achievement du jeu. */
-    static final String DEFAULT_POSITION = "bottom_right";
+    public static final String DEFAULT_POSITION = "bottom_right";
 
     private static void draw(int screenWidth, int screenHeight) {
         String corner = Client1710.core() == null ? DEFAULT_POSITION : Client1710.core().config().toastPosition(DEFAULT_POSITION);

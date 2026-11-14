@@ -8,7 +8,7 @@ import java.net.URI;
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 
-/** Client HTTP de l'API XPack (docs/API.md). Asynchrone : n'est jamais appelé depuis le thread de rendu en mode bloquant. */
+/** Client HTTP de l'API XPack (service du site, non inclus dans ce dépôt). Asynchrone : n'est jamais appelé depuis le thread de rendu en mode bloquant. */
 public final class ApiClient implements Backend {
     /** Réponse brute ; {@code status = 0} signale une erreur réseau. */
     public static final class Response {
@@ -104,6 +104,7 @@ public final class ApiClient implements Backend {
                 java.io.InputStream in = status >= 400 ? con.getErrorStream() : con.getInputStream();
                 return new Response(status, parse(in == null ? null : readAll(in)));
             } catch (java.io.IOException | RuntimeException e) {
+                XLog.warn("appel à l'API XPack impossible", e);
                 return new Response(0, new JsonObject());
             } finally {
                 if (con != null) con.disconnect();
@@ -135,6 +136,7 @@ public final class ApiClient implements Backend {
             }
             return el.isJsonObject() ? el.getAsJsonObject() : new JsonObject();
         } catch (RuntimeException e) {
+            XLog.warn("réponse de l'API XPack illisible", e);
             return new JsonObject();
         }
     }

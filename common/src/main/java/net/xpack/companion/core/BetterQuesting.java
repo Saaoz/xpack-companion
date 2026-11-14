@@ -87,6 +87,7 @@ public final class BetterQuesting {
             JsonElement e = J8.parseJson(r);
             return e != null && e.isJsonObject() ? e.getAsJsonObject() : null;
         } catch (IOException | RuntimeException e) {
+            XLog.warn("fichier BetterQuesting illisible", e);
             return null; // fichier en cours d'écriture ou abîmé : on réessaiera
         }
     }

@@ -7,7 +7,7 @@ import java.util.Locale;
 
 /**
  * Jeu en groupe (#126) : les UUID Minecraft des joueurs ne partent jamais en clair, seulement leur
- * empreinte. Même calcul que le serveur ({@code presenceHash} dans {@code server/src/presence.ts}).
+ * empreinte. Même calcul que le serveur XPack ({@code presenceHash}, non inclus dans ce dépôt).
  */
 public final class Presence {
     /** Statut d'un autre joueur pour {@code /xpack check}. */

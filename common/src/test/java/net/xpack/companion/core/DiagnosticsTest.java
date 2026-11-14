@@ -42,7 +42,7 @@ class DiagnosticsTest {
         assertTrue(cfg.contains("name=MonPack"));
         assertFalse(cfg.contains("JavaPath"), "les chemins d'instance.cfg ne sortent pas");
         String cf = Files.readString(r.folder().resolve("jeu-minecraftinstance.json"));
-        assertTrue(cf.contains("<HOME>"));
+        assertFalse(cf.contains("installPath"), "les champs hors liste blanche ne sortent pas");
         assertFalse(cf.toLowerCase().contains(home.replace("\\", "\\\\").toLowerCase()));
         assertTrue(cf.contains("925200"));
         assertEquals("create\nsodium\n", Files.readString(r.folder().resolve("mods.txt")));

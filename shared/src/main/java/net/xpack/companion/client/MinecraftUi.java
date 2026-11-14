@@ -36,6 +36,15 @@ final class MinecraftUi implements Ui {
     @Override
     public void askConsent(java.util.function.Consumer<Boolean> answer) {
         Minecraft mc = Minecraft.getInstance();
+        if (SmokeTest.CI && !SmokeTest.ENABLED) {
+            // CI sans écran (runtime-test.yml) : MC-Runtime-Test attend « mc.screen == null » pour
+            // avancer ; un écran ouvert bloque le job jusqu'au délai de 25 min. Personne ne peut
+            // répondre ici, et le scénario de CI n'a besoin d'aucun envoi à l'API : on refuse.
+            // Le scénario complet (-Dxpack.smoke=true) garde l'écran : SmokeTest le capture puis l'accepte.
+            SmokeTest.ciLog("consent auto-refused (CI)");
+            mc.tell(() -> answer.accept(false));
+            return;
+        }
         // Différé : l'écran de chargement du monde se ferme au premier tick en jeu.
         mc.tell(() -> mc.setScreen(new ConsentScreen(answer)));
     }

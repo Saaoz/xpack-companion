@@ -15,7 +15,7 @@ public final class Config {
     public static final String ONLINE_API = "https://api.xpack.saaoz.fr";
     public static final String ONLINE_LINK = "https://xpack.saaoz.fr/link";
     /**
-     * Serveur de développement sur le PC (Docker local : {@code npm run dev:docker}). Proposé dans les
+     * Serveur de développement sur le PC (serveur XPack lancé en local, hors de ce dépôt). Proposé dans les
      * réglages seulement quand il répond (voir {@link XPackCore#detectLocalServer}).
      */
     public static final String LOCAL_API = "http://localhost:8787";
@@ -171,8 +171,8 @@ public final class Config {
                     return c;
                 }
             }
-        } catch (IOException | RuntimeException ignored) {
-            // configuration illisible : valeurs par défaut
+        } catch (IOException | RuntimeException e) {
+            XLog.warn("configuration xpack.json illisible, valeurs par défaut", e);
         }
         return new Config();
     }
@@ -181,7 +181,8 @@ public final class Config {
         try {
             Files.createDirectories(file.getParent());
             J8.writeString(file, GSON.toJson(this), StandardCharsets.UTF_8);
-        } catch (IOException ignored) {
+        } catch (IOException e) {
+            XLog.warn("configuration xpack.json non enregistrée", e);
             // disque indisponible : la configuration reste valable pour la session
         }
     }

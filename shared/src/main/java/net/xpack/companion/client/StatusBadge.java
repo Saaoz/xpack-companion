@@ -4,6 +4,7 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
 import net.xpack.companion.core.XPackCore;
 
 /** Pastille 🟢 comptabilisé / 🟡 hors-ligne ou non lié / 🔴 non comptabilisé (#39). */
@@ -24,9 +25,15 @@ public final class StatusBadge {
             case STARTED_LATE -> 0xFF5555;
         };
         Minecraft mc = Minecraft.getInstance();
-        Component label = Component.literal("● ").withStyle(s -> s.withColor(color))
+        MutableComponent label = Component.literal("● ").withStyle(s -> s.withColor(color))
                 .append(Component.literal("XPack · ").withStyle(ChatFormatting.WHITE))
                 .append(Texts.tr("xpack.badge." + status.name().toLowerCase(java.util.Locale.ROOT)).withStyle(ChatFormatting.GRAY));
+        // Réponse du serveur sur le modpack (#4) : rien tant qu'il ne l'a pas donnée.
+        Boolean recognized = status == XPackCore.Status.COUNTED ? core.modpackRecognized() : null;
+        if (recognized != null) {
+            label = label.copy().append(Component.literal(" · ").withStyle(ChatFormatting.DARK_GRAY))
+                    .append(Texts.tr(recognized ? "xpack.badge.modpack_recognized" : "xpack.badge.modpack_unrecognized").withStyle(recognized ? ChatFormatting.GREEN : ChatFormatting.YELLOW));
+        }
         // À droite du bouton ⚙ (PauseScreenMixin).
         g.drawString(mc.font, label, 28, 10, 0xFFFFFF);
         if (!logged) {

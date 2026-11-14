@@ -35,9 +35,9 @@ processResources {
     }
 }
 
-// Cœur commun du mod (Java 8, sans Minecraft) compilé tel quel dans ce jar.
+// Cœur commun du mod (Java 8, sans Minecraft) et code commun des ports 1.12.2 / 1.7.10 (legacy/) compilé tel quel dans ce jar.
 sourceSets.main {
-    java.srcDirs += ["${rootDir}/../common/src/main/java"]
+    java.srcDirs += ["${rootDir}/../common/src/main/java", "${rootDir}/../legacy/src/main/java"]
     // Textes du mod : les mêmes fichiers de langue que les autres versions.
     resources.srcDirs += ["${rootDir}/../shared/src/main/resources"]
 }
