@@ -12,6 +12,10 @@ Mod **client uniquement** qui envoie en temps réel tes progrès Minecraft à XP
 | NeoForge | 1.21.1 | `neoforge/build/libs/xpack-companion-neoforge-1.21.1-<version>.jar` |
 | Forge | 1.20.1 (Java 17) | `forge/build/libs/xpack-companion-forge-1.20.1-<version>.jar` (remappé pour Forge : c'est celui-là qu'il faut distribuer, pas celui de `build/devlibs`) |
 
+## Mixins obligatoires et facultatifs
+
+Un mixin obligatoire dont le point d'injection ne correspond plus fait planter le jeu au démarrage. Le mod est donc coupé en deux fichiers : `xpack.mixins.json` (obligatoire : `MinecraftMixin`, `ClientAdvancementsMixin`, et dans `ClientPacketListenerMixin` les commandes `sendCommand` / `sendUnsignedCommand`, indispensables à l'anti-triche) et `xpack.optional.mixins.json` (`"required": false`, `defaultRequire` à 0 : badge, bouton du menu pause, suggestions /xpack, toasts placés et chrono, minage). Si un mixin facultatif ne s'applique pas, il est ignoré avec un avertissement et le mod fonctionne sans (repli dans le code : toasts dans la file du jeu, pas de badge). `handleAwardStats` et `handleTakeItemEntity` sont aussi en `require = 0`. Avant de livrer, démarrer chaque loader.
+
 ## Ce que fait le mod
 
 - **Liaison du compte** (#34) : uniquement depuis les réglages (menu pause → ⚙, ou `/xpack settings`, aussi au menu principal). Le code s'y affiche avec **Ouvrir le site** (`/link?code=…` prérempli, le site demande « Lier le compte Minecraft *Steve* ? ») et **Copier le code**. Dans le chat, un seul rappel par lancement (« lie ton compte via ⚙ »), jamais de code ni de lien. Un code expiré n'est pas relancé tout seul.
@@ -37,10 +41,10 @@ Mod **client uniquement** qui envoie en temps réel tes progrès Minecraft à XP
 - **Identification du modpack** (#38) : `modrinth.index.json`, `minecraftinstance.json` (CurseForge), `manifest.json`, sinon empreinte de la liste de mods.
 - **Anti-triche** (#43, #44, #47, #48) :
   - alerte avant toute commande de triche, y compris F3+F4 ;
-  - détection du mode créatif ou spectateur, de l'invulnérabilité et du vol en survie ;
+  - détection du mode créatif ou spectateur, de l'invulnérabilité en survie (le vol n'est pas détecté) ;
   - un monde signalé le reste, et le serveur fait foi.
 - **Toast** « Succès XPack » (#39) et messages en français et en anglais.
-- **Son des succès** (#59), joué avec le toast. Quatre sons au choix (gourmand, carillon, cloche, fanfare) ou coupé, avec un volume réglable. Plus le succès est rare, plus le son est marqué. Ce sont des sons du jeu : ils marchent aussi sur Fabric sans Fabric API. Le bouton **▶** des réglages fait écouter chaque rareté, de commune à légendaire.
+- **Son des succès** (#59), joué avec le toast. Quatre sons au choix (gourmand par défaut, carillon, cloche, fanfare) ou coupé, avec un volume réglable. Plus le succès est rare, plus le son est marqué. Ce sont des sons du jeu : ils marchent aussi sur Fabric sans Fabric API. Le bouton **▶** des réglages fait écouter chaque rareté, de commune à légendaire.
 
 ## Structure
 
@@ -80,6 +84,8 @@ Le test de bout en bout (`smoke_test.py`) vit dans le dépôt du site XPack, car
 
 Le mod tape alors `/give`, vérifie l'écran d'alerte, confirme, s'accorde deux progrès puis quitte. Le script vérifie ensuite, côté API, la session, les événements, le statut « signalé » et le succès débloqué.
 
+**Garde-fou :** `-Dxpack.smoke=true` ne suffit pas. `SmokeTest` ne s'active que si le code tourne depuis un dossier de classes (espace de travail Gradle, tâche `runSmoke`), jamais depuis un jar : un jar de release, même lancé avec cet argument par un profil de lanceur, ne peut pas accepter le consentement ni confirmer l'alerte à la place du joueur.
+
 Prérequis : Java 21, Node 20+, `xvfb-run`, Mesa, et `pip install nbtlib`.
 
 ### Test en jeu en CI (sans écran, hors ligne)
@@ -90,9 +96,9 @@ Le workflow `.github/workflows/runtime-test.yml` ([MC-Runtime-Test](https://gith
 
 | Clé | Rôle |
 |---|---|
-| `apiUrl` | Adresse de l'API XPack |
-| `linkUrl` | Page du site où saisir le code de liaison |
-| `consented` | Réponse à l'écran de consentement du premier lancement (absent = pas encore demandé ; rien n'est envoyé sans `true`) |
+| `apiUrl` | Adresse de l'API XPack. Seules `https://api.xpack.saaoz.fr` et `http://localhost:8787` sont acceptées, à l'identique ; toute autre valeur (un modpack peut livrer ce fichier) est ignorée au profit de la valeur par défaut |
+| `linkUrl` | Page du site où saisir le code de liaison. Même origine que `https://xpack.saaoz.fr` (ou `http://localhost:5173` en développement), sinon valeur par défaut |
+| `consented` | **N'est plus lu dans ce fichier.** La réponse à l'écran de consentement (absente = pas encore demandé ; rien n'est envoyé sans `true`) est rangée hors de l'instance, dans `credentials.json` du dossier utilisateur (`%APPDATA%XPack` sous Windows), comme les jetons, pour qu'un modpack ne puisse pas la pré-cocher. Un ancien `"consented"` présent dans `config/xpack.json` est ignoré (jamais migré). `-Dxpack.credentials` n'est honoré que depuis un dossier de classes, pas depuis un jar |
 | `enabled` | Coupe tout envoi sans délier le compte |
 | `toasts` | Notifications de succès en jeu |
 | `badge` | Pastille d'état XPack dans le menu pause (comptabilisé / hors-ligne / non comptabilisé) |
@@ -135,7 +141,7 @@ Le jeton de liaison **n'est pas** dans `config/xpack.json`. Le dossier `config/`
 | Windows | `%APPDATA%\XPack\credentials.json` |
 | macOS | `~/Library/Application Support/XPack/credentials.json` |
 | Linux | `$XDG_CONFIG_HOME/xpack/credentials.json` (sinon `~/.config/xpack/`) |
-| Autre emplacement | `-Dxpack.credentials=<fichier>` (tests, installations portables) |
+| Autre emplacement | `-Dxpack.credentials=<fichier>` (tests et espace de travail Gradle seulement ; ignoré depuis un jar de release) |
 
 Un jeton laissé dans `config/xpack.json` par une ancienne version est déplacé automatiquement au démarrage.
 

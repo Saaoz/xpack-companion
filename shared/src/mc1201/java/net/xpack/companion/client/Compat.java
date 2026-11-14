@@ -35,7 +35,11 @@ public final class Compat {
 
     /** Menu pause complet (pas l'écran réduit de F3+Échap) : pas de méthode publique en 1.20.1. */
     public static boolean showsPauseMenu(PauseScreen screen) {
-        return ((PauseScreenAccessor) screen).xpack$showPauseMenu();
+        try {
+            return ((PauseScreenAccessor) screen).xpack$showPauseMenu();
+        } catch (ClassCastException | LinkageError e) {
+            return false; // mixin facultatif non appliqué : ni badge ni bouton dans le menu pause, le mod fonctionne sans
+        }
     }
 
     static String userUuid(Minecraft mc) {

@@ -13,16 +13,19 @@ authors = "XPack"
 [[mixins]]
 config = "xpack.mixins.json"
 
+[[mixins]]
+config = "xpack.optional.mixins.json"
+
 [[dependencies.xpack]]
 modId = "neoforge"
 type = "required"
-versionRange = "[21.1,)"
+versionRange = "[21.1,21.2)"
 ordering = "NONE"
 side = "CLIENT"
 
 [[dependencies.xpack]]
 modId = "minecraft"
 type = "required"
-versionRange = "[${minecraft_version},1.22)"
+versionRange = "[${minecraft_version},1.21.2)"
 ordering = "NONE"
 side = "CLIENT"

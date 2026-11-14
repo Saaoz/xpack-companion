@@ -133,8 +133,16 @@ public final class XPackClient {
     /** Fin de la fenêtre pendant laquelle la touche du support est active (durée du toast). */
     private static long alertUntil;
 
+    /** Vrai dès que le mixin de dessin (facultatif) a été appelé au moins une fois : sinon nos toasts hors du coin du jeu ne seraient jamais dessinés. */
+    private static volatile boolean placedToastsRender;
+
+    static boolean placedToastsRender() {
+        return placedToastsRender;
+    }
+
     /** Appelé après le dessin des toasts du jeu (mixin) : les nôtres, s'ils sont dans un autre coin. */
     public static void renderPlacedToasts(net.minecraft.client.gui.GuiGraphics graphics, net.minecraft.client.gui.components.toasts.ToastComponent toasts) {
+        placedToastsRender = true;
         XPackToasts.render(graphics, toasts);
         SpeedrunClient.render(graphics, core); // chrono du speedrun libre (#219), par-dessus le jeu et les menus
     }

@@ -191,7 +191,7 @@ public final class SettingsScreen extends LegacyGuiScreen {
                 else core.startLinking(uuid(), name());
                 break;
             case OPEN_SITE:
-                if (link != null && link.url() != null) openLink(link.url());
+                if (link != null && link.url() != null) confirmOpenLink(link.url());
                 break;
             case COPY:
                 if (link != null && link.userCode() != null) setClipboardString(link.userCode());
@@ -213,6 +213,16 @@ public final class SettingsScreen extends LegacyGuiScreen {
                 break;
         }
         initGui();
+    }
+
+    /** Demande confirmation avant d'ouvrir le lien (comme ConfirmLinkScreen en 1.20/1.21) : l'adresse vient de la configuration, pas de confiance. */
+    private void confirmOpenLink(String url) {
+        mc.displayGuiScreen(new PromptScreen(Lang.tr("xpack.link.confirm.title"),
+                J8.listOf(new PromptScreen.Section(null, Lang.tr("xpack.link.confirm.body")), new PromptScreen.Section(null, Fmt.AQUA + url)),
+                Lang.tr("xpack.link.confirm.open"), Lang.tr("xpack.link.confirm.cancel"), true, ok -> {
+                    if (ok) openLink(url);
+                    mc.displayGuiScreen(this);
+                }));
     }
 
     /** Navigateur du système, par réflexion comme le jeu : java.awt peut manquer sur certaines installations. */

@@ -99,15 +99,25 @@ final class XPackToasts {
         return XPackClient.core() == null ? "top_right" : XPackClient.core().config().toastPosition("top_right");
     }
 
+    /** File d'attente du jeu (mixin facultatif) : sans lui, on ne sait pas si le jeu a des toasts en attente, on suppose que non. */
+    private static boolean queuedByGame(ToastComponent toasts) {
+        try {
+            return !((ToastComponentAccessor) toasts).xpack$queued().isEmpty();
+        } catch (ClassCastException | LinkageError e) {
+            return false;
+        }
+    }
+
     /** Appelé à chaque tick client. */
     static void tick(Minecraft mc) {
         long now = System.currentTimeMillis();
         placed.removeIf(p -> p.hiddenAt > 0 && now - p.hiddenAt >= SLIDE_MS);
         if (unlocks.isEmpty() && alerts.isEmpty() && completions.isEmpty()) return;
         ToastComponent toasts = mc.getToasts();
-        boolean ownCorner = !"top_right".equals(corner());
+        // Autre coin que le haut à droite : seulement si le mixin de dessin est actif (facultatif) ; sinon repli sur la file du jeu.
+        boolean ownCorner = !"top_right".equals(corner()) && XPackClient.placedToastsRender();
         boolean gameBusy = toasts.getToast(AdvancementToast.class, Toast.NO_TOKEN) != null
-                || !((ToastComponentAccessor) toasts).xpack$queued().isEmpty();
+                || queuedByGame(toasts);
         if (gameBusy) gameToastSeenAt = now;
         boolean gameQuiet = !gameBusy && now - gameToastSeenAt >= QUIET_MS;
         // L'alerte d'intégrité, en haut à droite avec le jeu : elle porte la touche du support, active pendant son affichage.

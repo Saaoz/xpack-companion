@@ -37,7 +37,7 @@ final class PacketSpy {
             try {
                 if (msg instanceof S37PacketStatistics) Client1710.onStatsPacket((S37PacketStatistics) msg);
                 else if (msg instanceof S0DPacketCollectItem) Client1710.onCollectItemPacket((S0DPacketCollectItem) msg);
-            } catch (RuntimeException e) {
+            } catch (RuntimeException | LinkageError e) {
                 // Jamais gêner le jeu : au pire, ce paquet n'est pas compté.
             }
             ctx.fireChannelRead(msg);
@@ -62,7 +62,7 @@ final class PacketSpy {
             try {
                 Callable<Boolean> decision = () -> Client1710.beforeCommand(command);
                 return (Boolean) Minecraft.getMinecraft().func_152343_a(decision).get(2, TimeUnit.SECONDS);
-            } catch (Exception e) {
+            } catch (Exception | LinkageError e) {
                 return true;
             }
         }
